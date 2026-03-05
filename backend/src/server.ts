@@ -59,7 +59,7 @@ app.use('/realtime', requireAuth, realtimeRouter);
 app.use(errorLogger);
 app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
   const isProduction = env.NODE_ENV === 'production';
-  
+
   // Log error details
   logger.error({
     error: err.message,
@@ -108,7 +108,7 @@ process.on('uncaughtException', (error) => {
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-  logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  logger.error('Unhandled Rejection at:', { reason: reason instanceof Error ? reason.message : JSON.stringify(reason), stack: reason instanceof Error ? reason.stack : undefined });
 });
 
 app.listen(env.PORT, () => {
