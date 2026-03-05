@@ -1,0 +1,195 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String            @id @default(uuid())
+  name              String?
+  email             String            @unique
+  password          String
+  active            Boolean           @default(true)
+  lastLoginAt       DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  ownedWorkspaces   Workspace[]       @relation("WorkspaceOwner")
+  workspaceMembers  WorkspaceMember[]
+  assignedContacts  Contact[]         @relation("ContactAssignee")
+  sentMessages      Message[]         @relation("MessageSender")
+  followupsAssigned Followup[]        @relation("FollowupAssignee")
+  typingStatuses    TypingIndicator[]
+  readReceipts      ReadReceipt[]
+}
+
+model Workspace {
+  id            String            @id @default(uuid())
+  name          String
+  slug          String            @unique
+  ownerId       String
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  owner         User              @relation("WorkspaceOwner", fields: [ownerId], references: [id])
+  members       WorkspaceMember[]
+  wa            WaAccount?
+  contacts      Contact[]
+  conversations Conversation[]
+  messages      Message[]
+  followups     Followup[]
+  templates     Template[]
+
+  @@index([ownerId])
+}
+
+model WorkspaceMember {
+  id          String   @id @default(uuid())
+  workspaceId String
+  userId      String
+  role        String   @default("agent")
+  createdAt   DateTime @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+}
+
+model WaAccount {
+  id                 String   @id @default(uuid())
+  workspaceId        String   @unique
+  phoneNumberId      String
+  businessAccountId  String
+  accessToken        String
+  webhookVerifyToken String
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  workspace          Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+model Contact {
+  id             String         @id @default(uuid())
+  workspaceId    String
+  name           String?
+  phone          String
+  email          String?
+  tags           String         @default("")
+  stage          String         @default("new")
+  assignedToId   String?
+  lastMessageAt  DateTime?
+  unreadCount    Int            @default(0)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  workspace      Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  assignedTo     User?          @relation("ContactAssignee", fields: [assignedToId], references: [id])
+  conversations  Conversation[]
+  messages       Message[]
+  followups      Followup[]
+
+  @@unique([workspaceId, phone])
+  @@index([workspaceId, stage])
+  @@index([assignedToId])
+}
+
+model Conversation {
+  id          String   @id @default(uuid())
+  workspaceId String
+  contactId   String
+  status      String   @default("open")
+  lastReadAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  contact     Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  messages    Message[]
+  typingUsers TypingIndicator[]
+
+  @@unique([workspaceId, contactId])
+  @@index([workspaceId])
+  @@index([contactId])
+}
+
+model TypingIndicator {
+  id             String   @id @default(uuid())
+  conversationId String
+  userId         String
+  workspaceId    String
+  status         String   @default("idle")
+  updatedAt      DateTime @updatedAt
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([conversationId])
+  @@index([userId])
+  @@index([updatedAt])
+}
+
+model Message {
+  id             String   @id @default(uuid())
+  workspaceId    String
+  conversationId String
+  contactId      String
+  direction      String
+  type           String   @default("text")
+  bodyText       String?
+  waMessageId    String?
+  sentByUserId   String?
+  readAt         DateTime?
+  createdAt      DateTime @default(now())
+  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  contact        Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  sentByUser     User?    @relation("MessageSender", fields: [sentByUserId], references: [id])
+  readReceipts   ReadReceipt[]
+
+  @@index([workspaceId, createdAt])
+  @@index([conversationId, createdAt])
+  @@index([contactId, createdAt])
+  @@index([waMessageId])
+}
+
+model ReadReceipt {
+  id        String   @id @default(uuid())
+  messageId String
+  userId    String
+  readAt    DateTime @default(now())
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([messageId])
+  @@index([userId])
+}
+
+model Followup {
+  id           String   @id @default(uuid())
+  workspaceId  String
+  contactId    String
+  assignedToId String?
+  dueAt        DateTime
+  note         String?
+  status       String   @default("pending")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  contact      Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  assignedTo   User?    @relation("FollowupAssignee", fields: [assignedToId], references: [id])
+
+  @@index([workspaceId, status, dueAt])
+  @@index([assignedToId])
+}
+
+model Template {
+  id          String   @id @default(uuid())
+  workspaceId String
+  title       String
+  body        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+}
