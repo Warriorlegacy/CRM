@@ -39,7 +39,7 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
 
   res.on('finish', () => {
     const duration = Date.now() - start;
-    logger.info({
+    logger.info(`${req.method} ${req.url} ${res.statusCode} - ${duration}ms`, {
       method: req.method,
       url: req.url,
       status: res.statusCode,

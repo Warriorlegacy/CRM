@@ -108,7 +108,8 @@ process.on('uncaughtException', (error) => {
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-  logger.error('Unhandled Rejection at:', { reason: reason instanceof Error ? reason.message : JSON.stringify(reason), stack: reason instanceof Error ? reason.stack : undefined });
+  const errorMsg = reason instanceof Error ? `${reason.message}\n${reason.stack}` : JSON.stringify(reason);
+  logger.error(`Unhandled Rejection: ${errorMsg}`);
 });
 
 app.listen(env.PORT, () => {
