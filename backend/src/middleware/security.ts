@@ -4,6 +4,7 @@ import mongoSanitize from 'express-mongo-sanitize';
 import hpp from 'hpp';
 import cors from 'cors';
 import { Express, Request, Response } from 'express';
+import { logger } from './logger';
 
 export function setupSecurity(app: Express) {
   // Trust proxy (needed for rate limiting behind reverse proxy)
@@ -12,10 +13,20 @@ export function setupSecurity(app: Express) {
   // CORS configuration
   const origin = process.env.CORS_ORIGIN === '*'
     ? '*'
-    : process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000'];
+    : process.env.CORS_ORIGIN?.split(',').map(o => o.trim()) || ['http://localhost:3000'];
 
-  const corsOptions = {
-    origin,
+  logger.info('CORS Configured with origin:', { origin });
+
+  const corsOptions: cors.CorsOptions = {
+    origin: (requestOrigin, callback) => {
+      logger.info('Incoming CORS request', { requestOrigin });
+      if (!requestOrigin || origin === '*' || (Array.isArray(origin) && origin.includes(requestOrigin))) {
+        callback(null, true);
+      } else {
+        logger.error('CORS rejected', { requestOrigin, expectedOrigins: origin });
+        callback(null, false);
+      }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'x-user-id', 'x-workspace-id'],
