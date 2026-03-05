@@ -10,8 +10,12 @@ export function setupSecurity(app: Express) {
   app.set('trust proxy', 1);
 
   // CORS configuration
+  const origin = process.env.CORS_ORIGIN === '*'
+    ? '*'
+    : process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000'];
+
   const corsOptions = {
-    origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000'],
+    origin,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'x-user-id', 'x-workspace-id'],
@@ -68,19 +72,19 @@ export function setupSecurity(app: Express) {
   app.use((req: Request, res: Response, next) => {
     // Prevent clickjacking
     res.setHeader('X-Frame-Options', 'DENY');
-    
+
     // Prevent MIME type sniffing
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    
+
     // XSS Protection
     res.setHeader('X-XSS-Protection', '1; mode=block');
-    
+
     // Referrer Policy
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-    
+
     // Permissions Policy
     res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
-    
+
     next();
   });
 }
