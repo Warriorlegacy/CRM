@@ -59,7 +59,7 @@ EXPOSE 3001
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3001/health || exit 1
+  CMD sh -c "curl -f http://localhost:${PORT:-3001}/health" || exit 1
 
 # Start the application
 CMD ["sh", "-c", "echo 'Running migrations...' && npx prisma migrate deploy --verbose && echo 'Migrations complete, starting server...' && node dist/server.js"]
