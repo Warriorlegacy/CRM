@@ -15,6 +15,7 @@ export function useTypingIndicator(
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const prevConversationIdRef = useRef<string | null>(null);
 
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -84,8 +85,13 @@ export function useTypingIndicator(
 
   // Poll typing status every 2 seconds
   useEffect(() => {
-    if (!conversationId) {
+    // Reset typing users when conversation changes
+    if (prevConversationIdRef.current && prevConversationIdRef.current !== conversationId) {
       setTypingUsers([]);
+    }
+    prevConversationIdRef.current = conversationId;
+
+    if (!conversationId) {
       return;
     }
 

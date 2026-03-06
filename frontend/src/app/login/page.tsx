@@ -20,8 +20,9 @@ export default function LoginPage() {
     try {
       await login(email, password);
       router.push('/inbox');
-    } catch (err: any) {
-      setError(err.message || 'Login failed. Please check your credentials.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Login failed. Please check your credentials.';
+      setError(message);
     }
   };
 
@@ -95,7 +96,7 @@ export default function LoginPage() {
 
           <div className="text-center">
             <p className="text-sm text-zinc-400">
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <Link href="/register" className="font-medium text-emerald-500 hover:text-emerald-400">
                 Sign up
               </Link>

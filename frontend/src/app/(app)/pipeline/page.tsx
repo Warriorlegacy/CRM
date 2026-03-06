@@ -17,6 +17,11 @@ interface Contact {
   unreadCount: number;
 }
 
+interface Conversation {
+  id: string;
+  contactId: string;
+}
+
 const STAGES = [
   { id: 'new', name: 'New', color: 'bg-blue-500' },
   { id: 'followup', name: 'Follow-up', color: 'bg-yellow-500' },
@@ -68,9 +73,9 @@ export default function PipelinePage() {
 
     try {
       // Find conversation for this contact
-      const convoData = await api.get('/inbox/conversations', { headers });
+      const convoData = await api.get<{ conversations: Conversation[] }>('/inbox/conversations', { headers });
       const conversation = convoData.conversations.find(
-        (c: any) => c.contactId === draggedContact.id
+        (c) => c.contactId === draggedContact.id
       );
 
       if (conversation) {

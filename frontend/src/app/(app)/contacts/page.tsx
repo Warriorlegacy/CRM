@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
-import { User, Phone, Search, Plus, Filter, MoreHorizontal, Mail, Calendar, X } from 'lucide-react';
+import { User, Phone, Search, Plus, Filter, MoreHorizontal } from 'lucide-react';
 
 interface Contact {
   id: string;
@@ -75,7 +75,7 @@ export default function ContactsPage() {
 
   const loadContacts = async () => {
     try {
-      const data = await api.get('/contacts', { headers });
+      const data = await api.get<{ contacts: Contact[] }>('/contacts', { headers });
       setContacts(data.contacts);
     } catch (error) {
       console.error('Failed to load contacts:', error);

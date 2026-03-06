@@ -20,11 +20,13 @@ function getHeaders(customHeaders?: Record<string, string>): Record<string, stri
 
 export interface ApiError extends Error {
   status?: number;
-  data?: any;
+  data?: unknown;
 }
 
+type RequestBody = Record<string, unknown> | unknown[] | string | number | boolean | null;
+
 export const api = {
-  async get(path: string, options?: { headers?: Record<string, string> }) {
+  async get<T = unknown>(path: string, options?: { headers?: Record<string, string> }): Promise<T> {
     const res = await fetch(`${API_BASE}${path}`, {
       headers: getHeaders(options?.headers),
     });
@@ -51,11 +53,11 @@ export const api = {
       throw error;
     }
     
-    if (res.status === 204) return null;
+    if (res.status === 204) return null as T;
     return res.json();
   },
 
-  async post(path: string, body: any, options?: { headers?: Record<string, string> }) {
+  async post<T = unknown>(path: string, body: RequestBody, options?: { headers?: Record<string, string> }): Promise<T> {
     const res = await fetch(`${API_BASE}${path}`, {
       method: 'POST',
       headers: getHeaders(options?.headers),
@@ -85,7 +87,7 @@ export const api = {
     return res.json();
   },
 
-  async patch(path: string, body: any, options?: { headers?: Record<string, string> }) {
+  async patch<T = unknown>(path: string, body: RequestBody, options?: { headers?: Record<string, string> }): Promise<T> {
     const res = await fetch(`${API_BASE}${path}`, {
       method: 'PATCH',
       headers: getHeaders(options?.headers),
@@ -115,7 +117,7 @@ export const api = {
     return res.json();
   },
 
-  async put(path: string, body: any, options?: { headers?: Record<string, string> }) {
+  async put<T = unknown>(path: string, body: RequestBody, options?: { headers?: Record<string, string> }): Promise<T> {
     const res = await fetch(`${API_BASE}${path}`, {
       method: 'PUT',
       headers: getHeaders(options?.headers),

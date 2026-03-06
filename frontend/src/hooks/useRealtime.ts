@@ -1,8 +1,13 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 
-export function useRealtime(workspaceId: string, onMessage: (data: any) => void) {
+interface RealtimeEvent {
+  type: string;
+  data: Record<string, unknown>;
+}
+
+export function useRealtime(workspaceId: string, onMessage: (data: RealtimeEvent) => void) {
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {

@@ -13,6 +13,15 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  // Disable strict rules that cause issues with common React patterns
+  {
+    rules: {
+      // Allow setState in effects for initial data fetching
+      "react-hooks/set-state-in-effect": "off",
+      // Allow useEffect dependencies for data fetching callbacks
+      "react-hooks/exhaustive-deps": "warn",
+    },
+  },
 ]);
 
 export default eslintConfig;

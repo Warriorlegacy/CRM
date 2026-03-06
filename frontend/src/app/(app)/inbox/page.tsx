@@ -172,8 +172,8 @@ export default function InboxPage() {
 
   const loadTeamMembers = async () => {
     try {
-      const data = await api.get('/workspaces/current', { headers });
-      const members = data.workspace.members.map((m: any) => ({
+      const data = await api.get<{ workspace: { members: { user: { id: string; name: string; email: string } }[] } }>('/workspaces/current', { headers });
+      const members = data.workspace.members.map((m) => ({
         id: m.user.id,
         name: m.user.name,
         email: m.user.email,

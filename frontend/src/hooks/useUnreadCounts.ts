@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '@/lib/api';
 
 export function useUnreadCounts(
@@ -9,10 +9,11 @@ export function useUnreadCounts(
 ) {
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [totalUnread, setTotalUnread] = useState(0);
+  const isFirstRender = useRef(true);
 
   const fetchUnreadCounts = useCallback(async () => {
     try {
-      const res = await api.get('/inbox/unread-counts', {
+      const res = await api.get<{ totalUnread: number }>('/inbox/unread-counts', {
         headers: { 'x-user-id': userId, 'x-workspace-id': workspaceId },
       });
       setTotalUnread(res.totalUnread);
@@ -22,12 +23,6 @@ export function useUnreadCounts(
   }, [workspaceId, userId]);
 
   const updateUnreadCount = useCallback((contactId: string, count: number) => {
-    setUnreadCounts((prev) => ({
-      ...prev,
-      [contactId]: count,
-    }));
-
-    // Recalculate total
     setUnreadCounts((prev) => {
       const newCounts = { ...prev, [contactId]: count };
       const total = Object.values(newCounts).reduce((a, b) => a + b, 0);
@@ -37,8 +32,13 @@ export function useUnreadCounts(
   }, []);
 
   useEffect(() => {
+    // Skip on first render - initial state is already set
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
     fetchUnreadCounts();
-  }, [fetchUnreadCounts]);
+  }, [workspaceId, userId]);
 
   return {
     unreadCounts,

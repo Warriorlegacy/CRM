@@ -140,13 +140,13 @@ export default function SettingsPage() {
         {/* Sidebar */}
         <div className="w-64 space-y-1">
           {[
-            { id: 'general', label: 'General', icon: Settings },
-            { id: 'whatsapp', label: 'WhatsApp', icon: Smartphone },
-            { id: 'notifications', label: 'Notifications', icon: Bell },
+            { id: 'general' as const, label: 'General', icon: Settings },
+            { id: 'whatsapp' as const, label: 'WhatsApp', icon: Smartphone },
+            { id: 'notifications' as const, label: 'Notifications', icon: Bell },
           ].map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => setActiveTab(tab.id)}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-colors ${
                 activeTab === tab.id
                   ? 'bg-zinc-800 text-white'

@@ -40,8 +40,9 @@ export default function RegisterPage() {
         formData.workspaceName || undefined
       );
       router.push('/inbox');
-    } catch (err: any) {
-      setError(err.message || 'Registration failed. Please try again.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Registration failed. Please try again.';
+      setError(message);
     }
   };
 

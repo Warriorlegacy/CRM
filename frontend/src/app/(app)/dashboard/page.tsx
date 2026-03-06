@@ -3,12 +3,12 @@
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
-import { 
-  Users, 
-  MessageSquare, 
-  TrendingUp, 
-  Clock, 
-  ArrowUp, 
+import {
+  Users,
+  MessageSquare,
+  TrendingUp,
+  Clock,
+  ArrowUp,
   ArrowDown,
   Activity,
   PieChart,
@@ -64,7 +64,7 @@ export default function DashboardPage() {
 
   const loadAnalytics = async () => {
     try {
-      const data = await api.get(`/analytics?period=${period}`, { headers });
+      const data = await api.get<{ analytics: Analytics }>(`/analytics?period=${period}`, { headers });
       setAnalytics(data.analytics);
     } catch (error) {
       console.error('Failed to load analytics:', error);
@@ -116,11 +116,10 @@ export default function DashboardPage() {
             <button
               key={p}
               onClick={() => setPeriod(p)}
-              className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
-                period === p
+              className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${period === p
                   ? 'bg-white text-black'
                   : 'bg-zinc-800 text-zinc-400 hover:text-white'
-              }`}
+                }`}
             >
               {p}
             </button>

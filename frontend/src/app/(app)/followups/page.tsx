@@ -51,8 +51,8 @@ export default function FollowupsPage() {
   const loadData = async () => {
     try {
       const [followupsData, contactsData] = await Promise.all([
-        api.get('/followups', { headers }),
-        api.get('/contacts', { headers }),
+        api.get<{ followups: Followup[] }>('/followups', { headers }),
+        api.get<{ contacts: Contact[] }>('/contacts', { headers }),
       ]);
       setFollowups(followupsData.followups);
       setContacts(contactsData.contacts);
@@ -158,11 +158,10 @@ export default function FollowupsPage() {
           <button
             key={tab}
             onClick={() => setFilter(tab)}
-            className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-              filter === tab
+            className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${filter === tab
                 ? 'bg-white text-black'
                 : 'bg-zinc-900/50 text-zinc-400 hover:text-white'
-            }`}
+              }`}
           >
             {tab.charAt(0).toUpperCase() + tab.slice(1)}
             {tab === 'pending' && pendingCount > 0 && (
@@ -188,13 +187,12 @@ export default function FollowupsPage() {
           filteredFollowups.map((followup) => (
             <div
               key={followup.id}
-              className={`p-4 bg-zinc-900/30 border rounded-2xl transition-colors ${
-                followup.status === 'done'
+              className={`p-4 bg-zinc-900/30 border rounded-2xl transition-colors ${followup.status === 'done'
                   ? 'border-zinc-800 opacity-60'
                   : isOverdue(followup.dueAt)
-                  ? 'border-red-800/50 bg-red-900/10'
-                  : 'border-zinc-800'
-              }`}
+                    ? 'border-red-800/50 bg-red-900/10'
+                    : 'border-zinc-800'
+                }`}
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
@@ -216,11 +214,10 @@ export default function FollowupsPage() {
                   )}
 
                   <div className="flex items-center gap-4 text-sm">
-                    <div className={`flex items-center gap-1 ${
-                      followup.status === 'pending' && isOverdue(followup.dueAt)
+                    <div className={`flex items-center gap-1 ${followup.status === 'pending' && isOverdue(followup.dueAt)
                         ? 'text-red-400'
                         : 'text-zinc-400'
-                    }`}>
+                      }`}>
                       <Clock className="w-4 h-4" />
                       {formatDate(followup.dueAt)}
                       {followup.status === 'pending' && isOverdue(followup.dueAt) && (
