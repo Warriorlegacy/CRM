@@ -2,11 +2,13 @@
 
 import { useCallback } from 'react';
 
-type AudioContextType = AudioContext & { webkitAudioContext?: typeof AudioContext };
+type AudioContextType = typeof AudioContext;
 
 export function useNotificationSound() {
   const getAudioContext = useCallback(() => {
-    return new (window.AudioContext || (window.webkitAudioContext as typeof AudioContext))() as AudioContextType;
+    const AudioCtx = window.AudioContext || (window as { webkitAudioContext?: AudioContextType }).webkitAudioContext;
+    if (!AudioCtx) throw new Error('AudioContext not supported');
+    return new AudioCtx();
   }, []);
 
   const playMessageSound = useCallback(() => {

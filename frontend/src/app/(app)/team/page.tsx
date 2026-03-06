@@ -46,7 +46,7 @@ export default function TeamPage() {
 
   const loadWorkspace = async () => {
     try {
-      const data = await api.get('/workspaces/current', { headers });
+      const data = await api.get<{ workspace: Workspace }>('/workspaces/current', { headers });
       setWorkspaceData(data.workspace);
     } catch (error) {
       console.error('Failed to load workspace:', error);

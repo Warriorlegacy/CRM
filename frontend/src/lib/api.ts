@@ -83,7 +83,7 @@ export const api = {
       throw error;
     }
     
-    if (res.status === 204) return null;
+    if (res.status === 204) return null as unknown as T;
     return res.json();
   },
 
@@ -113,7 +113,7 @@ export const api = {
       throw error;
     }
     
-    if (res.status === 204) return null;
+    if (res.status === 204) return null as unknown as T;
     return res.json();
   },
 
@@ -143,7 +143,7 @@ export const api = {
       throw error;
     }
     
-    if (res.status === 204) return null;
+    if (res.status === 204) return null as unknown as T;
     return res.json();
   },
 
@@ -172,7 +172,7 @@ export const api = {
       throw error;
     }
     
-    if (res.status === 204) return null;
+    if (res.status === 204) return null as unknown;
     return res.json();
   },
 };

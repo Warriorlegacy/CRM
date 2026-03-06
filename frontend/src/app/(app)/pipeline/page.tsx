@@ -50,7 +50,7 @@ export default function PipelinePage() {
 
   const loadContacts = async () => {
     try {
-      const data = await api.get('/contacts', { headers });
+      const data = await api.get<{ contacts: Contact[] }>('/contacts', { headers });
       setContacts(data.contacts);
     } catch (error) {
       console.error('Failed to load contacts:', error);

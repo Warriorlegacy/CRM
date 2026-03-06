@@ -48,7 +48,7 @@ export default function SettingsPage() {
 
   const loadWorkspace = async () => {
     try {
-      const data = await api.get('/workspaces/current', { headers });
+      const data = await api.get<{ workspace: Workspace }>('/workspaces/current', { headers });
       setWorkspaceData(data.workspace);
       setSettings(prev => ({
         ...prev,

@@ -121,9 +121,9 @@ export default function InboxPage() {
       
       // Update conversations list
       setConversations((prev) => {
-        const updated = prev.map((c) =>
+        const updated: Conversation[] = prev.map((c) =>
           c.id === msg.conversationId
-            ? { ...c, lastMessage: msg.bodyText, lastMessageAt: msg.createdAt }
+            ? { ...c, lastMessage: msg.bodyText as string, lastMessageAt: msg.createdAt as string }
             : c
         );
         return updated.sort((a, b) => 
@@ -133,7 +133,7 @@ export default function InboxPage() {
 
       // Add to current chat if open
       if (selectedConversation?.id === msg.conversationId) {
-        setMessages((prev) => [...prev, msg]);
+        setMessages((prev) => [...prev, msg as unknown as Message]);
       } else {
         // Play sound for messages in other conversations
         playNotification();
@@ -149,7 +149,7 @@ export default function InboxPage() {
 
   const loadConversations = async () => {
     try {
-      const data = await api.get('/inbox/conversations', { headers });
+      const data = await api.get<{ conversations: Conversation[] }>('/inbox/conversations', { headers });
       setConversations(data.conversations);
       if (data.conversations.length > 0 && !selectedConversation) {
         setSelectedConversation(data.conversations[0]);
@@ -163,7 +163,7 @@ export default function InboxPage() {
 
   const loadTemplates = async () => {
     try {
-      const data = await api.get('/templates', { headers });
+      const data = await api.get<{ templates: Template[] }>('/templates', { headers });
       setTemplates(data.templates);
     } catch (error) {
       console.error('Failed to load templates:', error);
@@ -257,7 +257,7 @@ export default function InboxPage() {
 
   const loadMessages = async (conversationId: string) => {
     try {
-      const data = await api.get(`/inbox/conversations/${conversationId}/messages`, { headers });
+      const data = await api.get<{ messages: Message[] }>(`/inbox/conversations/${conversationId}/messages`, { headers });
       setMessages(data.messages);
       // Reset unread count in UI
       setConversations((prev) =>
