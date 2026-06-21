@@ -8,17 +8,14 @@ export const webhooksRouter = Router();
 // ── WhatsApp Webhook ──────────────────────────────────────────
 
 webhooksRouter.get('/webhook', (req, res) => {
-  const mode = req.query['hub.mode'];
-  const token = req.query['hub.verify_token'];
-  const challenge = req.query['hub.challenge'];
-  const expectedToken = env.WA_VERIFY_TOKEN;
+  const mode = req.query['hub.mode'] || (req.query.hub as any)?.mode;
+  const token = req.query['hub.verify_token'] || (req.query.hub as any)?.verify_token;
+  const challenge = req.query['hub.challenge'] || (req.query.hub as any)?.challenge;
 
-  console.log('[WEBHOOK_VERIFY] mode:', mode, 'token:', token, 'expectedToken:', expectedToken, 'expectedTokenType:', typeof expectedToken, 'tokenType:', typeof token, 'match:', token === expectedToken);
-
-  if (mode === 'subscribe' && token === expectedToken) {
+  if (mode === 'subscribe' && token === env.WA_VERIFY_TOKEN) {
     return res.status(200).send(challenge);
   }
-  return res.status(403).json({ error: 'Forbidden', expected: expectedToken ? expectedToken.substring(0,3)+'...' : 'undefined' });
+  return res.status(403).json({ error: 'Forbidden' });
 });
 
 webhooksRouter.post('/webhook', async (req, res) => {
@@ -34,9 +31,9 @@ webhooksRouter.post('/webhook', async (req, res) => {
 // ── Instagram Webhook ─────────────────────────────────────────
 
 webhooksRouter.get('/webhook/instagram', (req, res) => {
-  const mode = req.query['hub.mode'];
-  const token = req.query['hub.verify_token'];
-  const challenge = req.query['hub.challenge'];
+  const mode = req.query['hub.mode'] || (req.query.hub as any)?.mode;
+  const token = req.query['hub.verify_token'] || (req.query.hub as any)?.verify_token;
+  const challenge = req.query['hub.challenge'] || (req.query.hub as any)?.challenge;
 
   if (mode === 'subscribe' && token === env.IG_VERIFY_TOKEN) {
     return res.status(200).send(challenge);
