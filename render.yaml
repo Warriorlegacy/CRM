@@ -4,8 +4,8 @@ services:
     name: whatsapp-crm-backend
     runtime: node
     plan: free
-    buildCommand: npm install && npx prisma generate --data-proxy && npm run build
-    startCommand: npx prisma migrate deploy && node dist/server.js
+    buildCommand: npm install --include=dev && npx prisma generate && npm run build
+    startCommand: node dist/server.js
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
@@ -27,7 +27,7 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: CORS_ORIGIN
-        value: https://whatsapp-crm-frontend.onrender.com
+        value: https://signhify-crm.vercel.app
       - key: PORT
         value: 3001
       - key: LOG_LEVEL
@@ -36,6 +36,16 @@ services:
         value: "900000"
       - key: RATE_LIMIT_MAX_REQUESTS
         value: "100"
+      - key: META_APP_ID
+        value: "YOUR_META_APP_ID_HERE"
+      - key: META_APP_SECRET
+        value: "YOUR_META_APP_SECRET_HERE"
+      - key: FRONTEND_URL
+        value: https://signhify-crm.vercel.app
+      - key: ADMIN_SECRET
+        value: "crm-admin-setup-key-2026"
+      - key: ADMIN_ENABLED
+        value: "false"
 
   # ── Frontend ────────────────────────────────────────────────────────
   - type: web
@@ -48,4 +58,4 @@ services:
       - key: NODE_ENV
         value: production
       - key: NEXT_PUBLIC_API_URL
-        value: https://whatsapp-crm-backend.onrender.com
+        value: https://whatsapp-crm-backend-bv1j.onrender.com/api/v1

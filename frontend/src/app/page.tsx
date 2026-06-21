@@ -438,8 +438,8 @@ export default function HomePage() {
               <div>
                 <h4 className="text-sm font-semibold text-white">Legal</h4>
                 <ul className="mt-3 space-y-2">
-                  <li><a href="#" className="text-sm text-slate-400 hover:text-white">Privacy</a></li>
-                  <li><a href="#" className="text-sm text-slate-400 hover:text-white">Terms</a></li>
+                  <li><a href="/privacy" className="text-sm text-slate-400 hover:text-white">Privacy</a></li>
+                  <li><a href="/terms" className="text-sm text-slate-400 hover:text-white">Terms</a></li>
                 </ul>
               </div>
             </div>
