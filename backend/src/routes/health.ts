@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import os from 'os';
+import { env } from '../env';
 
 export const healthRouter = Router();
 
@@ -60,6 +61,18 @@ healthRouter.get('/ready', (req, res) => {
 healthRouter.get('/live', (req, res) => {
   res.status(200).json({
     alive: true,
+  });
+});
+
+// Debug env (no auth required)
+healthRouter.get('/debug-env', (req, res) => {
+  res.json({
+    wa_verify_token: env.WA_VERIFY_TOKEN || 'NOT SET',
+    wa_token_type: typeof env.WA_VERIFY_TOKEN,
+    wa_token_length: env.WA_VERIFY_TOKEN?.length || 0,
+    ig_verify_token: env.IG_VERIFY_TOKEN || 'NOT SET',
+    meta_app_id: env.META_APP_ID ? 'SET' : 'NOT SET',
+    node_env: env.NODE_ENV,
   });
 });
 
