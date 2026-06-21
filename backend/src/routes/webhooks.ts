@@ -11,11 +11,14 @@ webhooksRouter.get('/webhook', (req, res) => {
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
+  const expectedToken = env.WA_VERIFY_TOKEN;
 
-  if (mode === 'subscribe' && token === env.WA_VERIFY_TOKEN) {
+  console.log('[WEBHOOK_VERIFY] mode:', mode, 'token:', token, 'expectedToken:', expectedToken, 'expectedTokenType:', typeof expectedToken, 'tokenType:', typeof token, 'match:', token === expectedToken);
+
+  if (mode === 'subscribe' && token === expectedToken) {
     return res.status(200).send(challenge);
   }
-  return res.status(403).json({ error: 'Forbidden' });
+  return res.status(403).json({ error: 'Forbidden', expected: expectedToken ? expectedToken.substring(0,3)+'...' : 'undefined' });
 });
 
 webhooksRouter.post('/webhook', async (req, res) => {
