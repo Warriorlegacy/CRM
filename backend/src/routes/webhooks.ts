@@ -12,6 +12,14 @@ webhooksRouter.get('/webhook', (req, res) => {
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
 
+  console.log('[WEBHOOK_DEBUG]', JSON.stringify({
+    mode, token, challenge,
+    query: req.query,
+    expectedToken: env.WA_VERIFY_TOKEN,
+    match: token === env.WA_VERIFY_TOKEN,
+    modeMatch: mode === 'subscribe',
+  }));
+
   if (mode === 'subscribe' && token === env.WA_VERIFY_TOKEN) {
     return res.status(200).send(challenge);
   }

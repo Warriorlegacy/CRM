@@ -73,6 +73,9 @@ healthRouter.get('/debug-env', (req, res) => {
     ig_verify_token: env.IG_VERIFY_TOKEN || 'NOT SET',
     meta_app_id: env.META_APP_ID ? 'SET' : 'NOT SET',
     node_env: env.NODE_ENV,
+    query: req.query,
+    query_mode: req.query['hub.mode'],
+    query_hub: (req.query as any).hub,
   });
 });
 
