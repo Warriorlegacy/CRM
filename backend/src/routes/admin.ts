@@ -1,20 +1,29 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { execSync } from 'child_process';
-import { prisma } from '../prisma';
 
 export const adminRouter = Router();
 
-// One-time setup: push schema + seed
-adminRouter.get('/setup', async (_req, res) => {
+// Admin secret key - only accessible with this key
+const ADMIN_SECRET = process.env.ADMIN_SECRET || 'change-this-in-production';
+
+function requireAdminSecret(req: Request, res: Response, next: NextFunction): void {
+  const secret = req.headers['x-admin-secret'] || req.query.secret;
+  if (secret !== ADMIN_SECRET) {
+    res.status(403).json({ error: 'Forbidden', message: 'Invalid admin secret' });
+    return;
+  }
+  next();
+}
+
+// One-time setup: push schema + seed (requires admin secret)
+adminRouter.get('/setup', requireAdminSecret, async (_req, res) => {
   try {
-    // Step 1: Push schema to database
     execSync('npx prisma db push --skip-generate', {
       cwd: process.cwd(),
       stdio: 'pipe',
       timeout: 60000,
     });
 
-    // Step 2: Run seed
     execSync('npx ts-node prisma/seed.ts', {
       cwd: process.cwd(),
       stdio: 'pipe',
@@ -28,8 +37,8 @@ adminRouter.get('/setup', async (_req, res) => {
   }
 });
 
-// Just push schema (no seed)
-adminRouter.get('/db-push', async (_req, res) => {
+// Just push schema (requires admin secret)
+adminRouter.get('/db-push', requireAdminSecret, async (_req, res) => {
   try {
     execSync('npx prisma db push --skip-generate', {
       cwd: process.cwd(),
@@ -43,8 +52,8 @@ adminRouter.get('/db-push', async (_req, res) => {
   }
 });
 
-// Just seed (requires tables to exist)
-adminRouter.get('/seed', async (_req, res) => {
+// Just seed (requires admin secret)
+adminRouter.get('/seed', requireAdminSecret, async (_req, res) => {
   try {
     execSync('npx ts-node prisma/seed.ts', {
       cwd: process.cwd(),

@@ -9,8 +9,8 @@ interface TypingUser {
 
 export function useTypingIndicator(
   conversationId: string | null,
-  workspaceId: string = 'd805d45d-0e17-48b1-911a-4560b5a61adc',
-  userId: string = 'aa536bed-b44a-495b-b59e-d710003eebc8'
+  workspaceId?: string,
+  userId?: string
 ) {
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
   const [isTyping, setIsTyping] = useState(false);

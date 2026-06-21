@@ -25,8 +25,8 @@ const nav = [
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { totalUnread } = useUnreadCounts();
   const { user, workspace, logout } = useAuth();
+  const { totalUnread } = useUnreadCounts(workspace?.id, user?.id);
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
 

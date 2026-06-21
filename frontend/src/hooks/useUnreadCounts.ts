@@ -4,8 +4,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '@/lib/api';
 
 export function useUnreadCounts(
-  workspaceId: string = 'd805d45d-0e17-48b1-911a-4560b5a61adc',
-  userId: string = 'aa536bed-b44a-495b-b59e-d710003eebc8'
+  workspaceId?: string,
+  userId?: string
 ) {
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [totalUnread, setTotalUnread] = useState(0);
