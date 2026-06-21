@@ -67,7 +67,7 @@ export function setupSecurity(app: Express) {
   // Stricter rate limiting for auth endpoints
   const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 5, // 5 attempts
+    max: process.env.NODE_ENV === 'test' ? 1000 : 5, // 5 attempts in production, more in test
     message: 'Too many authentication attempts, please try again later.',
     skipSuccessfulRequests: true,
   });

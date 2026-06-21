@@ -1,12 +1,15 @@
 'use client';
 
 import { Search } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Topbar() {
+  const { workspace, user } = useAuth();
+
   return (
-    <header className="border-b border-zinc-800 bg-zinc-950 px-5 py-3 flex items-center justify-between sticky top-0 z-10">
+    <header className="sticky top-0 z-10 flex items-center justify-between border-b border-zinc-800 bg-[rgba(6,12,23,0.72)] px-5 py-3 backdrop-blur-xl">
       <div className="text-sm text-zinc-400">
-        Workspace: <span className="text-zinc-200 font-medium">Demo Workspace</span>
+        Workspace: <span className="font-medium text-zinc-200">{workspace?.name || 'Your Workspace'}</span>
       </div>
 
       <div className="flex items-center gap-3">
@@ -17,8 +20,8 @@ export default function Topbar() {
             className="w-72 rounded-xl bg-zinc-900 border border-zinc-800 pl-10 pr-3 py-2 text-sm text-zinc-200 placeholder-zinc-500 outline-none focus:border-zinc-700 transition-colors"
           />
         </div>
-        <div className="h-9 w-9 rounded-full bg-zinc-800 flex items-center justify-center text-sm text-zinc-300 font-medium">
-          PS
+        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-800 text-sm font-medium text-zinc-300">
+          {user?.name?.slice(0, 2).toUpperCase() || 'WA'}
         </div>
       </div>
     </header>

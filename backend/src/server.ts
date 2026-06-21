@@ -19,6 +19,16 @@ import typingRouter from './routes/typing';
 import readReceiptRouter from './routes/readReceipts';
 import authRouter from './routes/auth';
 import { analyticsRouter } from './routes/analytics';
+import { exportRouter } from './routes/export';
+import broadcastRouter from './routes/broadcast';
+import mediaRouter from './routes/media';
+import inviteRouter from './routes/invite';
+import activityRouter from './routes/activity';
+import searchRouter from './routes/search';
+import autoresponderRouter from './routes/autoresponder';
+import webhooksLogRouter from './routes/webhooksLog';
+import chatbotFlowsRouter from './routes/chatbotFlows';
+import { aiRouter } from './routes/ai';
 
 const app = express();
 
@@ -31,6 +41,16 @@ app.use(requestLogger);
 // Body parsing
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
+
+app.get('/', (_req: Request, res: Response) => {
+  res.json({
+    success: true,
+    service: 'WhatsApp CRM Backend',
+    status: 'ok',
+    health: '/health',
+    auth: '/api/v1/auth',
+  });
+});
 
 // Health checks (no auth required)
 app.use('/', healthRouter);
@@ -51,6 +71,16 @@ app.use('/api/v1/workspaces', requireAuth, workspaceRouter);
 app.use('/api/v1/typing', requireAuth, typingRouter);
 app.use('/api/v1/read-receipts', requireAuth, readReceiptRouter);
 app.use('/api/v1/analytics', requireAuth, analyticsRouter);
+app.use('/api/v1/export', requireAuth, exportRouter);
+app.use('/api/v1/broadcast', requireAuth, broadcastRouter);
+app.use('/api/v1/media', requireAuth, mediaRouter);
+app.use('/api/v1/invite', requireAuth, inviteRouter);
+app.use('/api/v1/activity', requireAuth, activityRouter);
+app.use('/api/v1/search', requireAuth, searchRouter);
+app.use('/api/v1/autoresponders', requireAuth, autoresponderRouter);
+app.use('/api/v1/webhooks-log', requireAuth, webhooksLogRouter);
+app.use('/api/v1/chatbot-flows', requireAuth, chatbotFlowsRouter);
+app.use('/api/v1/ai', requireAuth, aiRouter);
 
 // Real-time SSE - protected
 app.use('/realtime', requireAuth, realtimeRouter);
@@ -112,16 +142,20 @@ process.on('unhandledRejection', (reason, promise) => {
   logger.error(`Unhandled Rejection: ${errorMsg}`);
 });
 
-app.listen(env.PORT, () => {
-  logger.info(`✅ Server running on port ${env.PORT}`);
-  logger.info(`📱 Environment: ${env.NODE_ENV}`);
-  logger.info(`🔒 JWT Authentication: enabled`);
-  logger.info(`📡 Health check: http://localhost:${env.PORT}/health`);
-  logger.info(`🔐 API Documentation:`);
-  logger.info(`   POST /api/v1/auth/register - Register new user`);
-  logger.info(`   POST /api/v1/auth/login - Login`);
-  logger.info(`   POST /api/v1/auth/refresh - Refresh token`);
-  logger.info(`   GET /api/v1/auth/me - Get current user`);
-});
+const isVercelRuntime = Boolean(process.env.VERCEL);
+
+if (process.env.NODE_ENV !== 'test' && !isVercelRuntime) {
+  app.listen(env.PORT, () => {
+    logger.info(`✅ Server running on port ${env.PORT}`);
+    logger.info(`📱 Environment: ${env.NODE_ENV}`);
+    logger.info(`🔒 JWT Authentication: enabled`);
+    logger.info(`📡 Health check: http://localhost:${env.PORT}/health`);
+    logger.info(`🔐 API Documentation:`);
+    logger.info(`   POST /api/v1/auth/register - Register new user`);
+    logger.info(`   POST /api/v1/auth/login - Login`);
+    logger.info(`   POST /api/v1/auth/refresh - Refresh token`);
+    logger.info(`   GET /api/v1/auth/me - Get current user`);
+  });
+}
 
 export default app;

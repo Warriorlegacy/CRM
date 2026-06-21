@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { prisma } from '../prisma';
 import { generateToken, requireAuth, AuthedRequest } from '../middleware/auth';
 import { env } from '../env';
+import { logger } from '../middleware/logger';
 
 export const authRouter = Router();
 
@@ -106,10 +107,15 @@ authRouter.post('/login', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Login error:', error);
+    logger.error('Login error', { error });
     return res.status(500).json({
       error: 'Internal Server Error',
-      message: 'Login failed',
+      message:
+        env.NODE_ENV === 'production'
+          ? 'Login failed'
+          : error instanceof Error
+            ? error.message
+            : 'Login failed',
     });
   }
 });
@@ -198,10 +204,15 @@ authRouter.post('/register', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Registration error:', error);
+    logger.error('Registration error', { error });
     return res.status(500).json({
       error: 'Internal Server Error',
-      message: 'Registration failed',
+      message:
+        env.NODE_ENV === 'production'
+          ? 'Registration failed'
+          : error instanceof Error
+            ? error.message
+            : 'Registration failed',
     });
   }
 });
@@ -222,10 +233,15 @@ authRouter.post('/refresh', requireAuth, async (req, res) => {
       data: { token },
     });
   } catch (error) {
-    console.error('Token refresh error:', error);
+    logger.error('Token refresh error', { error });
     return res.status(500).json({
       error: 'Internal Server Error',
-      message: 'Token refresh failed',
+      message:
+        env.NODE_ENV === 'production'
+          ? 'Token refresh failed'
+          : error instanceof Error
+            ? error.message
+            : 'Token refresh failed',
     });
   }
 });
@@ -277,10 +293,15 @@ authRouter.get('/me', requireAuth, async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Get user error:', error);
+    logger.error('Get user error', { error });
     return res.status(500).json({
       error: 'Internal Server Error',
-      message: 'Failed to get user info',
+      message:
+        env.NODE_ENV === 'production'
+          ? 'Failed to get user info'
+          : error instanceof Error
+            ? error.message
+            : 'Failed to get user info',
     });
   }
 });

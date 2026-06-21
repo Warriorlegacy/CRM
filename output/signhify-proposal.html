@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Signhify WhatsApp CRM Proposal</title>
+  <style>
+    :root {
+      --bg: #06111d;
+      --panel: #0c1b2e;
+      --line: rgba(160, 196, 255, 0.18);
+      --text: #ecf5ff;
+      --muted: #97abc0;
+      --blue: #1c88d1;
+      --blue-deep: #123b97;
+      --orange: #ff8d09;
+      --orange-deep: #ff5b00;
+      --gold: #f3c972;
+      --green: #46d59f;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Aptos", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(28, 136, 209, 0.18), transparent 28%),
+        radial-gradient(circle at top right, rgba(255, 141, 9, 0.14), transparent 24%),
+        linear-gradient(180deg, #07111d 0%, #06101a 100%);
+    }
+
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 0 auto;
+      padding: 16mm;
+      display: grid;
+      gap: 12px;
+    }
+
+    .hero,
+    .card {
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(17, 35, 58, 0.94), rgba(10, 22, 36, 0.96));
+      border-radius: 24px;
+      box-shadow: 0 18px 70px rgba(0, 0, 0, 0.28);
+    }
+
+    .hero {
+      padding: 18px 20px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+
+    .brand-mark {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .logo-badge {
+      width: 58px;
+      height: 58px;
+      border-radius: 18px;
+      position: relative;
+      background: linear-gradient(135deg, rgba(28, 136, 209, 0.22), rgba(255, 141, 9, 0.18));
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      overflow: hidden;
+    }
+
+    .logo-badge::before {
+      content: "";
+      position: absolute;
+      left: 12px;
+      bottom: 11px;
+      width: 9px;
+      height: 18px;
+      background: linear-gradient(180deg, var(--blue), var(--blue-deep));
+      border-radius: 3px 3px 0 0;
+      box-shadow: 14px 0 0 0 var(--orange), 28px -8px 0 0 var(--orange);
+      transform: skewY(0deg);
+    }
+
+    .logo-badge::after {
+      content: "";
+      position: absolute;
+      inset: 8px;
+      border-radius: 16px;
+      border: 2px solid transparent;
+      border-top-color: rgba(255, 255, 255, 0.16);
+      border-left-color: rgba(255, 255, 255, 0.1);
+      transform: rotate(-18deg);
+    }
+
+    .brand-title {
+      font-size: 34px;
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -0.03em;
+    }
+
+    .brand-title .sign {
+      color: #ddecff;
+    }
+
+    .brand-title .hify {
+      background: linear-gradient(180deg, var(--orange), var(--orange-deep));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .brand-sub {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+    }
+
+    .prepared {
+      text-align: right;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .eyebrow {
+      margin: 2px 0 8px;
+      color: var(--gold);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3, p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 30px;
+      line-height: 1.08;
+      margin-bottom: 10px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.65;
+      max-width: 720px;
+    }
+
+    .hero-grid {
+      margin-top: 16px;
+      display: grid;
+      grid-template-columns: 1.35fr 0.65fr;
+      gap: 12px;
+    }
+
+    .mini-panel {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.03);
+      padding: 14px;
+    }
+
+    .mini-panel strong {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+    }
+
+    .mini-panel span {
+      display: block;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .grid-two {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .card {
+      padding: 16px;
+    }
+
+    .card h2 {
+      font-size: 16px;
+      margin-bottom: 10px;
+    }
+
+    .card p {
+      font-size: 13px;
+      line-height: 1.7;
+      color: var(--muted);
+    }
+
+    ul {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.75;
+    }
+
+    li + li {
+      margin-top: 4px;
+    }
+
+    .price-band {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .price {
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.03);
+      padding: 16px;
+    }
+
+    .price.featured {
+      background: linear-gradient(180deg, rgba(70, 213, 159, 0.12), rgba(28, 136, 209, 0.12));
+      border-color: rgba(70, 213, 159, 0.28);
+    }
+
+    .plan {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    .amount {
+      font-size: 28px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .price p {
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--muted);
+    }
+
+    .footer {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 12px;
+    }
+
+    .cta {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, var(--orange), var(--blue));
+      color: #ffffff;
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .muted-line {
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .signature {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .sig-box {
+      border-top: 1px solid var(--line);
+      padding-top: 8px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    @media print {
+      body {
+        background: #06111d;
+      }
+
+      .page {
+        margin: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="hero">
+      <div class="brand">
+        <div class="brand-mark">
+          <div class="logo-badge"></div>
+          <div>
+            <div class="brand-title">
+              <span class="sign">Sign</span><span class="hify">hify</span>
+            </div>
+            <div class="brand-sub">Piyush Media and Marketing</div>
+          </div>
+        </div>
+        <div class="prepared">
+          Prepared by Signhify Agency<br />
+          March 24, 2026
+        </div>
+      </div>
+
+      <p class="eyebrow">Client Proposal</p>
+      <h1>WhatsApp CRM setup that helps your team respond faster, follow up better, and close more leads.</h1>
+      <p class="subtitle">
+        This proposal from Signhify Agency, also operating as Piyush Media and Marketing, is built for businesses that
+        already get customer conversations on WhatsApp but need a more reliable system for ownership, follow-up,
+        tracking, and conversion.
+      </p>
+
+      <div class="hero-grid">
+        <div class="mini-panel">
+          <strong>The Current Problem</strong>
+          <span>Leads arrive on WhatsApp, but conversations are scattered, responses are delayed, and no clear sales process exists for tracking what is hot, what is pending, and what is closing.</span>
+        </div>
+        <div class="mini-panel">
+          <strong>Best Fit</strong>
+          <span>Real estate, clinics, education, agencies, and service businesses with teams handling inbound WhatsApp leads.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid-two">
+      <article class="card">
+        <h2>What You Will Get</h2>
+        <ul>
+          <li>Shared WhatsApp inbox for team visibility and faster handoffs</li>
+          <li>Lead pipeline with clear stage tracking and owner assignment</li>
+          <li>Contact records, reminders, follow-ups, and saved replies</li>
+          <li>Admin and team access control for cleaner operations</li>
+          <li>Hosted setup, deployment, support, and launch guidance</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h2>Why Clients Buy This</h2>
+        <ul>
+          <li>They want to stop losing good leads inside busy chat inboxes</li>
+          <li>They need faster response times from the sales team</li>
+          <li>They want clear accountability for who owns each conversation</li>
+          <li>They need better follow-up discipline to improve close rates</li>
+          <li>They want one simple system instead of manual WhatsApp chaos</li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="card">
+      <p class="eyebrow">Exact Pricing</p>
+      <div class="price-band">
+        <div class="price">
+          <div class="plan">Starter Plan</div>
+          <div class="amount">Rs. 6,999/mo</div>
+          <p>For small teams needing one shared inbox, contacts, pipeline visibility, templates, and follow-up management.</p>
+        </div>
+        <div class="price featured">
+          <div class="plan">Growth Plan</div>
+          <div class="amount">Rs. 14,999/mo</div>
+          <p>For growing teams that want stronger accountability, better process control, cleaner reporting, and more consistent closing.</p>
+        </div>
+        <div class="price">
+          <div class="plan">Setup and Launch</div>
+          <div class="amount">Rs. 24,999</div>
+          <p>One-time implementation fee covering setup, branding, onboarding, workflow tailoring, and launch support.</p>
+        </div>
+      </div>
+      <p class="muted-line">
+        Recommended offer: Start with the Growth Plan plus Setup and Launch for the strongest ROI and the cleanest rollout.
+      </p>
+    </section>
+
+    <section class="footer">
+      <article class="card">
+        <h2>Delivery and Timeline</h2>
+        <p>
+          Signhify Agency will configure the CRM, prepare the live deployment, organize the workspace, and support your
+          team through launch. Standard delivery timeline is 3 to 7 business days depending on custom workflow needs,
+          training requirements, and onboarding scope.
+        </p>
+        <p class="muted-line">
+          Prepared by: Signhify Agency | Piyush Media and Marketing
+        </p>
+      </article>
+
+      <article class="card">
+        <h2>Next Step</h2>
+        <p>
+          Approve the proposal, select your package, and begin onboarding. The goal is to create a cleaner WhatsApp sales
+          process that protects revenue, improves follow-up discipline, and gives your team a system they can actually use daily.
+        </p>
+        <a class="cta" href="#">Approve and Start</a>
+        <div class="signature">
+          <div class="sig-box">Client Signature</div>
+          <div class="sig-box">Authorized by Piyush Media and Marketing</div>
+        </div>
+      </article>
+    </section>
+  </div>
+</body>
+</html>

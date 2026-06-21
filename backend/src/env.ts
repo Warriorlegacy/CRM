@@ -13,6 +13,7 @@ export const env = {
   PORT: parseInt(process.env.PORT || '3001', 10),
   DATABASE_URL: process.env.DATABASE_URL!,
   WA_VERIFY_TOKEN: process.env.WA_VERIFY_TOKEN!,
+  IG_VERIFY_TOKEN: process.env.IG_VERIFY_TOKEN || '',
   META_API_VERSION: process.env.META_API_VERSION || 'v20.0',
   JWT_SECRET: process.env.JWT_SECRET || (isProduction ? '' : generateSecureSecret()),
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '24h',

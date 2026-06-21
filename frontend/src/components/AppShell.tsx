@@ -3,11 +3,11 @@ import Topbar from "./Topbar";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen grid grid-cols-[260px_1fr]">
+    <div className="min-h-screen grid grid-cols-[260px_1fr] bg-transparent">
       <Sidebar />
-      <div className="flex flex-col min-h-screen bg-zinc-950">
+      <div className="flex min-h-screen flex-col bg-transparent">
         <Topbar />
-        <main className="flex-1 p-5 overflow-auto">{children}</main>
+        <main className="flex-1 overflow-auto p-5">{children}</main>
       </div>
     </div>
   );

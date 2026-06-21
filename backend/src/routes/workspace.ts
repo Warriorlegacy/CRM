@@ -44,6 +44,7 @@ workspaceRouter.get('/', async (req, res) => {
         },
       },
       wa: true,
+      ig: true,
     },
   });
 
@@ -85,6 +86,7 @@ workspaceRouter.get('/current', async (req, res) => {
         },
       },
       wa: true,
+      ig: true,
     },
   });
 
@@ -117,6 +119,28 @@ workspaceRouter.post('/wa-account', async (req, res) => {
   });
 
   return res.json({ ok: true, wa });
+});
+
+workspaceRouter.post('/ig-account', async (req, res) => {
+  const workspaceId = (req as any).workspaceId;
+  const { igUserId, accessToken, webhookVerifyToken } = req.body;
+
+  const ig = await prisma.igAccount.upsert({
+    where: { workspaceId },
+    update: {
+      igUserId,
+      accessToken,
+      webhookVerifyToken,
+    },
+    create: {
+      workspaceId,
+      igUserId,
+      accessToken,
+      webhookVerifyToken,
+    },
+  });
+
+  return res.json({ ok: true, ig });
 });
 
 export default workspaceRouter;

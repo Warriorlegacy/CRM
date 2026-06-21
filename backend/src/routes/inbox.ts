@@ -1,37 +1,20 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router } from 'express';
 import { prisma } from '../prisma';
-
-interface AuthRequest extends Request {
-  userId: string;
-  workspaceId: string;
-}
+import { AuthedRequest } from '../middleware/auth';
 
 export const inboxRouter = Router();
 
-// Middleware to extract auth headers
-const extractAuth = (req: Request, res: Response, next: NextFunction) => {
-  const userId = req.header('x-user-id');
-  const workspaceId = req.header('x-workspace-id');
-
-  if (!userId || !workspaceId) {
-    return res.status(401).json({
-      error: 'Unauthorized',
-      message: 'Missing x-user-id or x-workspace-id headers',
-    });
-  }
-
-  (req as any).userId = userId;
-  (req as any).workspaceId = workspaceId;
-  next();
-};
-
-inboxRouter.use(extractAuth);
-
 inboxRouter.get('/conversations', async (req, res) => {
-  const workspaceId = (req as any).workspaceId;
+  const { workspaceId } = req as unknown as AuthedRequest;
+  const status = typeof req.query.status === 'string' ? req.query.status : undefined;
+  const channel = typeof req.query.channel === 'string' ? req.query.channel : undefined;
 
   const conversations = await prisma.conversation.findMany({
-    where: { workspaceId },
+    where: {
+      workspaceId,
+      ...(status ? { status } : {}),
+      ...(channel && channel !== 'all' ? { channel } : {}),
+    },
     orderBy: { updatedAt: 'desc' },
     include: {
       contact: {
@@ -48,35 +31,41 @@ inboxRouter.get('/conversations', async (req, res) => {
     },
   });
 
-  const data = conversations.map((c) => ({
-    id: c.id,
-    contactId: c.contactId,
-    name: c.contact.name,
-    phone: c.contact.phone,
-    stage: c.contact.stage,
-    assignedToId: c.contact.assignedToId,
-    assignedTo: c.contact.assignedTo,
-    unreadCount: c.contact.unreadCount,
-    lastMessage: c.messages[0]?.bodyText || '',
-    lastMessageAt: c.messages[0]?.createdAt || null,
-    status: c.status,
+  const data = conversations.map((conversation) => ({
+    id: conversation.id,
+    contactId: conversation.contactId,
+    name: conversation.contact.name,
+    phone: conversation.contact.phone,
+    stage: conversation.contact.stage,
+    channel: conversation.channel,
+    assignedToId: conversation.contact.assignedToId,
+    assignedTo: conversation.contact.assignedTo,
+    unreadCount: conversation.contact.unreadCount,
+    lastMessage: conversation.messages[0]?.bodyText || '',
+    lastMessageAt: conversation.messages[0]?.createdAt || null,
+    status: conversation.status,
   }));
 
-  return res.json({ ok: true, conversations: data });
+  return res.json({
+    success: true,
+    data: { conversations: data },
+    conversations: data,
+  });
 });
 
 inboxRouter.get('/conversations/:id/messages', async (req, res) => {
-  const userId = (req as any).userId;
-  const workspaceId = (req as any).workspaceId;
+  const { userId, workspaceId } = req as unknown as AuthedRequest;
   const conversationId = req.params.id;
 
-  const convo = await prisma.conversation.findFirst({
+  const conversation = await prisma.conversation.findFirst({
     where: { id: conversationId, workspaceId },
   });
 
-  if (!convo) return res.status(404).json({ error: 'Conversation not found' });
+  if (!conversation) {
+    return res.status(404).json({ error: 'Conversation not found' });
+  }
 
-  const msgs = await prisma.message.findMany({
+  const messages = await prisma.message.findMany({
     where: { conversationId, workspaceId },
     orderBy: { createdAt: 'asc' },
     include: {
@@ -93,9 +82,8 @@ inboxRouter.get('/conversations/:id/messages', async (req, res) => {
     },
   });
 
-  // Mark messages as read
-  const unreadMessages = msgs.filter(
-    (m) => m.direction === 'inbound' && !m.readReceipts.some((r) => r.userId === userId)
+  const unreadMessages = messages.filter(
+    (message) => message.direction === 'inbound' && !message.readReceipts.some((receipt) => receipt.userId === userId)
   );
 
   if (unreadMessages.length > 0) {
@@ -110,59 +98,65 @@ inboxRouter.get('/conversations/:id/messages', async (req, res) => {
       )
     );
 
-    // Reset unread count
     await prisma.contact.update({
-      where: { id: convo.contactId },
+      where: { id: conversation.contactId },
       data: { unreadCount: 0 },
     });
   }
 
-  return res.json({ ok: true, messages: msgs });
+  return res.json({
+    success: true,
+    data: { messages },
+    messages,
+  });
 });
 
 inboxRouter.patch('/conversations/:id/assign', async (req, res) => {
-  const workspaceId = (req as any).workspaceId;
+  const { workspaceId } = req as unknown as AuthedRequest;
   const conversationId = req.params.id;
   const { assignedToId } = req.body;
 
-  const convo = await prisma.conversation.findFirst({
+  const conversation = await prisma.conversation.findFirst({
     where: { id: conversationId, workspaceId },
     include: { contact: true },
   });
 
-  if (!convo) return res.status(404).json({ error: 'Conversation not found' });
+  if (!conversation) {
+    return res.status(404).json({ error: 'Conversation not found' });
+  }
 
   await prisma.contact.update({
-    where: { id: convo.contactId },
+    where: { id: conversation.contactId },
     data: { assignedToId },
   });
 
-  return res.json({ ok: true });
+  return res.json({ success: true });
 });
 
 inboxRouter.patch('/conversations/:id/stage', async (req, res) => {
-  const workspaceId = (req as any).workspaceId;
+  const { workspaceId } = req as unknown as AuthedRequest;
   const conversationId = req.params.id;
   const { stage } = req.body;
 
-  const convo = await prisma.conversation.findFirst({
+  const conversation = await prisma.conversation.findFirst({
     where: { id: conversationId, workspaceId },
     include: { contact: true },
   });
 
-  if (!convo) return res.status(404).json({ error: 'Conversation not found' });
+  if (!conversation) {
+    return res.status(404).json({ error: 'Conversation not found' });
+  }
 
   await prisma.contact.update({
-    where: { id: convo.contactId },
+    where: { id: conversation.contactId },
     data: { stage },
   });
 
-  return res.json({ ok: true });
+  return res.json({ success: true });
 });
 
-// Get unread counts for all conversations
 inboxRouter.get('/unread-counts', async (req, res) => {
-  const workspaceId = (req as any).workspaceId;
+  const { workspaceId } = req as unknown as AuthedRequest;
 
   const result = await prisma.contact.aggregate({
     where: { workspaceId },
@@ -171,9 +165,12 @@ inboxRouter.get('/unread-counts', async (req, res) => {
     },
   });
 
+  const totalUnread = result._sum.unreadCount || 0;
+
   return res.json({
-    ok: true,
-    totalUnread: result._sum.unreadCount || 0,
+    success: true,
+    data: { totalUnread },
+    totalUnread,
   });
 });
 

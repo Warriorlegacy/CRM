@@ -1,41 +1,42 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router } from 'express';
+import { z } from 'zod';
 import { prisma } from '../prisma';
+import { AuthedRequest } from '../middleware/auth';
 
 export const templatesRouter = Router();
 
-// Middleware to extract auth headers
-const extractAuth = (req: Request, res: Response, next: NextFunction) => {
-  const userId = req.header('x-user-id');
-  const workspaceId = req.header('x-workspace-id');
-
-  if (!userId || !workspaceId) {
-    return res.status(401).json({
-      error: 'Unauthorized',
-      message: 'Missing x-user-id or x-workspace-id headers',
-    });
-  }
-
-  (req as any).userId = userId;
-  (req as any).workspaceId = workspaceId;
-  next();
-};
-
-templatesRouter.use(extractAuth);
+const TemplateSchema = z.object({
+  title: z.string().min(1, 'Title is required'),
+  body: z.string().min(1, 'Body is required'),
+});
 
 templatesRouter.get('/', async (req, res) => {
-  const workspaceId = (req as any).workspaceId;
+  const { workspaceId } = req as unknown as AuthedRequest;
 
   const templates = await prisma.template.findMany({
     where: { workspaceId },
     orderBy: { createdAt: 'desc' },
   });
 
-  return res.json({ ok: true, templates });
+  return res.json({
+    success: true,
+    data: { templates },
+    templates,
+  });
 });
 
 templatesRouter.post('/', async (req, res) => {
-  const workspaceId = (req as any).workspaceId;
-  const { title, body } = req.body;
+  const { workspaceId } = req as unknown as AuthedRequest;
+  const parsed = TemplateSchema.safeParse(req.body);
+
+  if (!parsed.success) {
+    return res.status(400).json({
+      error: 'Validation Error',
+      details: parsed.error.flatten(),
+    });
+  }
+
+  const { title, body } = parsed.data;
 
   const template = await prisma.template.create({
     data: {
@@ -45,13 +46,26 @@ templatesRouter.post('/', async (req, res) => {
     },
   });
 
-  return res.json({ ok: true, template });
+  return res.status(201).json({
+    success: true,
+    data: { template },
+    template,
+  });
 });
 
 templatesRouter.patch('/:id', async (req, res) => {
-  const workspaceId = (req as any).workspaceId;
+  const { workspaceId } = req as unknown as AuthedRequest;
   const { id } = req.params;
-  const { title, body } = req.body;
+  const parsed = TemplateSchema.safeParse(req.body);
+
+  if (!parsed.success) {
+    return res.status(400).json({
+      error: 'Validation Error',
+      details: parsed.error.flatten(),
+    });
+  }
+
+  const { title, body } = parsed.data;
 
   const template = await prisma.template.updateMany({
     where: { id, workspaceId },
@@ -62,11 +76,11 @@ templatesRouter.patch('/:id', async (req, res) => {
     return res.status(404).json({ error: 'Template not found' });
   }
 
-  return res.json({ ok: true });
+  return res.json({ success: true });
 });
 
 templatesRouter.delete('/:id', async (req, res) => {
-  const workspaceId = (req as any).workspaceId;
+  const { workspaceId } = req as unknown as AuthedRequest;
   const { id } = req.params;
 
   const template = await prisma.template.deleteMany({
@@ -77,7 +91,7 @@ templatesRouter.delete('/:id', async (req, res) => {
     return res.status(404).json({ error: 'Template not found' });
   }
 
-  return res.json({ ok: true });
+  return res.json({ success: true });
 });
 
 export default templatesRouter;

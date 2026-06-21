@@ -10,14 +10,17 @@ WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma/
 
+# Swap in the PostgreSQL schema for Railway builds
+RUN cp prisma/schema.railway.prisma prisma/schema.prisma
+
 # Install dependencies
 RUN npm ci
 
 # Copy source code
 COPY . .
 
-# Generate Prisma client
-RUN npx prisma generate
+# Generate Prisma client against the Railway/Postgres schema
+RUN npx prisma generate --schema=prisma/schema.prisma
 
 # Build TypeScript
 RUN npm run build
@@ -62,4 +65,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD sh -c "curl -f http://localhost:${PORT:-3001}/health" || exit 1
 
 # Start the application
-CMD ["sh", "-c", "echo 'Running migrations...' && npx prisma migrate deploy --verbose && echo 'Migrations complete, starting server...' && node dist/server.js"]
+CMD ["sh", "-c", "echo 'Syncing PostgreSQL schema...' && npx prisma db push --accept-data-loss --schema=prisma/schema.prisma && echo 'Schema sync complete, starting server...' && node dist/server.js"]

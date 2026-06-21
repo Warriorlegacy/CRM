@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WhatsApp CRM Proposal</title>
+  <style>
+    :root {
+      --bg: #06111d;
+      --panel: #0c1b2e;
+      --panel-soft: #11233a;
+      --line: rgba(160, 196, 255, 0.18);
+      --text: #ecf5ff;
+      --muted: #97abc0;
+      --green: #46d59f;
+      --blue: #6eb4ff;
+      --gold: #f3c972;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Aptos", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(110, 180, 255, 0.18), transparent 30%),
+        radial-gradient(circle at top right, rgba(70, 213, 159, 0.12), transparent 24%),
+        linear-gradient(180deg, #07111d 0%, #06101a 100%);
+    }
+
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 0 auto;
+      padding: 16mm;
+      display: grid;
+      gap: 12px;
+    }
+
+    .hero,
+    .card {
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(17, 35, 58, 0.92), rgba(10, 22, 36, 0.94));
+      border-radius: 24px;
+      box-shadow: 0 18px 70px rgba(0, 0, 0, 0.28);
+    }
+
+    .hero {
+      padding: 18px 20px;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--gold);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3, p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 31px;
+      line-height: 1.08;
+      margin-bottom: 10px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.65;
+      max-width: 730px;
+    }
+
+    .hero-grid {
+      margin-top: 16px;
+      display: grid;
+      grid-template-columns: 1.35fr 0.65fr;
+      gap: 12px;
+    }
+
+    .mini-panel {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.03);
+      padding: 14px;
+    }
+
+    .mini-panel strong {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+    }
+
+    .mini-panel span {
+      display: block;
+      font-size: 15px;
+      line-height: 1.55;
+    }
+
+    .grid-two {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .card {
+      padding: 16px;
+    }
+
+    .card h2 {
+      font-size: 16px;
+      margin-bottom: 10px;
+    }
+
+    .card p {
+      font-size: 13px;
+      line-height: 1.7;
+      color: var(--muted);
+    }
+
+    ul {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.75;
+    }
+
+    li + li {
+      margin-top: 4px;
+    }
+
+    .price-band {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .price {
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.03);
+      padding: 16px;
+    }
+
+    .price.featured {
+      background: linear-gradient(180deg, rgba(70, 213, 159, 0.14), rgba(110, 180, 255, 0.08));
+      border-color: rgba(70, 213, 159, 0.35);
+    }
+
+    .plan {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    .amount {
+      font-size: 30px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .price p {
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--muted);
+    }
+
+    .footer {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 12px;
+    }
+
+    .cta {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, var(--green), var(--blue));
+      color: #04111b;
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .muted-line {
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .signature {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .sig-box {
+      border-top: 1px solid var(--line);
+      padding-top: 8px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    @media print {
+      body {
+        background: #06111d;
+      }
+
+      .page {
+        margin: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="hero">
+      <p class="eyebrow">Proposal for [Client Name]</p>
+      <h1>Turn WhatsApp conversations into a tracked sales pipeline that your team can actually manage.</h1>
+      <p class="subtitle">
+        This proposal is for a branded WhatsApp CRM workspace designed to help your team respond faster, stop missing
+        hot leads, improve follow-up consistency, and create clear ownership across every customer conversation.
+      </p>
+
+      <div class="hero-grid">
+        <div class="mini-panel">
+          <strong>Business Problem</strong>
+          <span>Leads arrive on WhatsApp, but replies are missed, follow-ups are inconsistent, and there is no clean system for ownership, visibility, or conversion tracking.</span>
+        </div>
+        <div class="mini-panel">
+          <strong>Prepared By</strong>
+          <span>[Your Name / Agency]</span>
+          <span class="muted-line">Date: March 24, 2026</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid-two">
+      <article class="card">
+        <h2>What You Are Buying</h2>
+        <ul>
+          <li>One shared WhatsApp inbox for team visibility and clean handoffs</li>
+          <li>Lead pipeline tracking from first message to won deal</li>
+          <li>Contact management, templates, reminders, and follow-up discipline</li>
+          <li>Role-based access for admins and agents</li>
+          <li>Hosted deployment, setup, support, and launch guidance</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h2>Expected Business Outcomes</h2>
+        <ul>
+          <li>Faster first response times to inbound leads</li>
+          <li>Fewer missed opportunities caused by manual chat handling</li>
+          <li>Better accountability for who owns each lead</li>
+          <li>Higher follow-up consistency across the team</li>
+          <li>Better visibility into stalled, active, and closed opportunities</li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="card">
+      <p class="eyebrow">Recommended Investment</p>
+      <div class="price-band">
+        <div class="price">
+          <div class="plan">Starter</div>
+          <div class="amount">$79/mo</div>
+          <p>For small teams that need one shared WhatsApp workflow with pipeline, contacts, templates, and follow-ups.</p>
+        </div>
+        <div class="price featured">
+          <div class="plan">Growth</div>
+          <div class="amount">$149/mo</div>
+          <p>For growing teams that want stronger process control, visibility, accountability, and conversion discipline.</p>
+        </div>
+        <div class="price">
+          <div class="plan">Implementation</div>
+          <div class="amount">$500+</div>
+          <p>One-time setup for branding, onboarding, workflow tailoring, migration help, and team launch support.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="footer">
+      <article class="card">
+        <h2>Delivery Scope and Timeline</h2>
+        <p>
+          The workspace will be configured, branded, tested, and launched for your team. A typical implementation takes
+          3 to 7 business days depending on custom workflow needs, training, and any required migration or integration work.
+        </p>
+        <p class="muted-line">
+          Ideal for: real estate teams, agencies, clinics, consultants, education businesses, and service companies using WhatsApp to close leads.
+        </p>
+      </article>
+
+      <article class="card">
+        <h2>Next Step</h2>
+        <p>
+          Approve the plan, choose your package, and we will begin setup, workspace configuration, and launch support.
+          The goal is simple: create a cleaner sales process that protects revenue and helps your team close faster.
+        </p>
+        <a class="cta" href="#">Approve and Start Setup</a>
+        <div class="signature">
+          <div class="sig-box">Client Signature</div>
+          <div class="sig-box">Prepared By</div>
+        </div>
+      </article>
+    </section>
+  </div>
+</body>
+</html>

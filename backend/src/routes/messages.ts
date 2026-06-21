@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { prisma } from '../prisma';
 import { sendWhatsAppText } from '../whatsapp/meta';
+import { sendInstagramMessage } from '../instagram/graph';
 import { publish } from '../realtime/events';
 
 export const messagesRouter = Router();
@@ -48,28 +49,40 @@ messagesRouter.post('/send', async (req, res) => {
 
   if (!convo) return res.status(404).json({ error: 'Conversation not found' });
 
-  const wa = await prisma.waAccount.findUnique({
-    where: { workspaceId },
-  });
+  const channel = convo.channel || 'whatsapp';
 
-  if (!wa) {
-    return res.status(400).json({
-      error: 'WhatsApp not connected',
-      message: 'Missing waAccount for workspace',
-    });
-  }
+  // 1) Send via appropriate channel
+  let sent: any = null;
+  let platformMessageId: string | null = null;
 
-  // 1) Send via Meta
-  let sent;
   try {
-    sent = await sendWhatsAppText({
-      accessToken: wa.accessToken,
-      phoneNumberId: wa.phoneNumberId,
-      to: convo.contact.phone,
-      text,
-    });
+    if (channel === 'instagram') {
+      const ig = await prisma.igAccount.findUnique({ where: { workspaceId } });
+      if (!ig) {
+        return res.status(400).json({ error: 'Instagram not connected' });
+      }
+      sent = await sendInstagramMessage({
+        accessToken: ig.accessToken,
+        igUserId: ig.igUserId,
+        recipientId: convo.contact.igUsername || convo.contact.phone.replace('ig_', ''),
+        text,
+      });
+      platformMessageId = sent?.message_id || null;
+    } else {
+      const wa = await prisma.waAccount.findUnique({ where: { workspaceId } });
+      if (!wa) {
+        return res.status(400).json({ error: 'WhatsApp not connected' });
+      }
+      sent = await sendWhatsAppText({
+        accessToken: wa.accessToken,
+        phoneNumberId: wa.phoneNumberId,
+        to: convo.contact.phone,
+        text,
+      });
+      platformMessageId = sent?.messages?.[0]?.id || null;
+    }
   } catch (error: any) {
-    console.error('Failed to send WhatsApp message:', error.response?.data || error.message);
+    console.error(`Failed to send ${channel} message:`, error.response?.data || error.message);
     return res.status(500).json({
       error: 'Failed to send message',
       details: error.response?.data || error.message,
@@ -82,10 +95,12 @@ messagesRouter.post('/send', async (req, res) => {
       workspaceId,
       conversationId,
       contactId: convo.contactId,
+      channel,
       direction: 'outbound',
       type: 'text',
       bodyText: text,
-      waMessageId: sent?.messages?.[0]?.id || null,
+      waMessageId: channel === 'whatsapp' ? platformMessageId : null,
+      igMessageId: channel === 'instagram' ? platformMessageId : null,
       sentByUserId: userId,
     },
   });

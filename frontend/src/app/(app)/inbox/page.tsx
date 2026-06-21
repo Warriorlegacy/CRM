@@ -6,7 +6,8 @@ import { useRealtime } from '@/hooks/useRealtime';
 import { useTypingIndicator } from '@/hooks/useTypingIndicator';
 import { useNotificationSound } from '@/hooks/useNotificationSound';
 import { useAuth } from '@/contexts/AuthContext';
-import { Send, User, Check, CheckCheck, Phone, Tag, MoreVertical, Loader2, MessageSquare, Search, Filter, X, FileText, ChevronDown, UserPlus, Clock } from 'lucide-react';
+import { Send, User, Check, CheckCheck, Phone, MoreVertical, Loader2, MessageSquare, Search, Filter, X, FileText, ChevronDown, UserPlus, Clock, Instagram } from 'lucide-react';
+import ChannelBadge, { ChannelDot } from '@/components/ChannelBadge';
 
 interface Conversation {
   id: string;
@@ -14,6 +15,7 @@ interface Conversation {
   name: string;
   phone: string;
   stage: string;
+  channel: string;
   assignedToId: string | null;
   assignedTo: { id: string; name: string; email: string } | null;
   unreadCount: number;
@@ -27,6 +29,7 @@ interface Message {
   bodyText: string;
   direction: 'inbound' | 'outbound';
   type: string;
+  channel: string;
   createdAt: string;
   sentByUserId: string | null;
   sentByUser: { id: string; name: string } | null;
@@ -57,6 +60,7 @@ export default function InboxPage() {
   const [sending, setSending] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [stageFilter, setStageFilter] = useState<string>('all');
+  const [channelFilter, setChannelFilter] = useState<string>('all');
   const [showFilters, setShowFilters] = useState(false);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -65,6 +69,8 @@ export default function InboxPage() {
   const [showStageMenu, setShowStageMenu] = useState(false);
   const [showFollowupModal, setShowFollowupModal] = useState(false);
   const [followupData, setFollowupData] = useState({ dueAt: '', note: '' });
+  const [smartReplies, setSmartReplies] = useState<string[]>([]);
+  const [loadingSmartReplies, setLoadingSmartReplies] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const templateMenuRef = useRef<HTMLDivElement>(null);
   const assignMenuRef = useRef<HTMLDivElement>(null);
@@ -77,7 +83,6 @@ export default function InboxPage() {
     'x-workspace-id': WORKSPACE_ID,
   };
 
-  // Load conversations only when authenticated
   useEffect(() => {
     if (!USER_ID || !WORKSPACE_ID || authLoading) return;
     loadConversations();
@@ -85,7 +90,6 @@ export default function InboxPage() {
     loadTeamMembers();
   }, [USER_ID, WORKSPACE_ID, authLoading]);
 
-  // Close menus when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (templateMenuRef.current && !templateMenuRef.current.contains(event.target as Node)) {
@@ -102,42 +106,34 @@ export default function InboxPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Load messages when conversation selected
   useEffect(() => {
     if (selectedConversation) {
       loadMessages(selectedConversation.id);
     }
   }, [selectedConversation?.id]);
 
-  // Scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Real-time events
   useRealtime(WORKSPACE_ID, (event) => {
     if (event.type === 'new_message') {
       const msg = event.data;
-      
-      // Update conversations list
       setConversations((prev) => {
         const updated: Conversation[] = prev.map((c) =>
           c.id === msg.conversationId
             ? { ...c, lastMessage: msg.bodyText as string, lastMessageAt: msg.createdAt as string }
             : c
         );
-        return updated.sort((a, b) => 
+        return updated.sort((a, b) =>
           new Date(b.lastMessageAt || 0).getTime() - new Date(a.lastMessageAt || 0).getTime()
         );
       });
 
-      // Add to current chat if open
       if (selectedConversation?.id === msg.conversationId) {
         setMessages((prev) => [...prev, msg as unknown as Message]);
       } else {
-        // Play sound for messages in other conversations
         playNotification();
-        // Increment unread count
         setConversations((prev) =>
           prev.map((c) =>
             c.id === msg.conversationId ? { ...c, unreadCount: c.unreadCount + 1 } : c
@@ -149,7 +145,9 @@ export default function InboxPage() {
 
   const loadConversations = async () => {
     try {
-      const data = await api.get<{ conversations: Conversation[] }>('/inbox/conversations', { headers });
+      const params = new URLSearchParams();
+      if (channelFilter !== 'all') params.set('channel', channelFilter);
+      const data = await api.get<{ conversations: Conversation[] }>(`/inbox/conversations?${params}`, { headers });
       setConversations(data.conversations);
       if (data.conversations.length > 0 && !selectedConversation) {
         setSelectedConversation(data.conversations[0]);
@@ -186,7 +184,6 @@ export default function InboxPage() {
 
   const insertTemplate = (template: Template) => {
     let body = template.body;
-    // Replace variables with contact data
     if (selectedConversation) {
       body = body.replace(/{name}/g, selectedConversation.name);
       body = body.replace(/{phone}/g, selectedConversation.phone);
@@ -196,15 +193,36 @@ export default function InboxPage() {
     setShowTemplateMenu(false);
   };
 
+  const fetchSmartReplies = async () => {
+    if (!selectedConversation || messages.length === 0) return;
+    setLoadingSmartReplies(true);
+    try {
+      const lastMsg = messages[messages.length - 1];
+      const res = await api.post<{ suggestions: string[] }>('/ai/smart-reply', {
+        conversationId: selectedConversation.id,
+        lastMessage: lastMsg.bodyText || '',
+      }, { headers });
+      setSmartReplies(res.suggestions || []);
+    } catch {
+      setSmartReplies([]);
+    } finally {
+      setLoadingSmartReplies(false);
+    }
+  };
+
+  const applySmartReply = (reply: string) => {
+    setNewMessage(reply);
+    setSmartReplies([]);
+  };
+
   const assignConversation = async (userId: string | null) => {
     if (!selectedConversation) return;
     try {
       await api.patch(`/inbox/conversations/${selectedConversation.id}/assign`, {
         assignedToId: userId,
       }, { headers });
-      // Update local state
-      setConversations(prev => prev.map(c => 
-        c.id === selectedConversation.id 
+      setConversations(prev => prev.map(c =>
+        c.id === selectedConversation.id
           ? { ...c, assignedToId: userId, assignedTo: userId ? teamMembers.find(m => m.id === userId) || null : null }
           : c
       ));
@@ -225,8 +243,7 @@ export default function InboxPage() {
     if (!selectedConversation) return;
     try {
       await api.patch(`/inbox/conversations/${selectedConversation.id}/stage`, { stage }, { headers });
-      // Update local state
-      setConversations(prev => prev.map(c => 
+      setConversations(prev => prev.map(c =>
         c.id === selectedConversation.id ? { ...c, stage } : c
       ));
       setSelectedConversation({ ...selectedConversation, stage });
@@ -259,7 +276,6 @@ export default function InboxPage() {
     try {
       const data = await api.get<{ messages: Message[] }>(`/inbox/conversations/${conversationId}/messages`, { headers });
       setMessages(data.messages);
-      // Reset unread count in UI
       setConversations((prev) =>
         prev.map((c) => (c.id === conversationId ? { ...c, unreadCount: 0 } : c))
       );
@@ -270,18 +286,13 @@ export default function InboxPage() {
 
   const sendMessage = async () => {
     if (!newMessage.trim() || !selectedConversation) return;
-
     setSending(true);
     try {
       await api.post('/messages/send', {
         conversationId: selectedConversation.id,
-        contactId: selectedConversation.contactId,
-        body: newMessage,
-        type: 'text',
+        text: newMessage,
       }, { headers });
-      
       setNewMessage('');
-      // Reload messages to show the new one
       await loadMessages(selectedConversation.id);
     } catch (error) {
       console.error('Failed to send message:', error);
@@ -331,19 +342,21 @@ export default function InboxPage() {
     return colors[stage] || 'bg-zinc-500/20 text-zinc-400';
   };
 
-  // Filter conversations
   const filteredConversations = conversations.filter((conversation) => {
-    const matchesSearch = 
-      conversation.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    const matchesSearch =
+      conversation.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       conversation.phone.includes(searchQuery) ||
-      conversation.lastMessage.toLowerCase().includes(searchQuery.toLowerCase());
-    
+      conversation.lastMessage?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStage = stageFilter === 'all' || conversation.stage === stageFilter;
-    
-    return matchesSearch && matchesStage;
+    const matchesChannel = channelFilter === 'all' || conversation.channel === channelFilter;
+    return matchesSearch && matchesStage && matchesChannel;
   });
 
-  if (authLoading) {
+  // Count unread per channel
+  const waUnread = conversations.filter(c => c.channel === 'whatsapp').reduce((sum, c) => sum + c.unreadCount, 0);
+  const igUnread = conversations.filter(c => c.channel === 'instagram').reduce((sum, c) => sum + c.unreadCount, 0);
+
+  if (authLoading || loading) {
     return (
       <div className="flex items-center justify-center h-full">
         <Loader2 className="w-8 h-8 animate-spin text-zinc-400" />
@@ -355,14 +368,6 @@ export default function InboxPage() {
     return (
       <div className="flex items-center justify-center h-full">
         <p className="text-zinc-400">Please log in to view your inbox</p>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="w-8 h-8 animate-spin text-zinc-400" />
       </div>
     );
   }
@@ -381,7 +386,38 @@ export default function InboxPage() {
               <Filter className="w-4 h-4" />
             </button>
           </div>
-          
+
+          {/* Channel Tabs */}
+          <div className="flex gap-1 bg-zinc-800/50 rounded-xl p-1">
+            {[
+              { key: 'all', label: 'All', count: waUnread + igUnread },
+              { key: 'whatsapp', label: 'WA', count: waUnread, icon: MessageSquare },
+              { key: 'instagram', label: 'IG', count: igUnread, icon: Instagram },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setChannelFilter(tab.key)}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                  channelFilter === tab.key
+                    ? tab.key === 'instagram'
+                      ? 'bg-pink-500/20 text-pink-400'
+                      : tab.key === 'whatsapp'
+                      ? 'bg-emerald-500/20 text-emerald-400'
+                      : 'bg-white text-black'
+                    : 'text-zinc-500 hover:text-white'
+                }`}
+              >
+                {tab.icon && <tab.icon className="w-3 h-3" />}
+                {tab.label}
+                {tab.count > 0 && (
+                  <span className="ml-0.5 px-1 py-0.5 bg-red-500 text-white text-[10px] rounded-full min-w-[14px] text-center">
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+
           {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
@@ -402,7 +438,6 @@ export default function InboxPage() {
             )}
           </div>
 
-          {/* Stage Filter */}
           {showFilters && (
             <div className="flex flex-wrap gap-2">
               {['all', 'new', 'followup', 'negotiation', 'won', 'lost'].map((stage) => (
@@ -420,22 +455,23 @@ export default function InboxPage() {
               ))}
             </div>
           )}
-          
+
           <p className="text-sm text-zinc-500">
             {filteredConversations.length} of {conversations.length} conversations
           </p>
         </div>
-        
+
         <div className="flex-1 overflow-y-auto">
           {filteredConversations.length === 0 ? (
             <div className="p-8 text-center">
               <MessageSquare className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
               <p className="text-zinc-500 text-sm">No conversations found</p>
-              {(searchQuery || stageFilter !== 'all') && (
+              {(searchQuery || stageFilter !== 'all' || channelFilter !== 'all') && (
                 <button
                   onClick={() => {
                     setSearchQuery('');
                     setStageFilter('all');
+                    setChannelFilter('all');
                   }}
                   className="mt-2 text-sm text-blue-400 hover:text-blue-300"
                 >
@@ -456,26 +492,29 @@ export default function InboxPage() {
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-white truncate">
-                          {conversation.name}
-                        </span>
-                        {conversation.unreadCount > 0 && (
-                          <span className="px-1.5 py-0.5 bg-red-500 text-white text-xs rounded-full min-w-[18px] text-center">
-                            {conversation.unreadCount}
+                    <div className="flex items-center gap-2 min-w-0">
+                      <ChannelDot channel={conversation.channel} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-white truncate">
+                            {conversation.name || 'Unknown'}
                           </span>
-                        )}
+                          {conversation.unreadCount > 0 && (
+                            <span className="px-1.5 py-0.5 bg-red-500 text-white text-xs rounded-full min-w-[18px] text-center">
+                              {conversation.unreadCount}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-zinc-500 truncate mt-0.5">
+                          {conversation.lastMessage || 'No messages yet'}
+                        </p>
                       </div>
-                      <p className="text-sm text-zinc-500 truncate mt-0.5">
-                        {conversation.lastMessage || 'No messages yet'}
-                      </p>
                     </div>
                     <span className="text-xs text-zinc-600 whitespace-nowrap">
                       {formatDate(conversation.lastMessageAt)}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 mt-2">
+                  <div className="flex items-center gap-2 mt-2 ml-4">
                     <span className={`px-2 py-0.5 text-xs rounded-full ${getStageColor(conversation.stage)}`}>
                       {conversation.stage}
                     </span>
@@ -498,11 +537,22 @@ export default function InboxPage() {
           {/* Header */}
           <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center">
-                <User className="w-5 h-5 text-zinc-400" />
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                selectedConversation.channel === 'instagram'
+                  ? 'bg-pink-500/20'
+                  : 'bg-emerald-500/20'
+              }`}>
+                {selectedConversation.channel === 'instagram' ? (
+                  <Instagram className="w-5 h-5 text-pink-400" />
+                ) : (
+                  <MessageSquare className="w-5 h-5 text-emerald-400" />
+                )}
               </div>
               <div>
-                <h3 className="font-medium text-white">{selectedConversation.name}</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-medium text-white">{selectedConversation.name || 'Unknown'}</h3>
+                  <ChannelBadge channel={selectedConversation.channel} showLabel />
+                </div>
                 <div className="flex items-center gap-2 text-sm text-zinc-500">
                   <Phone className="w-3 h-3" />
                   {selectedConversation.phone}
@@ -571,7 +621,6 @@ export default function InboxPage() {
                 )}
               </div>
 
-              {/* Follow-up Button */}
               <button
                 onClick={() => setShowFollowupModal(true)}
                 className="flex items-center gap-1 px-3 py-1.5 bg-zinc-800 text-zinc-300 text-xs rounded-full hover:bg-zinc-700 transition-colors"
@@ -585,38 +634,42 @@ export default function InboxPage() {
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex ${
-                  message.direction === 'outbound' ? 'justify-end' : 'justify-start'
-                }`}
-              >
+            {messages.map((message) => {
+              const isOutbound = message.direction === 'outbound';
+              const isIg = message.channel === 'instagram' || selectedConversation.channel === 'instagram';
+
+              return (
                 <div
-                  className={`max-w-[70%] px-4 py-2.5 rounded-2xl ${
-                    message.direction === 'outbound'
-                      ? 'bg-white text-black rounded-br-md'
-                      : 'bg-zinc-800 text-white rounded-bl-md'
-                  }`}
+                  key={message.id}
+                  className={`flex ${isOutbound ? 'justify-end' : 'justify-start'}`}
                 >
-                  <p className="text-sm">{message.bodyText}</p>
-                  <div className="flex items-center justify-end gap-1 mt-1">
-                    <span className="text-xs opacity-60">
-                      {formatTime(message.createdAt)}
-                    </span>
-                    {message.direction === 'outbound' && (
-                      message.readReceipts.length > 0 ? (
-                        <CheckCheck className="w-3 h-3 opacity-60" />
-                      ) : (
-                        <Check className="w-3 h-3 opacity-60" />
-                      )
-                    )}
+                  <div
+                    className={`max-w-[70%] px-4 py-2.5 rounded-2xl ${
+                      isOutbound
+                        ? isIg
+                          ? 'bg-pink-500 text-white rounded-br-md'
+                          : 'bg-emerald-600 text-white rounded-br-md'
+                        : 'bg-zinc-800 text-white rounded-bl-md'
+                    }`}
+                  >
+                    <p className="text-sm">{message.bodyText}</p>
+                    <div className="flex items-center justify-end gap-1 mt-1">
+                      <span className="text-xs opacity-60">
+                        {formatTime(message.createdAt)}
+                      </span>
+                      {isOutbound && (
+                        message.readReceipts.length > 0 ? (
+                          <CheckCheck className="w-3 h-3 opacity-60" />
+                        ) : (
+                          <Check className="w-3 h-3 opacity-60" />
+                        )
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-            
-            {/* Typing Indicator */}
+              );
+            })}
+
             {typingUsers.length > 0 && (
               <div className="flex justify-start">
                 <div className="bg-zinc-800 px-4 py-3 rounded-2xl rounded-bl-md">
@@ -628,14 +681,26 @@ export default function InboxPage() {
                 </div>
               </div>
             )}
-            
+
             <div ref={messagesEndRef} />
           </div>
 
           {/* Input */}
           <div className="p-4 border-t border-zinc-800">
+            {smartReplies.length > 0 && (
+              <div className="flex gap-2 px-4 py-2">
+                {smartReplies.map((reply, i) => (
+                  <button
+                    key={i}
+                    onClick={() => applySmartReply(reply)}
+                    className="px-3 py-1.5 bg-purple-900/30 border border-purple-800/50 text-purple-300 rounded-full text-xs hover:bg-purple-900/50 transition-colors"
+                  >
+                    {reply}
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="flex items-center gap-2 bg-zinc-800/50 rounded-2xl px-4 py-3">
-              {/* Template Button */}
               <div className="relative" ref={templateMenuRef}>
                 <button
                   onClick={() => setShowTemplateMenu(!showTemplateMenu)}
@@ -661,12 +726,6 @@ export default function InboxPage() {
                     ))}
                   </div>
                 )}
-                {showTemplateMenu && templates.length === 0 && (
-                  <div className="absolute bottom-full left-0 mb-2 w-64 bg-zinc-900 border border-zinc-800 rounded-xl shadow-lg z-50 p-4">
-                    <p className="text-sm text-zinc-500">No templates yet</p>
-                    <p className="text-xs text-zinc-600 mt-1">Create templates in the Templates page</p>
-                  </div>
-                )}
               </div>
 
               <input
@@ -677,13 +736,29 @@ export default function InboxPage() {
                   sendTyping();
                 }}
                 onKeyPress={handleKeyPress}
-                placeholder="Type a message..."
+                placeholder={`Message via ${selectedConversation.channel === 'instagram' ? 'Instagram' : 'WhatsApp'}...`}
                 className="flex-1 bg-transparent text-white placeholder-zinc-500 outline-none text-sm"
               />
               <button
+                onClick={fetchSmartReplies}
+                disabled={loadingSmartReplies || messages.length === 0}
+                className="p-2 text-purple-400 hover:text-purple-300 transition-colors disabled:opacity-50"
+                title="AI Smart Replies"
+              >
+                {loadingSmartReplies ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <span className="text-lg">✨</span>
+                )}
+              </button>
+              <button
                 onClick={sendMessage}
                 disabled={sending || !newMessage.trim()}
-                className="p-2 bg-white text-black rounded-xl hover:bg-zinc-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`p-2 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                  selectedConversation.channel === 'instagram'
+                    ? 'bg-pink-500 text-white hover:bg-pink-600'
+                    : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                }`}
               >
                 {sending ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -719,8 +794,9 @@ export default function InboxPage() {
             <form onSubmit={createFollowup} className="space-y-4">
               <div>
                 <label className="block text-sm text-zinc-400 mb-1">Contact</label>
-                <div className="px-4 py-2 bg-zinc-800 rounded-xl text-white">
-                  {selectedConversation.name} ({selectedConversation.phone})
+                <div className="px-4 py-2 bg-zinc-800 rounded-xl text-white flex items-center gap-2">
+                  <ChannelDot channel={selectedConversation.channel} />
+                  {selectedConversation.name || 'Unknown'} ({selectedConversation.phone})
                 </div>
               </div>
               <div>

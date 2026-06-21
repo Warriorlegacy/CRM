@@ -1,5 +1,8 @@
 import { prisma } from '../prisma';
 import { publish } from '../realtime/events';
+import { sendWhatsAppText } from './meta';
+import { processChatbotMessage } from '../services/chatbotEngine';
+import { processLeadScore } from '../services/leadScoring';
 
 function getInboundMessage(payload: any) {
   const entry = payload?.entry?.[0];
@@ -125,10 +128,92 @@ export async function handleWhatsAppWebhook(payload: any) {
     unreadCount: contact.unreadCount,
   });
 
+  // 5) Process autoresponders
+  await processAutoresponders(workspace.id, contact.id, conversation.id, inbound.bodyText);
+
+  // 6) Process chatbot flows
+  await processChatbotMessage({
+    workspaceId: workspace.id,
+    contactId: contact.id,
+    conversationId: conversation.id,
+    channel: 'whatsapp',
+    messageText: inbound.bodyText,
+    senderId: inbound.from,
+  });
+
+  // 7) Lead scoring for inbound message
+  await processLeadScore({
+    workspaceId: workspace.id,
+    contactId: contact.id,
+    event: 'inbound_message',
+  });
+
   return {
     ok: true,
     workspaceId: workspace.id,
     contactId: contact.id,
     conversationId: conversation.id,
   };
+}
+
+async function processAutoresponders(
+  workspaceId: string,
+  contactId: string,
+  conversationId: string,
+  messageText: string | null
+) {
+  try {
+    const autoresponders = await prisma.$queryRaw<any[]>`
+      SELECT * FROM Autoresponder 
+      WHERE workspaceId = ${workspaceId}
+      AND isActive = 1
+    `;
+
+    for (const responder of autoresponders) {
+      let shouldTrigger = false;
+
+      if (responder.trigger === 'keyword' && responder.keyword) {
+        shouldTrigger = messageText?.toLowerCase().includes(responder.keyword.toLowerCase()) || false;
+      } else if (responder.trigger === 'new_contact') {
+        const existingMessages = await prisma.message.count({
+          where: { workspaceId, contactId, direction: 'inbound' },
+        });
+        shouldTrigger = existingMessages === 1;
+      }
+
+      if (shouldTrigger) {
+        const wa = await prisma.waAccount.findUnique({
+          where: { workspaceId },
+        });
+
+        if (!wa) continue;
+
+        const contact = await prisma.contact.findUnique({
+          where: { id: contactId },
+        });
+
+        if (!contact) continue;
+
+        if (responder.delayMinutes > 0) {
+          setTimeout(async () => {
+            await sendWhatsAppText({
+              accessToken: wa.accessToken,
+              phoneNumberId: wa.phoneNumberId,
+              to: contact.phone,
+              text: responder.message,
+            });
+          }, responder.delayMinutes * 60 * 1000);
+        } else {
+          await sendWhatsAppText({
+            accessToken: wa.accessToken,
+            phoneNumberId: wa.phoneNumberId,
+            to: contact.phone,
+            text: responder.message,
+          });
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error processing autoresponders:', error);
+  }
 }

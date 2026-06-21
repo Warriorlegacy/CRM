@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import winston from 'winston';
 
+const isServerlessRuntime = Boolean(process.env.VERCEL);
+
 // Create logger
 const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
@@ -25,8 +27,8 @@ const logger = winston.createLogger({
   ],
 });
 
-// Add file transport in production
-if (process.env.NODE_ENV === 'production') {
+// Add file transport in long-running production environments only.
+if (process.env.NODE_ENV === 'production' && !isServerlessRuntime) {
   logger.add(new winston.transports.File({ filename: 'logs/error.log', level: 'error' }));
   logger.add(new winston.transports.File({ filename: 'logs/combined.log' }));
 }

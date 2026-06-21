@@ -1,165 +1,404 @@
 'use client';
 
 import Link from "next/link";
-import { ArrowRight, MessageSquare, Users, BarChart3, Shield } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
-import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import {
+  ArrowRight,
+  BarChart3,
+  BadgeDollarSign,
+  Building2,
+  CheckCircle2,
+  Clock3,
+  MessageSquare,
+  ShieldCheck,
+  Sparkles,
+  Target,
+  Trophy,
+  Users2,
+  Zap,
+} from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function HomePage() {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
 
-  // Redirect to inbox if already authenticated
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      router.push('/inbox');
+      router.push("/inbox");
     }
   }, [isAuthenticated, isLoading, router]);
 
-  // Show loading state
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-zinc-950">
         <div className="flex flex-col items-center space-y-4">
-          <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-zinc-400 text-sm">Loading...</p>
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+          <p className="text-sm text-zinc-400">Preparing your revenue cockpit...</p>
         </div>
       </div>
     );
   }
 
-  // Don't render landing page if authenticated (will redirect)
   if (isAuthenticated) {
     return null;
   }
 
+  const proofPoints = [
+    "Close faster with shared ownership and instant handoffs",
+    "Stop lead leakage with reminders, templates, and pipeline visibility",
+    "Give every rep the same playbook without slowing them down",
+  ];
+
+  const stats = [
+    { label: "First replies", value: "< 2 min", note: "for teams using shared inbox routing" },
+    { label: "Follow-up consistency", value: "3x", note: "when reminders and templates stay in one workflow" },
+    { label: "Team visibility", value: "100%", note: "across chats, stages, owners, and activity" },
+  ];
+
+  const features = [
+    {
+      icon: MessageSquare,
+      title: "Shared inbox built for closing",
+      body: "One WhatsApp number, one live team view, zero chaos. Everyone sees ownership, status, and next action instantly.",
+    },
+    {
+      icon: Users2,
+      title: "Pipeline that shows momentum",
+      body: "Move leads from first message to won deal with a visual stage flow your team will actually use every day.",
+    },
+    {
+      icon: Clock3,
+      title: "Follow-ups that rescue revenue",
+      body: "Scheduled nudges, reminders, and saved replies keep warm leads from silently going cold.",
+    },
+    {
+      icon: ShieldCheck,
+      title: "Role-based workspace control",
+      body: "Admins and agents work in the same system without exposing the wrong data or breaking accountability.",
+    },
+  ];
+
+  const customerFits = [
+    {
+      icon: Building2,
+      title: "Built for high-intent service businesses",
+      body: "Ideal for real estate, education, clinics, agencies, and local businesses that already close business through WhatsApp.",
+    },
+    {
+      icon: Target,
+      title: "Best when leads are slipping through the cracks",
+      body: "If messages get missed, follow-ups are inconsistent, or no one knows who owns a lead, this becomes an easy ROI conversation.",
+    },
+    {
+      icon: Trophy,
+      title: "Easy to pitch as revenue protection",
+      body: "You are selling faster first replies, better handoffs, higher close rates, and fewer lost conversations.",
+    },
+  ];
+
+  const pricingPlans = [
+    {
+      name: "Starter",
+      price: "$79",
+      note: "per month",
+      description: "For small teams that need one shared WhatsApp workflow without the mess.",
+      points: [
+        "1 workspace for a growing sales team",
+        "Shared inbox, contacts, pipeline, and follow-ups",
+        "Saved replies and core reporting",
+        "Email support and onboarding help",
+      ],
+      cta: "Start With Starter",
+      featured: false,
+    },
+    {
+      name: "Growth",
+      price: "$149",
+      note: "per month",
+      description: "For teams ready to tighten response speed, accountability, and conversion.",
+      points: [
+        "Everything in Starter",
+        "Team visibility across owners and stages",
+        "Advanced templates and workflow discipline",
+        "Priority support and customization guidance",
+      ],
+      cta: "Choose Growth",
+      featured: true,
+    },
+    {
+      name: "Custom Setup",
+      price: "$500+",
+      note: "one-time implementation",
+      description: "For businesses that want migration, branding, training, or niche-specific workflow setup.",
+      points: [
+        "Workspace configuration and import help",
+        "Tailored sales stages and operating flow",
+        "Team onboarding with launch support",
+        "Optional custom integrations and reports",
+      ],
+      cta: "Book Custom Setup",
+      featured: false,
+    },
+  ];
+
+  const objectionHandlers = [
+    "We already use WhatsApp every day, but we still lose leads.",
+    "Our team replies, but follow-up is inconsistent and hard to track.",
+    "We need one place to see who owns each conversation and what happens next.",
+  ];
+
   return (
-    <div className="min-h-screen bg-zinc-950">
-      {/* Navigation */}
-      <nav className="border-b border-zinc-800">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+    <div className="min-h-screen overflow-hidden">
+      <div className="hero-grid pointer-events-none absolute inset-0 opacity-30" />
+
+      <nav className="sticky top-0 z-20 border-b border-white/8 bg-[rgba(4,10,20,0.72)] backdrop-blur-xl">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-2">
-            <MessageSquare className="w-6 h-6 text-emerald-500" />
-            <span className="font-semibold text-white">WhatsApp CRM</span>
+            <div className="glow-ring flex h-11 w-11 items-center justify-center rounded-2xl border border-emerald-300/20 bg-emerald-400/12">
+              <MessageSquare className="h-5 w-5 text-emerald-300" />
+            </div>
+            <div>
+              <span className="font-semibold text-white">WhatsApp CRM</span>
+              <p className="text-xs text-sky-100/60">Built to turn chats into pipeline</p>
+            </div>
           </div>
           <div className="flex items-center gap-4">
-            <Link
-              href="/login"
-              className="text-zinc-400 hover:text-white transition-colors"
-            >
+            <a href="#pricing" className="hidden text-slate-300 hover:text-white md:block">
+              Pricing
+            </a>
+            <Link href="/login" className="text-slate-300 hover:text-white">
               Sign in
             </Link>
             <Link
               href="/register"
-              className="px-4 py-2 rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-500 transition-colors"
+              className="rounded-full border border-emerald-300/20 bg-emerald-400/15 px-5 py-2 text-sm font-semibold text-emerald-100 hover:bg-emerald-400/22"
             >
-              Get Started
+              Launch Your Workspace
             </Link>
           </div>
         </div>
       </nav>
 
-      {/* Hero */}
-      <div className="max-w-6xl mx-auto px-6 py-20">
-        <div className="text-center space-y-6">
-          <h1 className="text-5xl font-bold text-white">
-            WhatsApp CRM Wrapper
-          </h1>
-          <p className="text-xl text-zinc-400 max-w-2xl mx-auto">
-            Turn WhatsApp into a proper Sales + Support CRM. Manage leads, automate follow-ups, and never lose a conversation.
-          </p>
-          <div className="flex items-center justify-center gap-4 pt-4">
-            <Link
-              href="/register"
-              className="px-6 py-3 rounded-xl bg-emerald-600 text-white font-medium flex items-center gap-2 hover:bg-emerald-500 transition-colors"
-            >
-              Get Started Free
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-            <Link
-              href="/login"
-              className="px-6 py-3 rounded-xl bg-zinc-900 text-white font-medium border border-zinc-800 hover:bg-zinc-800 transition-colors"
-            >
-              Sign In
-            </Link>
-          </div>
-        </div>
-
-        {/* Features */}
-        <div className="grid grid-cols-4 gap-6 mt-20">
-          <div className="p-6 rounded-2xl border border-zinc-800 bg-zinc-900/30">
-            <MessageSquare className="w-8 h-8 text-emerald-500 mb-4" />
-            <h3 className="font-semibold text-white mb-2">Team Inbox</h3>
-            <p className="text-sm text-zinc-500">
-              Shared WhatsApp number for your entire team
-            </p>
-          </div>
-          <div className="p-6 rounded-2xl border border-zinc-800 bg-zinc-900/30">
-            <Users className="w-8 h-8 text-blue-500 mb-4" />
-            <h3 className="font-semibold text-white mb-2">Lead Management</h3>
-            <p className="text-sm text-zinc-500">
-              Pipeline stages from New to Won
-            </p>
-          </div>
-          <div className="p-6 rounded-2xl border border-zinc-800 bg-zinc-900/30">
-            <BarChart3 className="w-8 h-8 text-purple-500 mb-4" />
-            <h3 className="font-semibold text-white mb-2">Follow-ups</h3>
-            <p className="text-sm text-zinc-500">
-              Never miss a lead with reminders
-            </p>
-          </div>
-          <div className="p-6 rounded-2xl border border-zinc-800 bg-zinc-900/30">
-            <Shield className="w-8 h-8 text-yellow-500 mb-4" />
-            <h3 className="font-semibold text-white mb-2">Templates</h3>
-            <p className="text-sm text-zinc-500">
-              Quick replies with variables
-            </p>
-          </div>
-        </div>
-
-        {/* Pricing */}
-        <div className="mt-20">
-          <h2 className="text-2xl font-semibold text-white text-center mb-10">
-            Simple Pricing (India-friendly)
-          </h2>
-          <div className="grid grid-cols-3 gap-6 max-w-4xl mx-auto">
-            <div className="p-6 rounded-2xl border border-zinc-800 bg-zinc-900/30">
-              <div className="text-sm text-zinc-500 mb-2">Starter</div>
-              <div className="text-3xl font-bold text-white mb-4">₹999/mo</div>
-              <ul className="space-y-2 text-sm text-zinc-400">
-                <li>1 WhatsApp number</li>
-                <li>1 user</li>
-                <li>Basic CRM</li>
-                <li>Templates</li>
-              </ul>
-            </div>
-            <div className="p-6 rounded-2xl border-2 border-emerald-500 bg-zinc-900/50 relative">
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-emerald-500 text-white text-xs font-medium rounded-full">
-                Popular
+      <main className="relative">
+        <section className="mx-auto max-w-7xl px-6 pb-14 pt-20 lg:pt-28">
+          <div className="grid gap-12 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
+            <div className="space-y-8">
+              <div className="inline-flex items-center gap-2 rounded-full border border-sky-200/12 bg-white/6 px-4 py-2 text-sm text-sky-100/80">
+                <Sparkles className="h-4 w-4 text-amber-300" />
+                Sales teams stop losing hot leads when WhatsApp gets organized
               </div>
-              <div className="text-sm text-zinc-500 mb-2">Pro</div>
-              <div className="text-3xl font-bold text-white mb-4">₹2999/mo</div>
-              <ul className="space-y-2 text-sm text-zinc-400">
-                <li>3 users</li>
-                <li>Follow-ups</li>
-                <li>Tags & Reports</li>
-                <li>Priority support</li>
-              </ul>
+
+              <div className="space-y-5">
+                <h1 className="max-w-4xl text-balance text-5xl font-semibold tracking-tight text-white sm:text-6xl lg:text-7xl">
+                  Stop losing WhatsApp leads and turn every conversation into a tracked sales opportunity.
+                </h1>
+                <p className="max-w-2xl text-balance text-lg leading-8 text-slate-300">
+                  Give your team one shared inbox, clear ownership, fast follow-ups, and a pipeline that actually shows what
+                  is moving, what is stalled, and what is closing. This is the CRM clients buy when missed chats start costing real money.
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Link
+                  href="/register"
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-[linear-gradient(135deg,#41d39b,#6db3ff)] px-6 py-3 text-sm font-semibold text-slate-950 shadow-[0_18px_45px_rgba(65,211,155,0.28)]"
+                >
+                  Start Closing Faster
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+                <Link
+                  href="#pricing"
+                  className="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/5 px-6 py-3 text-sm font-semibold text-white hover:bg-white/9"
+                >
+                  View Pricing
+                </Link>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                {proofPoints.map((point) => (
+                  <div key={point} className="glass-panel rounded-2xl px-4 py-4 text-sm text-slate-200">
+                    <div className="mb-2 flex items-center gap-2 text-emerald-300">
+                      <CheckCircle2 className="h-4 w-4" />
+                      Outcome-driven
+                    </div>
+                    <p className="leading-6 text-slate-300">{point}</p>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="p-6 rounded-2xl border border-zinc-800 bg-zinc-900/30">
-              <div className="text-sm text-zinc-500 mb-2">Business</div>
-              <div className="text-3xl font-bold text-white mb-4">₹6999/mo</div>
-              <ul className="space-y-2 text-sm text-zinc-400">
-                <li>10 users</li>
-                <li>Broadcasts</li>
-                <li>Automation</li>
-                <li>Analytics</li>
-              </ul>
+
+            <div className="glass-panel spotlight-card rounded-[32px] p-6 sm:p-8">
+              <div className="mb-6 flex items-center justify-between">
+                <div>
+                  <p className="text-sm uppercase tracking-[0.24em] text-sky-100/45">Revenue Control Center</p>
+                  <h2 className="mt-2 text-2xl font-semibold text-white">
+                    See who owns the conversation, what moves next, and where money is stuck.
+                  </h2>
+                </div>
+                <div className="rounded-2xl border border-emerald-300/18 bg-emerald-300/10 p-3 text-emerald-200">
+                  <Zap className="h-6 w-6" />
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {stats.map((stat) => (
+                  <div key={stat.label} className="rounded-3xl border border-white/8 bg-[rgba(255,255,255,0.03)] p-5">
+                    <div className="flex items-end justify-between gap-6">
+                      <div>
+                        <p className="text-sm text-slate-400">{stat.label}</p>
+                        <p className="mt-2 text-4xl font-semibold text-white">{stat.value}</p>
+                      </div>
+                      <BarChart3 className="h-9 w-9 text-sky-300" />
+                    </div>
+                    <p className="mt-3 text-sm leading-6 text-slate-300">{stat.note}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
-      </div>
+        </section>
+
+        <section className="mx-auto max-w-7xl px-6 py-10">
+          <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
+            <div className="glass-panel rounded-[30px] p-7">
+              <p className="text-sm uppercase tracking-[0.24em] text-amber-200/65">Client-Facing Pitch</p>
+              <h2 className="mt-3 text-3xl font-semibold text-white">
+                Your sales team should not be closing deals from a chaotic chat list.
+              </h2>
+              <p className="mt-4 text-base leading-8 text-slate-300">
+                WhatsApp is where leads show intent, ask questions, and make buying decisions. When those conversations stay
+                unmanaged, businesses lose speed, consistency, and revenue. This platform gives them one operating system for
+                replies, ownership, follow-up, and conversion.
+              </p>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              {objectionHandlers.map((line) => (
+                <div key={line} className="glass-panel rounded-[28px] p-6">
+                  <div className="mb-4 inline-flex rounded-2xl border border-emerald-300/18 bg-emerald-300/10 p-3 text-emerald-200">
+                    <BadgeDollarSign className="h-5 w-5" />
+                  </div>
+                  <p className="text-base leading-7 text-slate-200">{line}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-7xl px-6 py-10">
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+            {features.map((feature) => (
+              <div key={feature.title} className="glass-panel rounded-[28px] p-6">
+                <div className="mb-5 inline-flex rounded-2xl border border-white/10 bg-white/6 p-3 text-sky-200">
+                  <feature.icon className="h-6 w-6" />
+                </div>
+                <h3 className="text-xl font-semibold text-white">{feature.title}</h3>
+                <p className="mt-3 text-sm leading-7 text-slate-300">{feature.body}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-7xl px-6 py-10">
+          <div className="grid gap-5 lg:grid-cols-3">
+            {customerFits.map((fit) => (
+              <div key={fit.title} className="glass-panel rounded-[28px] p-6">
+                <div className="mb-5 inline-flex rounded-2xl border border-white/10 bg-white/6 p-3 text-amber-200">
+                  <fit.icon className="h-6 w-6" />
+                </div>
+                <h3 className="text-xl font-semibold text-white">{fit.title}</h3>
+                <p className="mt-3 text-sm leading-7 text-slate-300">{fit.body}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section id="pricing" className="mx-auto max-w-7xl px-6 py-16">
+          <div className="mb-10 max-w-3xl">
+            <p className="text-sm uppercase tracking-[0.24em] text-sky-100/45">Pricing</p>
+            <h2 className="mt-3 text-3xl font-semibold text-white sm:text-4xl">
+              Price it around speed, accountability, and the revenue clients stop losing.
+            </h2>
+            <p className="mt-4 text-base leading-8 text-slate-300">
+              Use this structure as a clean starting point for client proposals. Charge a monthly software fee, then layer in
+              setup, customization, migration, and training for businesses that want a done-for-you launch.
+            </p>
+          </div>
+
+          <div className="grid gap-5 xl:grid-cols-3">
+            {pricingPlans.map((plan) => (
+              <div
+                key={plan.name}
+                className={`glass-panel rounded-[32px] p-7 ${plan.featured ? "border-emerald-300/30 bg-emerald-400/10" : ""}`}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h3 className="text-2xl font-semibold text-white">{plan.name}</h3>
+                    <p className="mt-3 text-sm leading-7 text-slate-300">{plan.description}</p>
+                  </div>
+                  {plan.featured ? (
+                    <span className="rounded-full border border-emerald-300/20 bg-emerald-300/12 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-100">
+                      Most Popular
+                    </span>
+                  ) : null}
+                </div>
+
+                <div className="mt-8">
+                  <div className="flex items-end gap-2">
+                    <span className="text-5xl font-semibold text-white">{plan.price}</span>
+                    <span className="pb-2 text-sm text-slate-400">{plan.note}</span>
+                  </div>
+                </div>
+
+                <div className="mt-8 space-y-3">
+                  {plan.points.map((point) => (
+                    <div key={point} className="flex items-start gap-3 text-sm leading-7 text-slate-200">
+                      <CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-emerald-300" />
+                      <span>{point}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <Link
+                  href="/register"
+                  className={`mt-8 inline-flex w-full items-center justify-center rounded-full px-5 py-3 text-sm font-semibold ${
+                    plan.featured
+                      ? "bg-[linear-gradient(135deg,#41d39b,#6db3ff)] text-slate-950 shadow-[0_18px_45px_rgba(65,211,155,0.28)]"
+                      : "border border-white/10 bg-white/5 text-white hover:bg-white/9"
+                  }`}
+                >
+                  {plan.cta}
+                </Link>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-7xl px-6 py-16">
+          <div className="glass-panel rounded-[36px] p-8 sm:p-10 lg:p-12">
+            <div className="grid gap-8 lg:grid-cols-[1fr_auto] lg:items-center">
+              <div>
+                <p className="text-sm uppercase tracking-[0.24em] text-amber-200/65">Pricing Framed Around ROI</p>
+                <h2 className="mt-3 text-3xl font-semibold text-white sm:text-4xl">
+                  Sell it as a system that protects revenue, speeds up response time, and keeps the team accountable.
+                </h2>
+                <p className="mt-4 max-w-3xl text-base leading-8 text-slate-300">
+                  The strongest buyers are businesses already getting leads on WhatsApp but struggling with missed replies,
+                  poor handoffs, weak follow-up discipline, and zero pipeline visibility. That is who this offer is built for.
+                </p>
+              </div>
+              <Link
+                href="/register"
+                className="inline-flex items-center justify-center rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-950"
+              >
+                Turn Interest Into Trials
+              </Link>
+            </div>
+          </div>
+        </section>
+      </main>
     </div>
   );
 }

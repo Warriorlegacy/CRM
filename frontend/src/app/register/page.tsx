@@ -1,10 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { ArrowRight, MessageSquare, Rocket, Sparkles } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { MessageSquare } from 'lucide-react';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -51,131 +51,168 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-950 px-4 py-12">
-      <div className="max-w-md w-full space-y-8">
-        <div className="text-center">
-          <div className="mx-auto h-12 w-12 bg-emerald-500/10 rounded-xl flex items-center justify-center">
-            <MessageSquare className="h-6 w-6 text-emerald-500" />
-          </div>
-          <h2 className="mt-6 text-3xl font-bold text-white">
-            Create your account
-          </h2>
-          <p className="mt-2 text-sm text-zinc-400">
-            Start managing your WhatsApp conversations
-          </p>
-        </div>
-
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {error && (
-            <div className="bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-lg text-sm">
-              {error}
-            </div>
-          )}
-
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-zinc-300 mb-2">
-                Full Name
-              </label>
-              <input
-                id="name"
-                name="name"
-                type="text"
-                autoComplete="name"
-                required
-                value={formData.name}
-                onChange={handleChange}
-                className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                placeholder="John Doe"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-zinc-300 mb-2">
-                Email address
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={formData.email}
-                onChange={handleChange}
-                className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                placeholder="you@company.com"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="workspaceName" className="block text-sm font-medium text-zinc-300 mb-2">
-                Workspace Name (optional)
-              </label>
-              <input
-                id="workspaceName"
-                name="workspaceName"
-                type="text"
-                value={formData.workspaceName}
-                onChange={handleChange}
-                className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                placeholder="Acme Inc."
-              />
-            </div>
-
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-zinc-300 mb-2">
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="new-password"
-                required
-                value={formData.password}
-                onChange={handleChange}
-                className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                placeholder="••••••••"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-zinc-300 mb-2">
-                Confirm Password
-              </label>
-              <input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                autoComplete="new-password"
-                required
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                placeholder="••••••••"
-              />
-            </div>
-          </div>
-
+    <div className="min-h-screen px-4 py-10">
+      <div className="mx-auto grid min-h-[calc(100vh-5rem)] max-w-6xl gap-8 lg:grid-cols-[1fr_1fr]">
+        <div className="glass-panel hidden rounded-[32px] p-10 lg:flex lg:flex-col lg:justify-between">
           <div>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {isLoading ? 'Creating account...' : 'Create account'}
-            </button>
-          </div>
-
-          <div className="text-center">
-            <p className="text-sm text-zinc-400">
-              Already have an account?{' '}
-              <Link href="/login" className="font-medium text-emerald-500 hover:text-emerald-400">
-                Sign in
-              </Link>
+            <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/6 px-4 py-2 text-sm text-sky-100/80">
+              <Sparkles className="h-4 w-4 text-amber-300" />
+              Build the WhatsApp engine your team can scale on
+            </div>
+            <h1 className="mt-8 max-w-md text-5xl font-semibold leading-tight text-white">
+              Launch a workspace that makes every incoming chat easier to win.
+            </h1>
+            <p className="mt-5 max-w-lg text-base leading-8 text-slate-300">
+              Create your account, invite your team, and turn message volume into structured pipeline, accountability, and action.
             </p>
           </div>
-        </form>
+
+          <div className="grid gap-4">
+            <div className="rounded-3xl border border-white/8 bg-white/5 p-5">
+              <div className="flex items-center gap-3 text-emerald-300">
+                <Rocket className="h-5 w-5" />
+                Production-minded setup
+              </div>
+              <p className="mt-3 text-sm leading-7 text-slate-300">
+                JWT auth, role-aware workspaces, and a cleaner deployment path make onboarding look professional from day one.
+              </p>
+            </div>
+            <div className="rounded-3xl border border-white/8 bg-white/5 p-5">
+              <div className="flex items-center gap-3 text-sky-300">
+                <MessageSquare className="h-5 w-5" />
+                Conversations with structure
+              </div>
+              <p className="mt-3 text-sm leading-7 text-slate-300">
+                The app turns WhatsApp from a chat stream into an organized revenue workflow your client can trust.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="glass-panel flex items-center rounded-[32px] p-8 sm:p-10">
+          <div className="w-full">
+            <div className="mb-8 text-center lg:text-left">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-emerald-300/18 bg-emerald-400/12 lg:mx-0">
+                <MessageSquare className="h-6 w-6 text-emerald-300" />
+              </div>
+              <h2 className="mt-6 text-3xl font-semibold text-white">
+                Create a workspace your client will feel confident paying for.
+              </h2>
+              <p className="mt-3 text-sm leading-7 text-slate-300">
+                Set up the team hub for faster replies, cleaner handoffs, and a more visible sales pipeline.
+              </p>
+            </div>
+
+            <form className="space-y-6" onSubmit={handleSubmit}>
+              {error && (
+                <div className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                  {error}
+                </div>
+              )}
+
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="name" className="mb-2 block text-sm font-medium text-slate-200">
+                    Full name
+                  </label>
+                  <input
+                    id="name"
+                    name="name"
+                    type="text"
+                    autoComplete="name"
+                    required
+                    value={formData.name}
+                    onChange={handleChange}
+                    className="w-full rounded-2xl border border-white/10 bg-[rgba(255,255,255,0.04)] px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+                    placeholder="John Doe"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="email" className="mb-2 block text-sm font-medium text-slate-200">
+                    Work email
+                  </label>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    required
+                    value={formData.email}
+                    onChange={handleChange}
+                    className="w-full rounded-2xl border border-white/10 bg-[rgba(255,255,255,0.04)] px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+                    placeholder="you@company.com"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="workspaceName" className="mb-2 block text-sm font-medium text-slate-200">
+                    Workspace name
+                  </label>
+                  <input
+                    id="workspaceName"
+                    name="workspaceName"
+                    type="text"
+                    value={formData.workspaceName}
+                    onChange={handleChange}
+                    className="w-full rounded-2xl border border-white/10 bg-[rgba(255,255,255,0.04)] px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+                    placeholder="Acme Growth Team"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="password" className="mb-2 block text-sm font-medium text-slate-200">
+                    Password
+                  </label>
+                  <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    autoComplete="new-password"
+                    required
+                    value={formData.password}
+                    onChange={handleChange}
+                    className="w-full rounded-2xl border border-white/10 bg-[rgba(255,255,255,0.04)] px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+                    placeholder="At least 8 characters"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="confirmPassword" className="mb-2 block text-sm font-medium text-slate-200">
+                    Confirm password
+                  </label>
+                  <input
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    type="password"
+                    autoComplete="new-password"
+                    required
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    className="w-full rounded-2xl border border-white/10 bg-[rgba(255,255,255,0.04)] px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+                    placeholder="Repeat your password"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[linear-gradient(135deg,#41d39b,#6db3ff)] px-5 py-3 text-sm font-semibold text-slate-950 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isLoading ? 'Creating your workspace...' : 'Create My Workspace'}
+                <ArrowRight className="h-4 w-4" />
+              </button>
+
+              <div className="text-center text-sm text-slate-300">
+                Already have an account?{' '}
+                <Link href="/login" className="font-semibold text-emerald-300 hover:text-white">
+                  Sign in
+                </Link>
+              </div>
+            </form>
+          </div>
+        </div>
       </div>
     </div>
   );
