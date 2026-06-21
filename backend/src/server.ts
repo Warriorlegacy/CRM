@@ -18,6 +18,7 @@ import workspaceRouter from './routes/workspace';
 import typingRouter from './routes/typing';
 import readReceiptRouter from './routes/readReceipts';
 import authRouter from './routes/auth';
+import { adminRouter } from './routes/admin';
 import { analyticsRouter } from './routes/analytics';
 import { exportRouter } from './routes/export';
 import broadcastRouter from './routes/broadcast';
@@ -60,6 +61,9 @@ app.use('/', webhooksRouter);
 
 // Auth routes (no auth required for login/register)
 app.use('/api/v1/auth', authRouter);
+
+// Admin setup routes (no auth required for initial setup)
+app.use('/api/v1/admin', adminRouter);
 
 // Protected API Routes - require JWT authentication
 app.use('/api/v1/inbox', requireAuth, inboxRouter);
