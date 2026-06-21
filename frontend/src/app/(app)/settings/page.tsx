@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
-  Settings, Bell, Smartphone, Check, AlertTriangle, Bot, Trash2, Plus, Instagram
+  Settings, Bell, Smartphone, Check, AlertTriangle, Bot, Trash2, Plus, Instagram,
+  RefreshCw, ExternalLink
 } from 'lucide-react';
 
 interface Workspace {
@@ -37,6 +38,11 @@ export default function SettingsPage() {
   const [successMessage, setSuccessMessage] = useState('');
   const [activeTab, setActiveTab] = useState<'general' | 'whatsapp' | 'instagram' | 'notifications' | 'autoresponders'>('general');
   const [autoresponders, setAutoresponders] = useState<Autoresponder[]>([]);
+  const [oauthStatus, setOauthStatus] = useState<{
+    whatsapp: { connected: boolean; phoneNumberId: string | null };
+    instagram: { connected: boolean; igUserId: string | null };
+  } | null>(null);
+  const [connectingChannel, setConnectingChannel] = useState<string | null>(null);
   
   const [settings, setSettings] = useState({
     workspaceName: '',
@@ -65,6 +71,7 @@ export default function SettingsPage() {
     if (authLoading) return;
     loadWorkspace();
     loadAutoresponders();
+    loadOauthStatus();
   }, [authLoading]);
 
   const loadWorkspace = async () => {
@@ -91,6 +98,32 @@ export default function SettingsPage() {
     } catch (error) {
       console.error('Failed to load autoresponders:', error);
     }
+  };
+
+  const loadOauthStatus = async () => {
+    try {
+      const status = await api.get<{
+        whatsapp: { connected: boolean; phoneNumberId: string | null };
+        instagram: { connected: boolean; igUserId: string | null };
+      }>('/oauth/status');
+      setOauthStatus(status);
+    } catch (error) {
+      console.error('Failed to load OAuth status:', error);
+    }
+  };
+
+  const handleOAuthConnect = (channel: string) => {
+    if (!workspace) return;
+    setConnectingChannel(channel);
+    const backendUrl = (process.env.NEXT_PUBLIC_API_URL || '').replace('/api/v1', '') || 'http://localhost:3001';
+    window.location.href = backendUrl + '/api/v1/oauth/' + channel + '?workspaceId=' + workspace.id;
+  };
+
+  const handleOAuthDisconnect = async (channel: string) => {
+    if (!confirm('Disconnect ' + channel + '?')) return;
+    await api.delete('/oauth/disconnect/' + channel);
+    loadOauthStatus();
+    loadWorkspace();
   };
 
   const handleSave = async () => {
@@ -233,132 +266,105 @@ export default function SettingsPage() {
               <h2 className="text-lg font-semibold text-white">WhatsApp Configuration</h2>
               
               {/* Connection Status */}
-              {settings.phoneNumberId ? (
+              {settings.phoneNumberId || oauthStatus?.whatsapp.connected ? (
                 <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-xl">
-                  <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 bg-green-500 rounded-full" />
-                    <div>
-                      <h3 className="text-sm font-medium text-green-400">WhatsApp Connected</h3>
-                      <p className="text-xs text-green-300/70">Phone Number ID: {settings.phoneNumberId}</p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-2 h-2 bg-green-500 rounded-full" />
+                      <div>
+                        <h3 className="text-sm font-medium text-green-400">WhatsApp Connected</h3>
+                        <p className="text-xs text-green-300/70">
+                          Phone Number ID: {settings.phoneNumberId || oauthStatus?.whatsapp.phoneNumberId}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleOAuthConnect('whatsapp')}
+                        disabled={connectingChannel === 'whatsapp'}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-white text-xs rounded-lg transition-colors"
+                      >
+                        <RefreshCw className="w-3 h-3" /> Reconnect
+                      </button>
+                      <button
+                        onClick={() => handleOAuthDisconnect('whatsapp')}
+                        className="px-3 py-1.5 bg-red-900/30 hover:bg-red-900/50 text-red-400 text-xs rounded-lg transition-colors"
+                      >
+                        Disconnect
+                      </button>
                     </div>
                   </div>
                 </div>
               ) : (
                 <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl">
-                  <div className="flex items-center gap-3">
-                    <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
-                    <div>
-                      <h3 className="text-sm font-medium text-amber-400">WhatsApp Not Connected</h3>
-                      <p className="text-xs text-amber-300/70">Follow the steps below to connect your WhatsApp Business account.</p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
+                      <div>
+                        <h3 className="text-sm font-medium text-amber-400">WhatsApp Not Connected</h3>
+                        <p className="text-xs text-amber-300/70">Connect your WhatsApp Business account via Meta OAuth.</p>
+                      </div>
                     </div>
+                    <button
+                      onClick={() => handleOAuthConnect('whatsapp')}
+                      disabled={connectingChannel === 'whatsapp'}
+                      className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm rounded-xl font-medium transition-colors"
+                    >
+                      {connectingChannel === 'whatsapp' ? (
+                        <><span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Connecting...</>
+                      ) : (
+                        <><Smartphone className="w-4 h-4" /> Connect WhatsApp</>
+                      )}
+                    </button>
                   </div>
                 </div>
               )}
 
-              {/* Step-by-step guide */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-medium text-white">Setup Guide</h3>
-                
-                <div className="space-y-3">
-                  <div className="flex gap-3">
-                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs font-bold">1</div>
-                    <div>
-                      <p className="text-sm text-white">Create a Meta Business App</p>
-                      <p className="text-xs text-zinc-500">Go to <a href="https://developers.facebook.com/apps/create/" target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline">developers.facebook.com</a> → Create App → Select "Business" type → Add "WhatsApp" product.</p>
-                    </div>
+              {/* Manual credentials (advanced) */}
+              <details className="bg-zinc-800/30 rounded-xl">
+                <summary className="px-4 py-3 text-sm text-zinc-400 cursor-pointer hover:text-white transition-colors">
+                  Advanced: Manual credential entry
+                </summary>
+                <div className="px-4 pb-4 space-y-4">
+                  <div>
+                    <label className="block text-sm text-zinc-400 mb-2">Phone Number ID</label>
+                    <input
+                      type="text"
+                      value={settings.phoneNumberId}
+                      onChange={(e) => setSettings({ ...settings, phoneNumberId: e.target.value })}
+                      className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-xl text-white outline-none focus:border-zinc-600"
+                      placeholder="e.g., 1234567890"
+                    />
                   </div>
-                  
-                  <div className="flex gap-3">
-                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs font-bold">2</div>
-                    <div>
-                      <p className="text-sm text-white">Get your credentials from Meta Dashboard</p>
-                      <p className="text-xs text-zinc-500">In your app dashboard → WhatsApp → Configuration → Copy the <strong>Phone Number ID</strong>, <strong>WhatsApp Business Account ID</strong>, and <strong>Temporary Access Token</strong>.</p>
-                    </div>
+                  <div>
+                    <label className="block text-sm text-zinc-400 mb-2">WhatsApp Business Account ID</label>
+                    <input
+                      type="text"
+                      value={settings.businessAccountId}
+                      onChange={(e) => setSettings({ ...settings, businessAccountId: e.target.value })}
+                      className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-xl text-white outline-none focus:border-zinc-600"
+                      placeholder="e.g., 9876543210"
+                    />
                   </div>
-                  
-                  <div className="flex gap-3">
-                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs font-bold">3</div>
-                    <div>
-                      <p className="text-sm text-white">Enter credentials below</p>
-                      <p className="text-xs text-zinc-500">Paste the Phone Number ID, Business Account ID, and Access Token into the fields below.</p>
-                    </div>
+                  <div>
+                    <label className="block text-sm text-zinc-400 mb-2">Access Token</label>
+                    <input
+                      type="password"
+                      value={settings.accessToken}
+                      onChange={(e) => setSettings({ ...settings, accessToken: e.target.value })}
+                      className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-xl text-white outline-none focus:border-zinc-600"
+                      placeholder="Paste your Meta access token"
+                    />
                   </div>
-                  
-                  <div className="flex gap-3">
-                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs font-bold">4</div>
-                    <div>
-                      <p className="text-sm text-white">Configure Webhook in Meta Dashboard</p>
-                      <p className="text-xs text-zinc-500">Go to WhatsApp → Configuration → Webhook → Subscribe to messages. Enter the webhook URL below and your verify token.</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex gap-3">
-                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs font-bold">5</div>
-                    <div>
-                      <p className="text-sm text-white">Start receiving messages</p>
-                      <p className="text-xs text-zinc-500">Once configured, incoming WhatsApp messages will appear in your Inbox automatically.</p>
-                    </div>
-                  </div>
+                  <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="px-4 py-2 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-500 disabled:opacity-50"
+                  >
+                    {saving ? 'Saving...' : 'Save Manual Settings'}
+                  </button>
                 </div>
-              </div>
-
-              {/* Webhook URL */}
-              <div className="p-4 bg-zinc-800/50 rounded-xl">
-                <h3 className="text-sm font-medium text-white mb-2">Your Webhook URL</h3>
-                <code className="text-xs text-emerald-400 break-all">
-                  https://whatsapp-crm-backend-bv1j.onrender.com/webhook
-                </code>
-                <p className="text-xs text-zinc-500 mt-2">Paste this URL into your Meta Dashboard webhook configuration.</p>
-              </div>
-
-              {/* Credentials form */}
-              <div>
-                <label className="block text-sm text-zinc-400 mb-2">Phone Number ID</label>
-                <input
-                  type="text"
-                  value={settings.phoneNumberId}
-                  onChange={(e) => setSettings({ ...settings, phoneNumberId: e.target.value })}
-                  className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-xl text-white outline-none focus:border-zinc-600"
-                  placeholder="e.g., 1234567890"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-zinc-400 mb-2">WhatsApp Business Account ID</label>
-                <input
-                  type="text"
-                  value={settings.businessAccountId}
-                  onChange={(e) => setSettings({ ...settings, businessAccountId: e.target.value })}
-                  className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-xl text-white outline-none focus:border-zinc-600"
-                  placeholder="e.g., 9876543210"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-zinc-400 mb-2">Access Token</label>
-                <input
-                  type="password"
-                  value={settings.accessToken}
-                  onChange={(e) => setSettings({ ...settings, accessToken: e.target.value })}
-                  className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-xl text-white outline-none focus:border-zinc-600"
-                  placeholder="Paste your Meta access token"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-zinc-400 mb-2">Webhook Verify Token</label>
-                <input
-                  type="text"
-                  value={settings.webhookVerifyToken}
-                  onChange={(e) => setSettings({ ...settings, webhookVerifyToken: e.target.value })}
-                  className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-xl text-white outline-none focus:border-zinc-600"
-                  placeholder="Create a custom token (e.g., my-whatsapp-verify-2026)"
-                />
-              </div>
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="px-4 py-2 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-500 disabled:opacity-50"
-              >
-                {saving ? 'Saving...' : 'Save WhatsApp Settings'}
-              </button>
+              </details>
             </div>
           )}
 
@@ -367,122 +373,95 @@ export default function SettingsPage() {
               <h2 className="text-lg font-semibold text-white">Instagram Configuration</h2>
               
               {/* Connection Status */}
-              {settings.igUserId ? (
+              {settings.igUserId || oauthStatus?.instagram.connected ? (
                 <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-xl">
-                  <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 bg-green-500 rounded-full" />
-                    <div>
-                      <h3 className="text-sm font-medium text-green-400">Instagram Connected</h3>
-                      <p className="text-xs text-green-300/70">Instagram User ID: {settings.igUserId}</p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-2 h-2 bg-green-500 rounded-full" />
+                      <div>
+                        <h3 className="text-sm font-medium text-green-400">Instagram Connected</h3>
+                        <p className="text-xs text-green-300/70">
+                          Instagram User ID: {settings.igUserId || oauthStatus?.instagram.igUserId}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleOAuthConnect('instagram')}
+                        disabled={connectingChannel === 'instagram'}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-white text-xs rounded-lg transition-colors"
+                      >
+                        <RefreshCw className="w-3 h-3" /> Reconnect
+                      </button>
+                      <button
+                        onClick={() => handleOAuthDisconnect('instagram')}
+                        className="px-3 py-1.5 bg-red-900/30 hover:bg-red-900/50 text-red-400 text-xs rounded-lg transition-colors"
+                      >
+                        Disconnect
+                      </button>
                     </div>
                   </div>
                 </div>
               ) : (
                 <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl">
-                  <div className="flex items-center gap-3">
-                    <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
-                    <div>
-                      <h3 className="text-sm font-medium text-amber-400">Instagram Not Connected</h3>
-                      <p className="text-xs text-amber-300/70">Follow the steps below to connect your Instagram Business account.</p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
+                      <div>
+                        <h3 className="text-sm font-medium text-amber-400">Instagram Not Connected</h3>
+                        <p className="text-xs text-amber-300/70">Connect your Instagram Business account via Meta OAuth.</p>
+                      </div>
                     </div>
+                    <button
+                      onClick={() => handleOAuthConnect('instagram')}
+                      disabled={connectingChannel === 'instagram'}
+                      className="flex items-center gap-2 px-4 py-2 bg-pink-600 hover:bg-pink-500 text-white text-sm rounded-xl font-medium transition-colors"
+                    >
+                      {connectingChannel === 'instagram' ? (
+                        <><span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Connecting...</>
+                      ) : (
+                        <><Instagram className="w-4 h-4" /> Connect Instagram</>
+                      )}
+                    </button>
                   </div>
                 </div>
               )}
 
-              {/* Step-by-step guide */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-medium text-white">Setup Guide</h3>
-                
-                <div className="space-y-3">
-                  <div className="flex gap-3">
-                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-pink-500/20 text-pink-400 flex items-center justify-center text-xs font-bold">1</div>
-                    <div>
-                      <p className="text-sm text-white">Convert to Instagram Business Account</p>
-                      <p className="text-xs text-zinc-500">In Instagram app → Settings → Account → Switch to Professional Account → Select "Business".</p>
-                    </div>
+              {/* Manual credentials (advanced) */}
+              <details className="bg-zinc-800/30 rounded-xl">
+                <summary className="px-4 py-3 text-sm text-zinc-400 cursor-pointer hover:text-white transition-colors">
+                  Advanced: Manual credential entry
+                </summary>
+                <div className="px-4 pb-4 space-y-4">
+                  <div>
+                    <label className="block text-sm text-zinc-400 mb-2">Instagram User ID</label>
+                    <input
+                      type="text"
+                      value={settings.igUserId}
+                      onChange={(e) => setSettings({ ...settings, igUserId: e.target.value })}
+                      className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-xl text-white outline-none focus:border-zinc-600"
+                      placeholder="Your Instagram Business Account ID"
+                    />
                   </div>
-                  
-                  <div className="flex gap-3">
-                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-pink-500/20 text-pink-400 flex items-center justify-center text-xs font-bold">2</div>
-                    <div>
-                      <p className="text-sm text-white">Connect to Facebook Page</p>
-                      <p className="text-xs text-zinc-500">Link your Instagram Business account to a Facebook Page in your Meta Business Suite.</p>
-                    </div>
+                  <div>
+                    <label className="block text-sm text-zinc-400 mb-2">Access Token</label>
+                    <input
+                      type="password"
+                      value={settings.igAccessToken}
+                      onChange={(e) => setSettings({ ...settings, igAccessToken: e.target.value })}
+                      className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-xl text-white outline-none focus:border-zinc-600"
+                      placeholder="Instagram Graph API Access Token"
+                    />
                   </div>
-                  
-                  <div className="flex gap-3">
-                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-pink-500/20 text-pink-400 flex items-center justify-center text-xs font-bold">3</div>
-                    <div>
-                      <p className="text-sm text-white">Create a Meta App (or use existing)</p>
-                      <p className="text-xs text-zinc-500">Go to <a href="https://developers.facebook.com/apps/create/" target="_blank" rel="noopener noreferrer" className="text-pink-400 hover:underline">developers.facebook.com</a> → Add "Instagram Graph API" product to your app.</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex gap-3">
-                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-pink-500/20 text-pink-400 flex items-center justify-center text-xs font-bold">4</div>
-                    <div>
-                      <p className="text-sm text-white">Get your credentials</p>
-                      <p className="text-xs text-zinc-500">In your app dashboard → Instagram → Basic Display → Copy your <strong>Instagram User ID</strong>. Generate an <strong>Access Token</strong> with <code>pages_messaging</code> and <code>instagram_basic</code> permissions.</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex gap-3">
-                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-pink-500/20 text-pink-400 flex items-center justify-center text-xs font-bold">5</div>
-                    <div>
-                      <p className="text-sm text-white">Configure Webhook in Meta Dashboard</p>
-                      <p className="text-xs text-zinc-500">In your app → Instagram → Configuration → Webhook → Subscribe to messages. Enter the webhook URL below and your verify token.</p>
-                    </div>
-                  </div>
+                  <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="px-4 py-2 bg-pink-600 text-white rounded-xl font-medium hover:bg-pink-500 disabled:opacity-50"
+                  >
+                    {saving ? 'Saving...' : 'Save Manual Settings'}
+                  </button>
                 </div>
-              </div>
-
-              {/* Webhook URL */}
-              <div className="p-4 bg-zinc-800/50 rounded-xl">
-                <h3 className="text-sm font-medium text-white mb-2">Your Webhook URL</h3>
-                <code className="text-xs text-pink-400 break-all">
-                  https://whatsapp-crm-backend-bv1j.onrender.com/webhook/instagram
-                </code>
-                <p className="text-xs text-zinc-500 mt-2">Paste this URL into your Meta Dashboard webhook configuration.</p>
-              </div>
-
-              {/* Credentials form */}
-              <div>
-                <label className="block text-sm text-zinc-400 mb-2">Instagram User ID</label>
-                <input
-                  type="text"
-                  value={settings.igUserId}
-                  onChange={(e) => setSettings({ ...settings, igUserId: e.target.value })}
-                  className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-xl text-white outline-none focus:border-zinc-600"
-                  placeholder="Your Instagram Business Account ID"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-zinc-400 mb-2">Access Token</label>
-                <input
-                  type="password"
-                  value={settings.igAccessToken}
-                  onChange={(e) => setSettings({ ...settings, igAccessToken: e.target.value })}
-                  className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-xl text-white outline-none focus:border-zinc-600"
-                  placeholder="Instagram Graph API Access Token"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-zinc-400 mb-2">Webhook Verify Token</label>
-                <input
-                  type="text"
-                  value={settings.igWebhookVerifyToken}
-                  onChange={(e) => setSettings({ ...settings, igWebhookVerifyToken: e.target.value })}
-                  className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-xl text-white outline-none focus:border-zinc-600"
-                  placeholder="Create a custom token (e.g., my-ig-verify-2026)"
-                />
-              </div>
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="px-4 py-2 bg-pink-600 text-white rounded-xl font-medium hover:bg-pink-500 disabled:opacity-50"
-              >
-                {saving ? 'Saving...' : 'Save Instagram Settings'}
-              </button>
+              </details>
             </div>
           )}
 

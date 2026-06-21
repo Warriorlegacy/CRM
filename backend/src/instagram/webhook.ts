@@ -4,6 +4,7 @@ import { sendInstagramMessage } from './graph';
 import { InstagramWebhookBody, ParsedInboundInstagram } from './types';
 import { processChatbotMessage } from '../services/chatbotEngine';
 import { processLeadScore } from '../services/leadScoring';
+import { processAutomation } from '../services/aiAutomation';
 
 function parseInboundMessage(payload: InstagramWebhookBody): ParsedInboundInstagram | null {
   const entry = payload?.entry?.[0];
@@ -144,6 +145,16 @@ export async function handleInstagramWebhook(payload: InstagramWebhookBody) {
     workspaceId: workspace.id,
     contactId: contact.id,
     event: 'inbound_message',
+  });
+
+  // 8) AI Automation - analyze, categorize, auto-reply
+  await processAutomation({
+    workspaceId: workspace.id,
+    contactId: contact.id,
+    conversationId: conversation.id,
+    channel: 'instagram',
+    messageText: inbound.bodyText || '',
+    contactName: contact.name || 'Customer',
   });
 
   return {

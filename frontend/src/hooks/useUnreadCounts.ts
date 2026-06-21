@@ -14,7 +14,10 @@ export function useUnreadCounts(
   const fetchUnreadCounts = useCallback(async () => {
     try {
       const res = await api.get<{ totalUnread: number }>('/inbox/unread-counts', {
-        headers: { 'x-user-id': userId, 'x-workspace-id': workspaceId },
+        headers: {
+          ...(userId && { 'x-user-id': userId }),
+          ...(workspaceId && { 'x-workspace-id': workspaceId }),
+        },
       });
       setTotalUnread(res.totalUnread);
     } catch (error) {

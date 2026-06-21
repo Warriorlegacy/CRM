@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { MessageSquare, Users, Kanban, Bell, FileText, Settings, UserPlus, LayoutDashboard, ChevronDown, LogOut, Building2, Webhook, Bot, Brain } from "lucide-react";
+import { MessageSquare, Users, Kanban, Bell, FileText, Settings, UserPlus, LayoutDashboard, ChevronDown, LogOut, Building2, Webhook, Bot, Brain, Plug } from "lucide-react";
 import { useUnreadCounts } from "@/hooks/useUnreadCounts";
 import { useAuth } from "@/contexts/AuthContext";
 import NotificationBadge from "./NotificationBadge";
@@ -16,8 +16,10 @@ const nav = [
   { label: "Follow-ups", href: "/followups", icon: Bell },
   { label: "Chatbot", href: "/chatbot", icon: Bot },
   { label: "AI", href: "/ai", icon: Brain },
+  { label: "Automation", href: "/automation", icon: Bot },
   { label: "Templates", href: "/templates", icon: FileText },
   { label: "Team", href: "/team", icon: UserPlus },
+  { label: "Setup", href: "/setup", icon: Plug },
   { label: "Settings", href: "/settings", icon: Settings },
   { label: "Webhooks", href: "/webhooks", icon: Webhook },
 ];

@@ -31,6 +31,8 @@ import webhooksLogRouter from './routes/webhooksLog';
 import chatbotFlowsRouter from './routes/chatbotFlows';
 import { aiRouter } from './routes/ai';
 import verifyRouter from './routes/verify';
+import automationRouter from './routes/automation';
+import { oauthRouter } from './routes/oauth';
 
 const app = express();
 
@@ -63,6 +65,9 @@ app.use('/', webhooksRouter);
 // Auth routes (no auth required for login/register)
 app.use('/api/v1/auth', authRouter);
 
+// OAuth routes (no auth required for redirects/callbacks, state token handles workspaceId)
+app.use('/api/v1/oauth', oauthRouter);
+
 // Admin setup routes (no auth required for initial setup)
 app.use('/api/v1/admin', adminRouter);
 
@@ -89,6 +94,7 @@ app.use('/api/v1/autoresponders', requireAuth, autoresponderRouter);
 app.use('/api/v1/webhooks-log', requireAuth, webhooksLogRouter);
 app.use('/api/v1/chatbot-flows', requireAuth, chatbotFlowsRouter);
 app.use('/api/v1/ai', requireAuth, aiRouter);
+app.use('/api/v1/automation', requireAuth, automationRouter);
 
 // Real-time SSE - protected
 app.use('/realtime', requireAuth, realtimeRouter);

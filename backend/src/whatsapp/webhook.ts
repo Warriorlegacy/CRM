@@ -3,6 +3,7 @@ import { publish } from '../realtime/events';
 import { sendWhatsAppText } from './meta';
 import { processChatbotMessage } from '../services/chatbotEngine';
 import { processLeadScore } from '../services/leadScoring';
+import { processAutomation } from '../services/aiAutomation';
 
 function getInboundMessage(payload: any) {
   const entry = payload?.entry?.[0];
@@ -146,6 +147,16 @@ export async function handleWhatsAppWebhook(payload: any) {
     workspaceId: workspace.id,
     contactId: contact.id,
     event: 'inbound_message',
+  });
+
+  // 8) AI Automation - analyze, categorize, auto-reply
+  await processAutomation({
+    workspaceId: workspace.id,
+    contactId: contact.id,
+    conversationId: conversation.id,
+    channel: 'whatsapp',
+    messageText: inbound.bodyText || '',
+    contactName: contact.name || 'Customer',
   });
 
   return {

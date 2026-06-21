@@ -28,8 +28,8 @@ export function useTypingIndicator(
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-id': userId,
-          'x-workspace-id': workspaceId,
+          ...(userId && { 'x-user-id': userId }),
+          ...(workspaceId && { 'x-workspace-id': workspaceId }),
         },
         body: JSON.stringify({ conversationId, status }),
       });
@@ -68,8 +68,8 @@ export function useTypingIndicator(
         `${API_BASE}/typing/${conversationId}`,
         {
           headers: {
-            'x-user-id': userId,
-            'x-workspace-id': workspaceId,
+            ...(userId && { 'x-user-id': userId }),
+            ...(workspaceId && { 'x-workspace-id': workspaceId }),
           },
         }
       );

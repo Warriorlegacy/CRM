@@ -24,6 +24,11 @@ export const env = {
   RATE_LIMIT_WINDOW_MS: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10),
   RATE_LIMIT_MAX_REQUESTS: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100', 10),
   
+  // Meta OAuth (WhatsApp & Instagram)
+  META_APP_ID: process.env.META_APP_ID || '',
+  META_APP_SECRET: process.env.META_APP_SECRET || '',
+  FRONTEND_URL: process.env.FRONTEND_URL || (isProduction ? '' : 'http://localhost:3000'),
+  
   // CORS
   CORS_ORIGIN: process.env.CORS_ORIGIN || (isProduction ? '' : 'http://localhost:3000'),
   
