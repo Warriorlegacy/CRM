@@ -36,6 +36,9 @@ import { oauthRouter } from './routes/oauth';
 
 const app = express();
 
+// Use simple query parser so hub.mode stays as literal key, not nested
+app.set('query parser', 'simple');
+
 // Setup security middleware
 setupSecurity(app);
 
