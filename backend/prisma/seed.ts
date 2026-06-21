@@ -33,6 +33,13 @@ async function main() {
     create: { email: 'agent@rideright.in', password: agentPassword, name: 'Priya Singh' },
   });
 
+  const existingWorkspace = await prisma.workspace.findUnique({ where: { slug: 'rideright-motors' } });
+  if (existingWorkspace) {
+    console.log('Database already seeded, skipping.');
+    await prisma.$disconnect();
+    return;
+  }
+
   const workspace = await prisma.workspace.create({
     data: {
       name: 'RideRight Motors',
