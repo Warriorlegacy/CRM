@@ -8,17 +8,10 @@ export const webhooksRouter = Router();
 // ── WhatsApp Webhook ──────────────────────────────────────────
 
 webhooksRouter.get('/webhook', (req, res) => {
-  const mode = req.query['hub.mode'];
-  const token = req.query['hub.verify_token'];
-  const challenge = req.query['hub.challenge'];
-
-  console.log('[WEBHOOK_DEBUG]', JSON.stringify({
-    mode, token, challenge,
-    query: req.query,
-    expectedToken: env.WA_VERIFY_TOKEN,
-    match: token === env.WA_VERIFY_TOKEN,
-    modeMatch: mode === 'subscribe',
-  }));
+  const q = req.query;
+  const mode = q['hub.mode'] || (q.hub as any)?.mode;
+  const token = q['hub.verify_token'] || (q.hub as any)?.verify_token;
+  const challenge = q['hub.challenge'] || (q.hub as any)?.challenge;
 
   if (mode === 'subscribe' && token === env.WA_VERIFY_TOKEN) {
     return res.status(200).send(challenge);
@@ -39,9 +32,10 @@ webhooksRouter.post('/webhook', async (req, res) => {
 // ── Instagram Webhook ─────────────────────────────────────────
 
 webhooksRouter.get('/webhook/instagram', (req, res) => {
-  const mode = req.query['hub.mode'];
-  const token = req.query['hub.verify_token'];
-  const challenge = req.query['hub.challenge'];
+  const q = req.query;
+  const mode = q['hub.mode'] || (q.hub as any)?.mode;
+  const token = q['hub.verify_token'] || (q.hub as any)?.verify_token;
+  const challenge = q['hub.challenge'] || (q.hub as any)?.challenge;
 
   if (mode === 'subscribe' && token === env.IG_VERIFY_TOKEN) {
     return res.status(200).send(challenge);
