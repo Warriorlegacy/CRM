@@ -37,9 +37,9 @@ services:
       - key: RATE_LIMIT_MAX_REQUESTS
         value: "100"
       - key: META_APP_ID
-        value: "YOUR_META_APP_ID_HERE"
+        value: "980883078083935"
       - key: META_APP_SECRET
-        value: "YOUR_META_APP_SECRET_HERE"
+        value: "798886936e5226d9ff26608f511270cc"
       - key: FRONTEND_URL
         value: https://signhify-crm.vercel.app
       - key: ADMIN_SECRET
