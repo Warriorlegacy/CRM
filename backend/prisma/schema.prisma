@@ -24,6 +24,7 @@ model User {
   followupsAssigned Followup[]        @relation("FollowupAssignee")
   typingStatuses    TypingIndicator[]
   readReceipts      ReadReceipt[]
+  verificationTokens VerificationToken[]
 }
 
 model Workspace {
@@ -31,6 +32,7 @@ model Workspace {
   name          String
   slug          String            @unique
   ownerId       String
+  plan          String            @default("free")
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
   owner         User              @relation("WorkspaceOwner", fields: [ownerId], references: [id])
@@ -400,4 +402,16 @@ model AiAutoReplyLog {
   @@index([workspaceId])
   @@index([conversationId])
   @@index([createdAt])
+}
+
+model VerificationToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([token])
+  @@index([userId])
 }

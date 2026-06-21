@@ -15,54 +15,61 @@ function requireAdminSecret(req: Request, res: Response, next: NextFunction): vo
   next();
 }
 
-// One-time setup: push schema + seed (requires admin secret)
-adminRouter.get('/setup', requireAdminSecret, async (_req, res) => {
-  try {
-    execSync('npx prisma db push --skip-generate', {
-      cwd: process.cwd(),
-      stdio: 'pipe',
-      timeout: 60000,
-    });
+// Block admin endpoints in production (they're only for initial setup)
+if (process.env.NODE_ENV === 'production') {
+  adminRouter.all('*', (_req, res) => {
+    res.status(404).json({ error: 'Not Found' });
+  });
+} else {
+  // One-time setup: push schema + seed (requires admin secret)
+  adminRouter.get('/setup', requireAdminSecret, async (_req, res) => {
+    try {
+      execSync('npx prisma db push --skip-generate', {
+        cwd: process.cwd(),
+        stdio: 'pipe',
+        timeout: 60000,
+      });
 
-    execSync('npx ts-node prisma/seed.ts', {
-      cwd: process.cwd(),
-      stdio: 'pipe',
-      timeout: 60000,
-    });
+      execSync('npx ts-node prisma/seed.ts', {
+        cwd: process.cwd(),
+        stdio: 'pipe',
+        timeout: 60000,
+      });
 
-    res.json({ status: 'ok', message: 'Database pushed and seeded successfully' });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
-    res.status(500).json({ status: 'error', message });
-  }
-});
+      res.json({ status: 'ok', message: 'Database pushed and seeded successfully' });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ status: 'error', message });
+    }
+  });
 
-// Just push schema (requires admin secret)
-adminRouter.get('/db-push', requireAdminSecret, async (_req, res) => {
-  try {
-    execSync('npx prisma db push --skip-generate', {
-      cwd: process.cwd(),
-      stdio: 'pipe',
-      timeout: 60000,
-    });
-    res.json({ status: 'ok', message: 'Schema pushed successfully' });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
-    res.status(500).json({ status: 'error', message });
-  }
-});
+  // Just push schema (requires admin secret)
+  adminRouter.get('/db-push', requireAdminSecret, async (_req, res) => {
+    try {
+      execSync('npx prisma db push --skip-generate', {
+        cwd: process.cwd(),
+        stdio: 'pipe',
+        timeout: 60000,
+      });
+      res.json({ status: 'ok', message: 'Schema pushed successfully' });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ status: 'error', message });
+    }
+  });
 
-// Just seed (requires admin secret)
-adminRouter.get('/seed', requireAdminSecret, async (_req, res) => {
-  try {
-    execSync('npx ts-node prisma/seed.ts', {
-      cwd: process.cwd(),
-      stdio: 'pipe',
-      timeout: 60000,
-    });
-    res.json({ status: 'ok', message: 'Database seeded successfully' });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
-    res.status(500).json({ status: 'error', message });
-  }
-});
+  // Just seed (requires admin secret)
+  adminRouter.get('/seed', requireAdminSecret, async (_req, res) => {
+    try {
+      execSync('npx ts-node prisma/seed.ts', {
+        cwd: process.cwd(),
+        stdio: 'pipe',
+        timeout: 60000,
+      });
+      res.json({ status: 'ok', message: 'Database seeded successfully' });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ status: 'error', message });
+    }
+  });
+}

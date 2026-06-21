@@ -1,26 +1,8 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request, Response } from 'express';
 import { prisma } from '../prisma';
+import { PLAN_LIMITS } from '../middleware/limits';
 
 export const workspaceRouter = Router();
-
-// Middleware to extract auth headers
-const extractAuth = (req: Request, res: Response, next: NextFunction) => {
-  const userId = req.header('x-user-id');
-  const workspaceId = req.header('x-workspace-id');
-
-  if (!userId || !workspaceId) {
-    return res.status(401).json({
-      error: 'Unauthorized',
-      message: 'Missing x-user-id or x-workspace-id headers',
-    });
-  }
-
-  (req as any).userId = userId;
-  (req as any).workspaceId = workspaceId;
-  next();
-};
-
-workspaceRouter.use(extractAuth);
 
 workspaceRouter.get('/', async (req, res) => {
   const userId = (req as any).userId;
@@ -141,6 +123,34 @@ workspaceRouter.post('/ig-account', async (req, res) => {
   });
 
   return res.json({ ok: true, ig });
+});
+
+workspaceRouter.get('/billing', async (req, res) => {
+  const workspaceId = (req as any).workspaceId;
+  
+  const workspace = await prisma.workspace.findUnique({
+    where: { id: workspaceId },
+    select: { plan: true, createdAt: true },
+  });
+  
+  const limits = PLAN_LIMITS[workspace?.plan || 'free'];
+  
+  const [contactCount, userCount, flowCount] = await Promise.all([
+    prisma.contact.count({ where: { workspaceId } }),
+    prisma.workspaceMember.count({ where: { workspaceId } }),
+    prisma.chatbotFlow.count({ where: { workspaceId } }),
+  ]);
+  
+  return res.json({
+    plan: workspace?.plan || 'free',
+    limits,
+    usage: {
+      contacts: contactCount,
+      users: userCount,
+      chatbotFlows: flowCount,
+    },
+    createdAt: workspace?.createdAt,
+  });
 });
 
 export default workspaceRouter;

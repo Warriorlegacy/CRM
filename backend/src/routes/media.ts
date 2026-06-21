@@ -6,11 +6,7 @@ export const mediaRouter = Router();
 
 mediaRouter.get('/:messageId', async (req, res) => {
   const { messageId } = req.params;
-  const workspaceId = req.header('x-workspace-id');
-
-  if (!workspaceId) {
-    return res.status(401).json({ error: 'Missing workspace ID' });
-  }
+  const workspaceId = (req as any).workspaceId;
 
   try {
     const message = await prisma.message.findFirst({

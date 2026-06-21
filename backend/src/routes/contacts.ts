@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../prisma';
 import { AuthedRequest } from '../middleware/auth';
+import { getWorkspaceLimits, checkLimit } from '../middleware/limits';
 
 export const contactsRouter = Router();
 
@@ -61,6 +62,17 @@ contactsRouter.post('/', async (req, res) => {
     return res.status(400).json({
       error: 'Validation Error',
       details: parsed.error.flatten(),
+    });
+  }
+
+  // Check contact limit
+  const limits = await getWorkspaceLimits(workspaceId);
+  const contactCount = await prisma.contact.count({ where: { workspaceId } });
+  if (!checkLimit(contactCount, limits.maxContacts)) {
+    return res.status(403).json({
+      error: 'Limit Reached',
+      message: `You've reached the contacts limit for your current plan. Please upgrade to continue.`,
+      limit: { current: contactCount, max: limits.maxContacts, resource: 'contacts' },
     });
   }
 

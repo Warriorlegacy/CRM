@@ -1,27 +1,10 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../prisma';
 import bcrypt from 'bcryptjs';
+import { getWorkspaceLimits, checkLimit } from '../middleware/limits';
 
 export const inviteRouter = Router();
-
-const extractAuth = (req: Request, res: Response, next: NextFunction) => {
-  const userId = req.header('x-user-id');
-  const workspaceId = req.header('x-workspace-id');
-
-  if (!userId || !workspaceId) {
-    return res.status(401).json({
-      error: 'Unauthorized',
-      message: 'Missing x-user-id or x-workspace-id headers',
-    });
-  }
-
-  (req as any).userId = userId;
-  (req as any).workspaceId = workspaceId;
-  next();
-};
-
-inviteRouter.use(extractAuth);
 
 const InviteSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -49,6 +32,17 @@ inviteRouter.post('/', async (req, res) => {
 
   if (!member || member.role !== 'admin') {
     return res.status(403).json({ error: 'Only admins can invite users' });
+  }
+
+  // Check user limit
+  const limits = await getWorkspaceLimits(workspaceId);
+  const memberCount = await prisma.workspaceMember.count({ where: { workspaceId } });
+  if (!checkLimit(memberCount, limits.maxUsers)) {
+    return res.status(403).json({
+      error: 'Limit Reached',
+      message: `You've reached the users limit for your current plan. Please upgrade to continue.`,
+      limit: { current: memberCount, max: limits.maxUsers, resource: 'users' },
+    });
   }
 
   const existingUser = await prisma.user.findUnique({

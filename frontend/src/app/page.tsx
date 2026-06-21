@@ -34,8 +34,8 @@ export default function HomePage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-zinc-950">
         <div className="flex flex-col items-center space-y-4">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
-          <p className="text-sm text-zinc-400">Preparing your revenue cockpit...</p>
+          <div className="w-12 h-12 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-zinc-400 text-sm">Loading your workspace...</p>
         </div>
       </div>
     );
@@ -101,44 +101,49 @@ export default function HomePage() {
   const pricingPlans = [
     {
       name: "Starter",
-      price: "$79",
-      note: "per month",
-      description: "For small teams that need one shared WhatsApp workflow without the mess.",
+      price: "Free",
+      note: "forever",
+      description: "For individuals getting started with WhatsApp CRM.",
       points: [
-        "1 workspace for a growing sales team",
-        "Shared inbox, contacts, pipeline, and follow-ups",
-        "Saved replies and core reporting",
-        "Email support and onboarding help",
+        "1 user",
+        "100 contacts",
+        "500 messages/mo",
+        "Basic inbox",
+        "1 chatbot flow",
       ],
-      cta: "Start With Starter",
+      cta: "Start Free",
       featured: false,
     },
     {
       name: "Growth",
-      price: "$149",
+      price: "$29",
       note: "per month",
-      description: "For teams ready to tighten response speed, accountability, and conversion.",
+      description: "For small teams ready to scale their WhatsApp sales workflow.",
       points: [
-        "Everything in Starter",
-        "Team visibility across owners and stages",
-        "Advanced templates and workflow discipline",
-        "Priority support and customization guidance",
+        "5 users",
+        "2,000 contacts",
+        "Unlimited messages",
+        "Full inbox with team management",
+        "Chatbot flows & AI auto-reply",
+        "Team management",
       ],
-      cta: "Choose Growth",
+      cta: "Start 14-Day Trial",
       featured: true,
     },
     {
-      name: "Custom Setup",
-      price: "$500+",
-      note: "one-time implementation",
-      description: "For businesses that want migration, branding, training, or niche-specific workflow setup.",
+      name: "Business",
+      price: "$79",
+      note: "per month",
+      description: "For businesses that need unlimited access and custom integrations.",
       points: [
-        "Workspace configuration and import help",
-        "Tailored sales stages and operating flow",
-        "Team onboarding with launch support",
-        "Optional custom integrations and reports",
+        "Unlimited users",
+        "Unlimited contacts",
+        "Unlimited messages",
+        "Priority support",
+        "Custom integrations",
+        "API access",
       ],
-      cta: "Book Custom Setup",
+      cta: "Talk to Sales",
       featured: false,
     },
   ];
@@ -287,7 +292,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="mx-auto max-w-7xl px-6 py-10">
+        <section id="features" className="mx-auto max-w-7xl px-6 py-10">
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
             {features.map((feature) => (
               <div key={feature.title} className="glass-panel rounded-[28px] p-6">
@@ -319,11 +324,10 @@ export default function HomePage() {
           <div className="mb-10 max-w-3xl">
             <p className="text-sm uppercase tracking-[0.24em] text-sky-100/45">Pricing</p>
             <h2 className="mt-3 text-3xl font-semibold text-white sm:text-4xl">
-              Price it around speed, accountability, and the revenue clients stop losing.
+              Start free, scale as you grow.
             </h2>
             <p className="mt-4 text-base leading-8 text-slate-300">
-              Use this structure as a clean starting point for client proposals. Charge a monthly software fee, then layer in
-              setup, customization, migration, and training for businesses that want a done-for-you launch.
+              Try WhatsApp CRM free with no commitment. Upgrade when you&apos;re ready to unlock more users, contacts, and powerful automation features.
             </p>
           </div>
 
@@ -398,6 +402,53 @@ export default function HomePage() {
             </div>
           </div>
         </section>
+        <footer className="border-t border-white/8 bg-[rgba(4,10,20,0.6)]">
+          <div className="mx-auto max-w-7xl px-6 py-12">
+            <div className="grid gap-8 md:grid-cols-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <div className="glow-ring flex h-9 w-9 items-center justify-center rounded-xl border border-emerald-300/20 bg-emerald-400/12">
+                    <MessageSquare className="h-4 w-4 text-emerald-300" />
+                  </div>
+                  <span className="font-semibold text-white">WhatsApp CRM</span>
+                </div>
+                <p className="mt-3 text-sm leading-6 text-slate-400">
+                  The shared inbox and pipeline that turns WhatsApp conversations into revenue.
+                </p>
+              </div>
+
+              <div>
+                <h4 className="text-sm font-semibold text-white">Product</h4>
+                <ul className="mt-3 space-y-2">
+                  <li><a href="#features" className="text-sm text-slate-400 hover:text-white">Features</a></li>
+                  <li><a href="#pricing" className="text-sm text-slate-400 hover:text-white">Pricing</a></li>
+                  <li><Link href="/register" className="text-sm text-slate-400 hover:text-white">API</Link></li>
+                </ul>
+              </div>
+
+              <div>
+                <h4 className="text-sm font-semibold text-white">Company</h4>
+                <ul className="mt-3 space-y-2">
+                  <li><a href="#" className="text-sm text-slate-400 hover:text-white">About</a></li>
+                  <li><a href="#" className="text-sm text-slate-400 hover:text-white">Blog</a></li>
+                  <li><a href="#" className="text-sm text-slate-400 hover:text-white">Contact</a></li>
+                </ul>
+              </div>
+
+              <div>
+                <h4 className="text-sm font-semibold text-white">Legal</h4>
+                <ul className="mt-3 space-y-2">
+                  <li><a href="#" className="text-sm text-slate-400 hover:text-white">Privacy</a></li>
+                  <li><a href="#" className="text-sm text-slate-400 hover:text-white">Terms</a></li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="mt-10 border-t border-white/8 pt-6 text-center text-sm text-slate-500">
+              &copy; 2026 WhatsApp CRM. All rights reserved.
+            </div>
+          </div>
+        </footer>
       </main>
     </div>
   );

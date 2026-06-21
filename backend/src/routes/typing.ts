@@ -1,27 +1,8 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request, Response } from 'express';
 import { prisma } from '../prisma';
 import { publish } from '../realtime/events';
 
 export const typingRouter = Router();
-
-// Middleware to extract auth headers
-const extractAuth = (req: Request, res: Response, next: NextFunction) => {
-  const userId = req.header('x-user-id');
-  const workspaceId = req.header('x-workspace-id');
-
-  if (!userId || !workspaceId) {
-    return res.status(401).json({
-      error: 'Unauthorized',
-      message: 'Missing x-user-id or x-workspace-id headers',
-    });
-  }
-
-  (req as any).userId = userId;
-  (req as any).workspaceId = workspaceId;
-  next();
-};
-
-typingRouter.use(extractAuth);
 
 // Set typing status
 typingRouter.post('/', async (req, res) => {

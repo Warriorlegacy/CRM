@@ -46,6 +46,15 @@ export default function RegisterPage() {
     }
   };
 
+  const getPasswordStrength = (pw: string) => {
+    if (pw.length === 0) return { level: 0, label: '', color: '' };
+    if (pw.length < 8) return { level: 1, label: 'Weak', color: 'bg-red-500' };
+    if (pw.length <= 12) return { level: 2, label: 'Fair', color: 'bg-yellow-500' };
+    return { level: 3, label: 'Strong', color: 'bg-emerald-500' };
+  };
+
+  const passwordStrength = getPasswordStrength(formData.password);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -123,7 +132,7 @@ export default function RegisterPage() {
                     required
                     value={formData.name}
                     onChange={handleChange}
-                    className="w-full rounded-2xl border border-white/10 bg-[rgba(255,255,255,0.04)] px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+                    className="w-full rounded-2xl border border-white/10 bg-[rgba(255,255,255,0.04)] px-4 py-3.5 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
                     placeholder="John Doe"
                   />
                 </div>
@@ -140,7 +149,7 @@ export default function RegisterPage() {
                     required
                     value={formData.email}
                     onChange={handleChange}
-                    className="w-full rounded-2xl border border-white/10 bg-[rgba(255,255,255,0.04)] px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+                    className="w-full rounded-2xl border border-white/10 bg-[rgba(255,255,255,0.04)] px-4 py-3.5 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
                     placeholder="you@company.com"
                   />
                 </div>
@@ -155,9 +164,10 @@ export default function RegisterPage() {
                     type="text"
                     value={formData.workspaceName}
                     onChange={handleChange}
-                    className="w-full rounded-2xl border border-white/10 bg-[rgba(255,255,255,0.04)] px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+                    className="w-full rounded-2xl border border-white/10 bg-[rgba(255,255,255,0.04)] px-4 py-3.5 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
                     placeholder="Acme Growth Team"
                   />
+                  <p className="mt-1.5 text-xs text-slate-500">Leave blank and we&apos;ll create one for you.</p>
                 </div>
 
                 <div>
@@ -172,9 +182,21 @@ export default function RegisterPage() {
                     required
                     value={formData.password}
                     onChange={handleChange}
-                    className="w-full rounded-2xl border border-white/10 bg-[rgba(255,255,255,0.04)] px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+                    className="w-full rounded-2xl border border-white/10 bg-[rgba(255,255,255,0.04)] px-4 py-3.5 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
                     placeholder="At least 8 characters"
                   />
+                  {formData.password.length > 0 && (
+                    <div className="mt-2">
+                      <div className="flex gap-1">
+                        <div className={`h-1 flex-1 rounded-full ${passwordStrength.level >= 1 ? passwordStrength.color : 'bg-white/10'}`} />
+                        <div className={`h-1 flex-1 rounded-full ${passwordStrength.level >= 2 ? passwordStrength.color : 'bg-white/10'}`} />
+                        <div className={`h-1 flex-1 rounded-full ${passwordStrength.level >= 3 ? passwordStrength.color : 'bg-white/10'}`} />
+                      </div>
+                      <p className={`mt-1 text-xs ${passwordStrength.level === 1 ? 'text-red-400' : passwordStrength.level === 2 ? 'text-yellow-400' : 'text-emerald-400'}`}>
+                        {passwordStrength.label}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -189,7 +211,7 @@ export default function RegisterPage() {
                     required
                     value={formData.confirmPassword}
                     onChange={handleChange}
-                    className="w-full rounded-2xl border border-white/10 bg-[rgba(255,255,255,0.04)] px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+                    className="w-full rounded-2xl border border-white/10 bg-[rgba(255,255,255,0.04)] px-4 py-3.5 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
                     placeholder="Repeat your password"
                   />
                 </div>
@@ -198,11 +220,27 @@ export default function RegisterPage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[linear-gradient(135deg,#41d39b,#6db3ff)] px-5 py-3 text-sm font-semibold text-slate-950 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[linear-gradient(135deg,#41d39b,#6db3ff)] px-5 py-3.5 text-sm font-semibold text-slate-950 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isLoading ? 'Creating your workspace...' : 'Create My Workspace'}
-                <ArrowRight className="h-4 w-4" />
+                {isLoading ? (
+                  <>
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-950 border-t-transparent" />
+                    Creating your workspace...
+                  </>
+                ) : (
+                  <>
+                    Create My Workspace
+                    <ArrowRight className="h-4 w-4" />
+                  </>
+                )}
               </button>
+
+              <p className="text-center text-xs text-slate-500">
+                By creating an account, you agree to our{' '}
+                <a href="#" className="text-emerald-300 hover:text-white">Terms of Service</a>
+                {' '}and{' '}
+                <a href="#" className="text-emerald-300 hover:text-white">Privacy Policy</a>.
+              </p>
 
               <div className="text-center text-sm text-slate-300">
                 Already have an account?{' '}

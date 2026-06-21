@@ -99,15 +99,20 @@ export default function LoginPage() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded-2xl border border-white/10 bg-[rgba(255,255,255,0.04)] px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+                    className="w-full rounded-2xl border border-white/10 bg-[rgba(255,255,255,0.04)] px-4 py-3.5 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
                     placeholder="you@company.com"
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="password" className="mb-2 block text-sm font-medium text-slate-200">
-                    Password
-                  </label>
+                  <div className="mb-2 flex items-center justify-between">
+                    <label htmlFor="password" className="text-sm font-medium text-slate-200">
+                      Password
+                    </label>
+                    <a href="#" className="text-xs text-emerald-300 hover:text-white">
+                      Forgot password?
+                    </a>
+                  </div>
                   <input
                     id="password"
                     name="password"
@@ -116,7 +121,7 @@ export default function LoginPage() {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full rounded-2xl border border-white/10 bg-[rgba(255,255,255,0.04)] px-4 py-3 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+                    className="w-full rounded-2xl border border-white/10 bg-[rgba(255,255,255,0.04)] px-4 py-3.5 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
                     placeholder="Enter your secure password"
                   />
                 </div>
@@ -125,10 +130,19 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[linear-gradient(135deg,#41d39b,#6db3ff)] px-5 py-3 text-sm font-semibold text-slate-950 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[linear-gradient(135deg,#41d39b,#6db3ff)] px-5 py-3.5 text-sm font-semibold text-slate-950 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isLoading ? 'Signing you in...' : 'Enter the Workspace'}
-                <ArrowRight className="h-4 w-4" />
+                {isLoading ? (
+                  <>
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-950 border-t-transparent" />
+                    Signing you in...
+                  </>
+                ) : (
+                  <>
+                    Enter the Workspace
+                    <ArrowRight className="h-4 w-4" />
+                  </>
+                )}
               </button>
 
               <div className="text-center text-sm text-slate-300">

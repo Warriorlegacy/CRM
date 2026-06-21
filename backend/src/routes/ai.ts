@@ -6,17 +6,6 @@ import { chatWithFallback, generateAutoReply, generateSmartReplies, generateConv
 
 export const aiRouter = Router();
 
-const extractAuth = (req: Request, res: Response, next: Function) => {
-  const userId = req.header('x-user-id');
-  const workspaceId = req.header('x-workspace-id');
-  if (!userId || !workspaceId) return res.status(401).json({ error: 'Unauthorized' });
-  (req as any).userId = userId;
-  (req as any).workspaceId = workspaceId;
-  next();
-};
-
-aiRouter.use(extractAuth);
-
 // ── Provider CRUD ──────────────────────────────────────────────────────
 
 aiRouter.get('/providers', async (req, res) => {

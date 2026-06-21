@@ -1,26 +1,8 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../prisma';
 
 export const followupsRouter = Router();
-
-const extractAuth = (req: Request, res: Response, next: NextFunction) => {
-  const userId = req.header('x-user-id');
-  const workspaceId = req.header('x-workspace-id');
-
-  if (!userId || !workspaceId) {
-    return res.status(401).json({
-      error: 'Unauthorized',
-      message: 'Missing x-user-id or x-workspace-id headers',
-    });
-  }
-
-  (req as any).userId = userId;
-  (req as any).workspaceId = workspaceId;
-  next();
-};
-
-followupsRouter.use(extractAuth);
 
 const CreateFollowupSchema = z.object({
   contactId: z.string().min(1, 'Contact ID is required'),

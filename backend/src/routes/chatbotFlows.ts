@@ -1,26 +1,9 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../prisma';
+import { getWorkspaceLimits, checkLimit } from '../middleware/limits';
 
 export const chatbotFlowsRouter = Router();
-
-const extractAuth = (req: Request, res: Response, next: NextFunction) => {
-  const userId = req.header('x-user-id');
-  const workspaceId = req.header('x-workspace-id');
-
-  if (!userId || !workspaceId) {
-    return res.status(401).json({
-      error: 'Unauthorized',
-      message: 'Missing x-user-id or x-workspace-id headers',
-    });
-  }
-
-  (req as any).userId = userId;
-  (req as any).workspaceId = workspaceId;
-  next();
-};
-
-chatbotFlowsRouter.use(extractAuth);
 
 const FlowSchema = z.object({
   name: z.string().min(1),
@@ -66,6 +49,17 @@ chatbotFlowsRouter.post('/', async (req, res) => {
 
   if (!parsed.success) {
     return res.status(400).json({ error: 'Validation Error', details: parsed.error.flatten() });
+  }
+
+  // Check chatbot flow limit
+  const limits = await getWorkspaceLimits(workspaceId);
+  const flowCount = await prisma.chatbotFlow.count({ where: { workspaceId } });
+  if (!checkLimit(flowCount, limits.maxChatbotFlows)) {
+    return res.status(403).json({
+      error: 'Limit Reached',
+      message: `You've reached the chatbot flows limit for your current plan. Please upgrade to continue.`,
+      limit: { current: flowCount, max: limits.maxChatbotFlows, resource: 'chatbot flows' },
+    });
   }
 
   const { name, description, trigger, triggerKeyword, channels, nodes, edges } = parsed.data;

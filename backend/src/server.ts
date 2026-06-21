@@ -30,6 +30,7 @@ import autoresponderRouter from './routes/autoresponder';
 import webhooksLogRouter from './routes/webhooksLog';
 import chatbotFlowsRouter from './routes/chatbotFlows';
 import { aiRouter } from './routes/ai';
+import verifyRouter from './routes/verify';
 
 const app = express();
 
@@ -64,6 +65,9 @@ app.use('/api/v1/auth', authRouter);
 
 // Admin setup routes (no auth required for initial setup)
 app.use('/api/v1/admin', adminRouter);
+
+// Email verification (no auth required for token verification)
+app.use('/api/v1/verify', verifyRouter);
 
 // Protected API Routes - require JWT authentication
 app.use('/api/v1/inbox', requireAuth, inboxRouter);
