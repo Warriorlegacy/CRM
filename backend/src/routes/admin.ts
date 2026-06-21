@@ -15,8 +15,10 @@ function requireAdminSecret(req: Request, res: Response, next: NextFunction): vo
   next();
 }
 
-// Block admin endpoints in production (they're only for initial setup)
-if (process.env.NODE_ENV === 'production') {
+// Admin setup routes - only available in development or when explicitly enabled
+const ADMIN_ENABLED = process.env.NODE_ENV !== 'production' || process.env.ADMIN_ENABLED === 'true';
+
+if (!ADMIN_ENABLED) {
   adminRouter.all('*', (_req, res) => {
     res.status(404).json({ error: 'Not Found' });
   });
