@@ -32,8 +32,6 @@ interface Autoresponder {
 
 export default function SettingsPage() {
   const { user, workspace, isLoading: authLoading } = useAuth();
-  const USER_ID = user?.id || '';
-  const WORKSPACE_ID = workspace?.id || '';
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
@@ -63,20 +61,15 @@ export default function SettingsPage() {
     isActive: true,
   });
 
-  const headers = {
-    'x-user-id': USER_ID,
-    'x-workspace-id': WORKSPACE_ID,
-  };
-
   useEffect(() => {
-    if (!USER_ID || !WORKSPACE_ID || authLoading) return;
+    if (authLoading) return;
     loadWorkspace();
     loadAutoresponders();
-  }, [USER_ID, WORKSPACE_ID, authLoading]);
+  }, [authLoading]);
 
   const loadWorkspace = async () => {
     try {
-      const data = await api.get<{ workspace: Workspace }>('/workspaces/current', { headers });
+      const data = await api.get<{ workspace: Workspace }>('/workspaces/current');
       setSettings(prev => ({
         ...prev,
         workspaceName: data.workspace.name,
@@ -93,7 +86,7 @@ export default function SettingsPage() {
 
   const loadAutoresponders = async () => {
     try {
-      const data = await api.get<{ responders: Autoresponder[] }>('/autoresponders', { headers });
+      const data = await api.get<{ responders: Autoresponder[] }>('/autoresponders');
       setAutoresponders(data.responders);
     } catch (error) {
       console.error('Failed to load autoresponders:', error);
@@ -111,14 +104,14 @@ export default function SettingsPage() {
           businessAccountId: settings.businessAccountId,
           accessToken: settings.accessToken,
           webhookVerifyToken: settings.webhookVerifyToken,
-        }, { headers });
+        });
         showSuccess('WhatsApp settings saved');
       } else if (activeTab === 'instagram') {
         await api.post('/workspaces/ig-account', {
           igUserId: settings.igUserId,
           accessToken: settings.igAccessToken,
           webhookVerifyToken: settings.igWebhookVerifyToken,
-        }, { headers });
+        });
         showSuccess('Instagram settings saved');
       }
     } catch (error) {
@@ -130,7 +123,7 @@ export default function SettingsPage() {
 
   const handleCreateAutoresponder = async () => {
     try {
-      await api.post('/autoresponders', newResponder, { headers });
+      await api.post('/autoresponders', newResponder);
       showSuccess('Autoresponder created');
       setNewResponder({
         name: '',
@@ -149,7 +142,7 @@ export default function SettingsPage() {
   const handleDeleteAutoresponder = async (id: string) => {
     if (!confirm('Delete this autoresponder?')) return;
     try {
-      await api.delete(`/autoresponders/${id}`, { headers });
+      await api.delete(`/autoresponders/${id}`);
       loadAutoresponders();
     } catch (error) {
       console.error('Failed to delete autoresponder:', error);
@@ -238,17 +231,87 @@ export default function SettingsPage() {
           {activeTab === 'whatsapp' && (
             <div className="space-y-6">
               <h2 className="text-lg font-semibold text-white">WhatsApp Configuration</h2>
-              <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl">
-                <div className="flex items-start gap-3">
-                  <AlertTriangle className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
-                  <div>
-                    <h3 className="text-sm font-medium text-blue-400">WhatsApp Cloud API</h3>
-                    <p className="text-xs text-blue-300/70 mt-1">
-                      Configure your Meta Business Account credentials to connect WhatsApp.
-                    </p>
+              
+              {/* Connection Status */}
+              {settings.phoneNumberId ? (
+                <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <div className="w-2 h-2 bg-green-500 rounded-full" />
+                    <div>
+                      <h3 className="text-sm font-medium text-green-400">WhatsApp Connected</h3>
+                      <p className="text-xs text-green-300/70">Phone Number ID: {settings.phoneNumberId}</p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
+                    <div>
+                      <h3 className="text-sm font-medium text-amber-400">WhatsApp Not Connected</h3>
+                      <p className="text-xs text-amber-300/70">Follow the steps below to connect your WhatsApp Business account.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Step-by-step guide */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium text-white">Setup Guide</h3>
+                
+                <div className="space-y-3">
+                  <div className="flex gap-3">
+                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs font-bold">1</div>
+                    <div>
+                      <p className="text-sm text-white">Create a Meta Business App</p>
+                      <p className="text-xs text-zinc-500">Go to <a href="https://developers.facebook.com/apps/create/" target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline">developers.facebook.com</a> → Create App → Select "Business" type → Add "WhatsApp" product.</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-3">
+                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs font-bold">2</div>
+                    <div>
+                      <p className="text-sm text-white">Get your credentials from Meta Dashboard</p>
+                      <p className="text-xs text-zinc-500">In your app dashboard → WhatsApp → Configuration → Copy the <strong>Phone Number ID</strong>, <strong>WhatsApp Business Account ID</strong>, and <strong>Temporary Access Token</strong>.</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-3">
+                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs font-bold">3</div>
+                    <div>
+                      <p className="text-sm text-white">Enter credentials below</p>
+                      <p className="text-xs text-zinc-500">Paste the Phone Number ID, Business Account ID, and Access Token into the fields below.</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-3">
+                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs font-bold">4</div>
+                    <div>
+                      <p className="text-sm text-white">Configure Webhook in Meta Dashboard</p>
+                      <p className="text-xs text-zinc-500">Go to WhatsApp → Configuration → Webhook → Subscribe to messages. Enter the webhook URL below and your verify token.</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-3">
+                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs font-bold">5</div>
+                    <div>
+                      <p className="text-sm text-white">Start receiving messages</p>
+                      <p className="text-xs text-zinc-500">Once configured, incoming WhatsApp messages will appear in your Inbox automatically.</p>
+                    </div>
                   </div>
                 </div>
               </div>
+
+              {/* Webhook URL */}
+              <div className="p-4 bg-zinc-800/50 rounded-xl">
+                <h3 className="text-sm font-medium text-white mb-2">Your Webhook URL</h3>
+                <code className="text-xs text-emerald-400 break-all">
+                  https://whatsapp-crm-backend-bv1j.onrender.com/webhook
+                </code>
+                <p className="text-xs text-zinc-500 mt-2">Paste this URL into your Meta Dashboard webhook configuration.</p>
+              </div>
+
+              {/* Credentials form */}
               <div>
                 <label className="block text-sm text-zinc-400 mb-2">Phone Number ID</label>
                 <input
@@ -256,17 +319,17 @@ export default function SettingsPage() {
                   value={settings.phoneNumberId}
                   onChange={(e) => setSettings({ ...settings, phoneNumberId: e.target.value })}
                   className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-xl text-white outline-none focus:border-zinc-600"
-                  placeholder="Your WhatsApp Phone Number ID"
+                  placeholder="e.g., 1234567890"
                 />
               </div>
               <div>
-                <label className="block text-sm text-zinc-400 mb-2">Business Account ID</label>
+                <label className="block text-sm text-zinc-400 mb-2">WhatsApp Business Account ID</label>
                 <input
                   type="text"
                   value={settings.businessAccountId}
                   onChange={(e) => setSettings({ ...settings, businessAccountId: e.target.value })}
                   className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-xl text-white outline-none focus:border-zinc-600"
-                  placeholder="Your WhatsApp Business Account ID"
+                  placeholder="e.g., 9876543210"
                 />
               </div>
               <div>
@@ -276,7 +339,7 @@ export default function SettingsPage() {
                   value={settings.accessToken}
                   onChange={(e) => setSettings({ ...settings, accessToken: e.target.value })}
                   className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-xl text-white outline-none focus:border-zinc-600"
-                  placeholder="Meta Access Token"
+                  placeholder="Paste your Meta access token"
                 />
               </div>
               <div>
@@ -286,19 +349,13 @@ export default function SettingsPage() {
                   value={settings.webhookVerifyToken}
                   onChange={(e) => setSettings({ ...settings, webhookVerifyToken: e.target.value })}
                   className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-xl text-white outline-none focus:border-zinc-600"
-                  placeholder="Your custom verify token"
+                  placeholder="Create a custom token (e.g., my-whatsapp-verify-2026)"
                 />
-              </div>
-              <div className="p-4 bg-zinc-800/50 rounded-xl">
-                <h3 className="text-sm font-medium text-white mb-2">Webhook URL</h3>
-                <code className="text-xs text-zinc-400 break-all">
-                  {process.env.NEXT_PUBLIC_API_URL || 'https://your-domain.com'}/webhook
-                </code>
               </div>
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="px-4 py-2 bg-white text-black rounded-xl font-medium hover:bg-zinc-100 disabled:opacity-50"
+                className="px-4 py-2 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-500 disabled:opacity-50"
               >
                 {saving ? 'Saving...' : 'Save WhatsApp Settings'}
               </button>
@@ -308,17 +365,87 @@ export default function SettingsPage() {
           {activeTab === 'instagram' && (
             <div className="space-y-6">
               <h2 className="text-lg font-semibold text-white">Instagram Configuration</h2>
-              <div className="p-4 bg-pink-500/10 border border-pink-500/20 rounded-xl">
-                <div className="flex items-start gap-3">
-                  <AlertTriangle className="w-5 h-5 text-pink-400 shrink-0 mt-0.5" />
-                  <div>
-                    <h3 className="text-sm font-medium text-pink-400">Instagram Graph API</h3>
-                    <p className="text-xs text-pink-300/70 mt-1">
-                      Connect your Instagram Business account to receive and reply to DMs.
-                    </p>
+              
+              {/* Connection Status */}
+              {settings.igUserId ? (
+                <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <div className="w-2 h-2 bg-green-500 rounded-full" />
+                    <div>
+                      <h3 className="text-sm font-medium text-green-400">Instagram Connected</h3>
+                      <p className="text-xs text-green-300/70">Instagram User ID: {settings.igUserId}</p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
+                    <div>
+                      <h3 className="text-sm font-medium text-amber-400">Instagram Not Connected</h3>
+                      <p className="text-xs text-amber-300/70">Follow the steps below to connect your Instagram Business account.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Step-by-step guide */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium text-white">Setup Guide</h3>
+                
+                <div className="space-y-3">
+                  <div className="flex gap-3">
+                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-pink-500/20 text-pink-400 flex items-center justify-center text-xs font-bold">1</div>
+                    <div>
+                      <p className="text-sm text-white">Convert to Instagram Business Account</p>
+                      <p className="text-xs text-zinc-500">In Instagram app → Settings → Account → Switch to Professional Account → Select "Business".</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-3">
+                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-pink-500/20 text-pink-400 flex items-center justify-center text-xs font-bold">2</div>
+                    <div>
+                      <p className="text-sm text-white">Connect to Facebook Page</p>
+                      <p className="text-xs text-zinc-500">Link your Instagram Business account to a Facebook Page in your Meta Business Suite.</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-3">
+                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-pink-500/20 text-pink-400 flex items-center justify-center text-xs font-bold">3</div>
+                    <div>
+                      <p className="text-sm text-white">Create a Meta App (or use existing)</p>
+                      <p className="text-xs text-zinc-500">Go to <a href="https://developers.facebook.com/apps/create/" target="_blank" rel="noopener noreferrer" className="text-pink-400 hover:underline">developers.facebook.com</a> → Add "Instagram Graph API" product to your app.</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-3">
+                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-pink-500/20 text-pink-400 flex items-center justify-center text-xs font-bold">4</div>
+                    <div>
+                      <p className="text-sm text-white">Get your credentials</p>
+                      <p className="text-xs text-zinc-500">In your app dashboard → Instagram → Basic Display → Copy your <strong>Instagram User ID</strong>. Generate an <strong>Access Token</strong> with <code>pages_messaging</code> and <code>instagram_basic</code> permissions.</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-3">
+                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-pink-500/20 text-pink-400 flex items-center justify-center text-xs font-bold">5</div>
+                    <div>
+                      <p className="text-sm text-white">Configure Webhook in Meta Dashboard</p>
+                      <p className="text-xs text-zinc-500">In your app → Instagram → Configuration → Webhook → Subscribe to messages. Enter the webhook URL below and your verify token.</p>
+                    </div>
                   </div>
                 </div>
               </div>
+
+              {/* Webhook URL */}
+              <div className="p-4 bg-zinc-800/50 rounded-xl">
+                <h3 className="text-sm font-medium text-white mb-2">Your Webhook URL</h3>
+                <code className="text-xs text-pink-400 break-all">
+                  https://whatsapp-crm-backend-bv1j.onrender.com/webhook/instagram
+                </code>
+                <p className="text-xs text-zinc-500 mt-2">Paste this URL into your Meta Dashboard webhook configuration.</p>
+              </div>
+
+              {/* Credentials form */}
               <div>
                 <label className="block text-sm text-zinc-400 mb-2">Instagram User ID</label>
                 <input
@@ -346,19 +473,13 @@ export default function SettingsPage() {
                   value={settings.igWebhookVerifyToken}
                   onChange={(e) => setSettings({ ...settings, igWebhookVerifyToken: e.target.value })}
                   className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-xl text-white outline-none focus:border-zinc-600"
-                  placeholder="Your custom verify token"
+                  placeholder="Create a custom token (e.g., my-ig-verify-2026)"
                 />
-              </div>
-              <div className="p-4 bg-zinc-800/50 rounded-xl">
-                <h3 className="text-sm font-medium text-white mb-2">Webhook URL</h3>
-                <code className="text-xs text-zinc-400 break-all">
-                  {process.env.NEXT_PUBLIC_API_URL || 'https://your-domain.com'}/webhook/instagram
-                </code>
               </div>
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="px-4 py-2 bg-pink-500 text-white rounded-xl font-medium hover:bg-pink-600 disabled:opacity-50"
+                className="px-4 py-2 bg-pink-600 text-white rounded-xl font-medium hover:bg-pink-500 disabled:opacity-50"
               >
                 {saving ? 'Saving...' : 'Save Instagram Settings'}
               </button>
