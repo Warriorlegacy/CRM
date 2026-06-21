@@ -73,10 +73,14 @@ healthRouter.get('/debug-env', (req, res) => {
     ig_verify_token: env.IG_VERIFY_TOKEN || 'NOT SET',
     meta_app_id: env.META_APP_ID ? 'SET' : 'NOT SET',
     node_env: env.NODE_ENV,
-    query: req.query,
-    query_mode: req.query['hub.mode'],
-    query_hub: (req.query as any).hub,
+    url: req.url,
+    raw_query: req.url.split('?')[1] || '(none)',
+    query_keys: Object.keys(req.query),
+    query_hub_mode_literal: req.query['hub.mode'],
+    query_hub_dot: (req.query as any).hub?.mode,
+    query_foo_literal: req.query['foo'],
   });
+});
 });
 
 export default healthRouter;
