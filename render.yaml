@@ -1,12 +1,4 @@
 services:
-  # ── PostgreSQL Database ─────────────────────────────────────────────
-  - type: database
-    name: whatsapp-crm-db
-    databaseName: whatsapp_crm
-    user: whatsapp_crm_user
-    plan: free
-    ipAllowList: []
-
   # ── Backend API ─────────────────────────────────────────────────────
   - type: web
     name: whatsapp-crm-backend
