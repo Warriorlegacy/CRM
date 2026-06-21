@@ -1,52 +1,10 @@
-// SQLite version for easy testing
-// Rename this file to schema.prisma to use SQLite instead of PostgreSQL
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "sqlite"
-  url      = "file:./dev.db"
-}
-
-enum MemberRole {
-  admin
-  agent
-}
-
-enum ContactStage {
-  new
-  followup
-  negotiation
-  won
-  lost
-}
-
-enum ConversationStatus {
-  open
-  closed
-}
-
-enum MessageDirection {
-  inbound
-  outbound
-}
-
-enum MessageType {
-  text
-  image
-  document
-}
-
-enum FollowupStatus {
-  pending
-  done
-}
-
-enum TypingStatus {
-  typing
-  idle
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -54,6 +12,8 @@ model User {
   name              String?
   email             String            @unique
   password          String
+  active            Boolean           @default(true)
+  lastLoginAt       DateTime?
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
   ownedWorkspaces   Workspace[]       @relation("WorkspaceOwner")
@@ -68,29 +28,34 @@ model User {
 model Workspace {
   id            String            @id @default(uuid())
   name          String
+  slug          String            @unique
   ownerId       String
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
   owner         User              @relation("WorkspaceOwner", fields: [ownerId], references: [id])
   members       WorkspaceMember[]
   wa            WaAccount?
+  ig            IgAccount?
   contacts      Contact[]
   conversations Conversation[]
   messages      Message[]
   followups     Followup[]
   templates     Template[]
+
+  @@index([ownerId])
 }
 
 model WorkspaceMember {
-  id          String     @id @default(uuid())
+  id          String    @id @default(uuid())
   workspaceId String
   userId      String
-  role        MemberRole @default(agent)
-  createdAt   DateTime   @default(now())
-  workspace   Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        String    @default("agent")
+  createdAt   DateTime  @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([workspaceId, userId])
+  @@index([userId])
 }
 
 model WaAccount {
@@ -105,14 +70,28 @@ model WaAccount {
   workspace          Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }
 
+model IgAccount {
+  id                 String    @id @default(uuid())
+  workspaceId        String    @unique
+  igUserId           String
+  accessToken        String
+  webhookVerifyToken String
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  workspace          Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
 model Contact {
   id             String         @id @default(uuid())
   workspaceId    String
   name           String?
   phone          String
   email          String?
-  tags           String          @default("")
-  stage          ContactStage   @default(new)
+  igUsername      String?
+  tags           String         @default("")
+  stage          String         @default("new")
+  leadScore      Int            @default(0)
+  channel        String         @default("whatsapp")
   assignedToId   String?
   lastMessageAt  DateTime?
   unreadCount    Int            @default(0)
@@ -123,20 +102,32 @@ model Contact {
   conversations  Conversation[]
   messages       Message[]
   followups      Followup[]
+  flowExecutions FlowExecution[]
+
+  @@unique([workspaceId, phone])
+  @@index([workspaceId, stage])
+  @@index([assignedToId])
+  @@index([igUsername])
 }
 
 model Conversation {
-  id          String             @id @default(uuid())
+  id          String            @id @default(uuid())
   workspaceId String
   contactId   String
-  status      ConversationStatus @default(open)
+  channel     String            @default("whatsapp")
+  status      String            @default("open")
   lastReadAt  DateTime?
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
-  workspace   Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  contact     Contact            @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  contact     Contact           @relation(fields: [contactId], references: [id], onDelete: Cascade)
   messages    Message[]
   typingUsers TypingIndicator[]
+
+  @@unique([workspaceId, contactId])
+  @@index([workspaceId])
+  @@index([contactId])
+  @@index([channel])
 }
 
 model TypingIndicator {
@@ -144,31 +135,42 @@ model TypingIndicator {
   conversationId String
   userId         String
   workspaceId    String
-  status         TypingStatus @default(idle)
+  status         String       @default("idle")
   updatedAt      DateTime     @updatedAt
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([conversationId, userId])
+  @@index([conversationId])
+  @@index([userId])
+  @@index([updatedAt])
 }
 
 model Message {
-  id             String           @id @default(uuid())
+  id             String        @id @default(uuid())
   workspaceId    String
   conversationId String
   contactId      String
-  direction      MessageDirection
-  type           MessageType      @default(text)
+  channel        String        @default("whatsapp")
+  direction      String
+  type           String        @default("text")
   bodyText       String?
   waMessageId    String?
+  igMessageId    String?
   sentByUserId   String?
   readAt         DateTime?
-  createdAt      DateTime         @default(now())
-  workspace      Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  conversation   Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  contact        Contact          @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  sentByUser     User?            @relation("MessageSender", fields: [sentByUserId], references: [id])
+  createdAt      DateTime      @default(now())
+  workspace      Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  conversation   Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  contact        Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  sentByUser     User?         @relation("MessageSender", fields: [sentByUserId], references: [id])
   readReceipts   ReadReceipt[]
+
+  @@index([workspaceId, createdAt])
+  @@index([conversationId, createdAt])
+  @@index([contactId, createdAt])
+  @@index([waMessageId])
+  @@index([igMessageId])
 }
 
 model ReadReceipt {
@@ -180,21 +182,26 @@ model ReadReceipt {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([messageId, userId])
+  @@index([messageId])
+  @@index([userId])
 }
 
 model Followup {
-  id           String         @id @default(uuid())
+  id           String    @id @default(uuid())
   workspaceId  String
   contactId    String
   assignedToId String?
   dueAt        DateTime
   note         String?
-  status       FollowupStatus @default(pending)
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  workspace    Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  contact      Contact        @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  assignedTo   User?          @relation("FollowupAssignee", fields: [assignedToId], references: [id])
+  status       String    @default("pending")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  contact      Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  assignedTo   User?     @relation("FollowupAssignee", fields: [assignedToId], references: [id])
+
+  @@index([workspaceId, status, dueAt])
+  @@index([assignedToId])
 }
 
 model Template {
@@ -202,7 +209,194 @@ model Template {
   workspaceId String
   title       String
   body        String
+  category    String    @default("utility")
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+}
+
+model ContactNote {
+  id          String   @id @default(uuid())
+  workspaceId String
+  contactId   String
+  userId      String
+  content     String
+  category    String   @default("general")
+  channel     String?
+  type        String   @default("note")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([workspaceId])
+  @@index([contactId])
+}
+
+model Autoresponder {
+  id           String   @id @default(uuid())
+  workspaceId  String
+  name         String
+  trigger      String
+  keyword      String?
+  delayMinutes Int      @default(0)
+  message      String
+  isActive     Boolean  @default(true)
+  stages       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([workspaceId])
+  @@index([isActive])
+}
+
+model WebhookLog {
+  id          String   @id @default(uuid())
+  workspaceId String
+  type        String
+  payload     String
+  status      String   @default("success")
+  error       String?
+  createdAt   DateTime @default(now())
+
+  @@index([workspaceId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model ChatbotFlow {
+  id             String           @id @default(uuid())
+  workspaceId    String
+  name           String
+  description    String?
+  isActive       Boolean          @default(true)
+  trigger        String           @default("keyword")
+  triggerKeyword String?
+  channels       String           @default("whatsapp,instagram")
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  nodes          FlowNode[]
+  edges          FlowEdge[]
+  executions     FlowExecution[]
+
+  @@index([workspaceId])
+  @@index([isActive])
+}
+
+model FlowNode {
+  id         String      @id @default(uuid())
+  flowId     String
+  type       String
+  label      String?
+  content    String?
+  positionX  Float       @default(0)
+  positionY  Float       @default(0)
+  config     String?
+  createdAt  DateTime    @default(now())
+  flow       ChatbotFlow @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  outEdges   FlowEdge[]  @relation("SourceNode")
+  inEdges    FlowEdge[]  @relation("TargetNode")
+
+  @@index([flowId])
+}
+
+model FlowEdge {
+  id        String     @id @default(uuid())
+  flowId    String
+  sourceId  String
+  targetId  String
+  label     String?
+  condition String?
+  source    FlowNode   @relation("SourceNode", fields: [sourceId], references: [id], onDelete: Cascade)
+  target    FlowNode   @relation("TargetNode", fields: [targetId], references: [id], onDelete: Cascade)
+  flow      ChatbotFlow @relation(fields: [flowId], references: [id], onDelete: Cascade)
+
+  @@index([flowId])
+  @@index([sourceId])
+  @@index([targetId])
+}
+
+model FlowExecution {
+  id            String      @id @default(uuid())
+  flowId        String
+  contactId     String
+  currentNodeId String?
+  status        String      @default("active")
+  context       String?
+  startedAt     DateTime    @default(now())
+  completedAt   DateTime?
+  flow          ChatbotFlow @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  contact       Contact     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([flowId])
+  @@index([contactId])
+  @@index([status])
+}
+
+model LeadScoringRule {
+  id          String   @id @default(uuid())
+  workspaceId String
+  name        String
+  event       String
+  points      Int      @default(1)
+  conditions  String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  @@index([workspaceId])
+}
+
+model AiProvider {
+  id             String   @id @default(uuid())
+  workspaceId    String
+  name           String
+  provider       String
+  apiKey         String
+  baseUrl        String?
+  model          String
+  priority       Int      @default(0)
+  isActive       Boolean  @default(true)
+  maxTokens      Int      @default(1024)
+  temperature    Float    @default(0.7)
+  lastUsedAt     DateTime?
+  lastErrorAt    DateTime?
+  errorCount     Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([workspaceId])
+  @@index([workspaceId, isActive])
+}
+
+model AiConversationSummary {
+  id             String   @id @default(uuid())
+  workspaceId    String
+  conversationId String
+  summary        String
+  sentiment      String?
+  keyTopics      String?
+  nextSteps      String?
+  createdAt      DateTime @default(now())
+
+  @@index([workspaceId])
+  @@index([conversationId])
+}
+
+model AiAutoReplyLog {
+  id             String   @id @default(uuid())
+  workspaceId    String
+  conversationId String
+  contactId      String
+  incomingMessage String
+  aiReply        String
+  provider       String
+  model          String
+  latencyMs      Int?
+  confidence     Float?
+  wasSent        Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  @@index([workspaceId])
+  @@index([conversationId])
+  @@index([createdAt])
 }
