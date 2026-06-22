@@ -81,6 +81,5 @@ healthRouter.get('/debug-env', (req, res) => {
     query_foo_literal: req.query['foo'],
   });
 });
-});
 
 export default healthRouter;
