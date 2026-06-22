@@ -3,15 +3,25 @@ import { env } from '../env';
 import { handleWhatsAppWebhook } from '../whatsapp/webhook';
 import { handleInstagramWebhook } from '../instagram/webhook';
 
+function parseQuery(url: string): Record<string, string> {
+  const qs = url.split('?')[1] || '';
+  const result: Record<string, string> = {};
+  for (const part of qs.split('&')) {
+    const [key, ...rest] = part.split('=');
+    if (key) result[decodeURIComponent(key)] = decodeURIComponent(rest.join('='));
+  }
+  return result;
+}
+
 export const webhooksRouter = Router();
 
 // ── WhatsApp Webhook ──────────────────────────────────────────
 
 webhooksRouter.get('/webhook', (req, res) => {
-  const q = req.query;
-  const mode = q['hub.mode'] || (q.hub as any)?.mode;
-  const token = q['hub.verify_token'] || (q.hub as any)?.verify_token;
-  const challenge = q['hub.challenge'] || (q.hub as any)?.challenge;
+  const q = parseQuery(req.url);
+  const mode = q['hub.mode'];
+  const token = q['hub.verify_token'];
+  const challenge = q['hub.challenge'];
 
   if (mode === 'subscribe' && token === env.WA_VERIFY_TOKEN) {
     return res.status(200).send(challenge);
@@ -32,10 +42,10 @@ webhooksRouter.post('/webhook', async (req, res) => {
 // ── Instagram Webhook ─────────────────────────────────────────
 
 webhooksRouter.get('/webhook/instagram', (req, res) => {
-  const q = req.query;
-  const mode = q['hub.mode'] || (q.hub as any)?.mode;
-  const token = q['hub.verify_token'] || (q.hub as any)?.verify_token;
-  const challenge = q['hub.challenge'] || (q.hub as any)?.challenge;
+  const q = parseQuery(req.url);
+  const mode = q['hub.mode'];
+  const token = q['hub.verify_token'];
+  const challenge = q['hub.challenge'];
 
   if (mode === 'subscribe' && token === env.IG_VERIFY_TOKEN) {
     return res.status(200).send(challenge);
