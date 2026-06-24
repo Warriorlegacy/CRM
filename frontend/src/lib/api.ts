@@ -28,6 +28,7 @@ type RequestBody = Record<string, unknown> | unknown[] | string | number | boole
 export const api = {
   async get<T = unknown>(path: string, options?: { headers?: Record<string, string> }): Promise<T> {
     const res = await fetch(`${API_BASE}${path}`, {
+      method: 'GET',
       headers: getHeaders(options?.headers),
     });
     

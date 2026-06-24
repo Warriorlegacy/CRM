@@ -3,9 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -14,6 +13,7 @@ model User {
   email             String            @unique
   password          String
   active            Boolean           @default(true)
+  emailVerified     Boolean           @default(false)
   lastLoginAt       DateTime?
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
@@ -386,18 +386,18 @@ model AiConversationSummary {
 }
 
 model AiAutoReplyLog {
-  id              String   @id @default(uuid())
-  workspaceId     String
-  conversationId  String
-  contactId       String
+  id             String   @id @default(uuid())
+  workspaceId    String
+  conversationId String
+  contactId      String
   incomingMessage String
-  aiReply         String
-  provider        String
-  model           String
-  latencyMs       Int?
-  confidence      Float?
-  wasSent         Boolean  @default(false)
-  createdAt       DateTime @default(now())
+  aiReply        String
+  provider       String
+  model          String
+  latencyMs      Int?
+  confidence     Float?
+  wasSent        Boolean  @default(false)
+  createdAt      DateTime @default(now())
 
   @@index([workspaceId])
   @@index([conversationId])
@@ -415,3 +415,4 @@ model VerificationToken {
   @@index([token])
   @@index([userId])
 }
+

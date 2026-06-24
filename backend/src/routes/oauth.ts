@@ -10,7 +10,7 @@ export const oauthRouter = Router();
 
 // ── Helper: exchange short-lived token for long-lived token ─────────────
 
-async function exchangeForLongLivedToken(shortToken: string): Promise<string> {
+export async function exchangeForLongLivedToken(shortToken: string): Promise<string> {
   const resp = await axios.get(
     `https://graph.facebook.com/${env.META_API_VERSION}/oauth/access_token`, {
       params: {

@@ -13,6 +13,7 @@ model User {
   email             String            @unique
   password          String
   active            Boolean           @default(true)
+  emailVerified     Boolean           @default(false)
   lastLoginAt       DateTime?
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
@@ -23,6 +24,7 @@ model User {
   followupsAssigned Followup[]        @relation("FollowupAssignee")
   typingStatuses    TypingIndicator[]
   readReceipts      ReadReceipt[]
+  verificationTokens VerificationToken[]
 }
 
 model Workspace {
@@ -30,6 +32,7 @@ model Workspace {
   name          String
   slug          String            @unique
   ownerId       String
+  plan          String            @default("free")
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
   owner         User              @relation("WorkspaceOwner", fields: [ownerId], references: [id])
@@ -400,3 +403,16 @@ model AiAutoReplyLog {
   @@index([conversationId])
   @@index([createdAt])
 }
+
+model VerificationToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([token])
+  @@index([userId])
+}
+

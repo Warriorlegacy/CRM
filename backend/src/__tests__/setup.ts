@@ -20,6 +20,7 @@ afterEach(async () => {
   await prisma.waAccount.deleteMany({});
   await prisma.workspaceMember.deleteMany({});
   await prisma.workspace.deleteMany({});
+  await prisma.verificationToken.deleteMany({});
   await prisma.user.deleteMany({});
 });
 

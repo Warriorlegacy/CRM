@@ -16,6 +16,33 @@ const PROVIDER_BASE_URLS: Record<string, string> = {
   cohere: 'https://api.cohere.com',
 };
 
+// Sliding window rate limiter configuration (15 requests per minute per provider/workspace)
+const rateLimitCache = new Map<string, number[]>();
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
+const MAX_REQUESTS_PER_WINDOW = 15;
+
+function checkAndIncrementRateLimit(workspaceId: string, provider: string): boolean {
+  const now = Date.now();
+  const key = `${workspaceId}:${provider}`;
+  
+  if (!rateLimitCache.has(key)) {
+    rateLimitCache.set(key, [now]);
+    return true;
+  }
+  
+  const timestamps = rateLimitCache.get(key)!;
+  // Keep only timestamps within the window
+  const validTimestamps = timestamps.filter(t => now - t < RATE_LIMIT_WINDOW_MS);
+  
+  if (validTimestamps.length >= MAX_REQUESTS_PER_WINDOW) {
+    return false; // Rate limit hit
+  }
+  
+  validTimestamps.push(now);
+  rateLimitCache.set(key, validTimestamps);
+  return true;
+}
+
 export async function chatWithFallback(
   workspaceId: string,
   messages: AiMessage[],
@@ -41,6 +68,17 @@ export async function chatWithFallback(
   }
 
   for (const prov of ordered.slice(0, maxAttempts)) {
+    // Apply in-memory rate limiting check
+    if (!checkAndIncrementRateLimit(workspaceId, prov.provider)) {
+      attempts.push({
+        provider: prov.provider,
+        model: prov.model,
+        error: 'Rate limit exceeded (in-memory shield)',
+        latencyMs: 0
+      });
+      continue;
+    }
+
     const adapter = providers[prov.provider];
     if (!adapter) {
       attempts.push({ provider: prov.provider, model: prov.model, error: 'Unknown provider', latencyMs: 0 });

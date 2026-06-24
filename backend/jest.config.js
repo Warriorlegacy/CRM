@@ -17,7 +17,7 @@ module.exports = {
   verbose: true,
   testTimeout: 10000,
   setupFilesAfterEnv: ['<rootDir>/src/__tests__/setup.ts'],
-  testPathIgnorePatterns: ['<rootDir>/src/__tests__/setup.ts'],
+  testPathIgnorePatterns: ['<rootDir>/src/__tests__/setup.ts', '<rootDir>/dist/'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },

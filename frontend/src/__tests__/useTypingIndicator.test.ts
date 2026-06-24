@@ -1,13 +1,26 @@
-import { renderHook } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 describe('useTypingIndicator Hook', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    global.fetch = vi.fn().mockImplementation((url, init) => {
+      if (url.includes('/typing/')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ ok: true, typingUsers: [] }),
+        } as Response);
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ ok: true }),
+      } as Response);
+    });
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.clearAllMocks();
   });
 
   it('should have correct initial state', async () => {
@@ -20,50 +33,59 @@ describe('useTypingIndicator Hook', () => {
   });
 
   it('should set typing status when handleInputChange is called', async () => {
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ ok: true }),
-    });
-
     const { useTypingIndicator } = await import('../hooks/useTypingIndicator');
     
     const { result } = renderHook(() => useTypingIndicator('conv-123'));
 
-    result.current.sendTyping();
+    act(() => {
+      result.current.sendTyping();
+    });
 
     expect(result.current.isTyping).toBe(true);
   });
 
   it('should debounce typing status', async () => {
-    const fetchMock = global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ ok: true }),
-    });
-
     const { useTypingIndicator } = await import('../hooks/useTypingIndicator');
     
     const { result } = renderHook(() => useTypingIndicator('conv-123'));
 
-    result.current.sendTyping();
-    result.current.sendTyping();
-    result.current.sendTyping();
+    act(() => {
+      result.current.sendTyping();
+    });
+    act(() => {
+      result.current.sendTyping();
+    });
+    act(() => {
+      result.current.sendTyping();
+    });
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const postCalls = (global.fetch as any).mock.calls.filter((call: any) => 
+      call[1]?.method === 'POST' && JSON.parse(call[1].body).status === 'typing'
+    );
+    expect(postCalls.length).toBe(1);
 
-    vi.advanceTimersByTime(3000);
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const idleCalls = (global.fetch as any).mock.calls.filter((call: any) => 
+      call[1]?.method === 'POST' && JSON.parse(call[1].body).status === 'idle'
+    );
+    expect(idleCalls.length).toBe(1);
   });
 
   it('should not send typing status when conversationId is null', async () => {
-    const fetchMock = global.fetch = vi.fn();
-
     const { useTypingIndicator } = await import('../hooks/useTypingIndicator');
     
     const { result } = renderHook(() => useTypingIndicator(null));
 
-    result.current.sendTyping();
+    act(() => {
+      result.current.sendTyping();
+    });
 
-    expect(fetchMock).not.toHaveBeenCalled();
+    const postCalls = (global.fetch as any).mock.calls.filter((call: any) => 
+      call[1]?.method === 'POST'
+    );
+    expect(postCalls.length).toBe(0);
   });
 });

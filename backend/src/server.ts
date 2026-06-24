@@ -1,9 +1,12 @@
 import express, { Request, Response, NextFunction } from 'express';
+import http from 'http';
 import { setupSecurity } from './middleware/security';
 import { logger, requestLogger, errorLogger } from './middleware/logger';
 import { prisma } from './prisma';
 import { env } from './env';
 import { requireAuth } from './middleware/auth';
+import { initWebSocketServer } from './realtime/websocket';
+import { startTokenRefreshCron } from './cron/tokenRefresh';
 
 // Routes
 import { webhooksRouter } from './routes/webhooks';
@@ -156,19 +159,26 @@ process.on('unhandledRejection', (reason, promise) => {
   logger.error(`Unhandled Rejection: ${errorMsg}`);
 });
 
+const server = http.createServer(app);
+initWebSocketServer(server);
+
 const isVercelRuntime = Boolean(process.env.VERCEL);
 
 if (process.env.NODE_ENV !== 'test' && !isVercelRuntime) {
-  app.listen(env.PORT, () => {
+  server.listen(env.PORT, () => {
     logger.info(`✅ Server running on port ${env.PORT}`);
     logger.info(`📱 Environment: ${env.NODE_ENV}`);
-    logger.info(`🔒 JWT Authentication: enabled`);
+    logger.info(`🔒 JWT/WebSocket Authentication: enabled`);
     logger.info(`📡 Health check: http://localhost:${env.PORT}/health`);
     logger.info(`🔐 API Documentation:`);
     logger.info(`   POST /api/v1/auth/register - Register new user`);
     logger.info(`   POST /api/v1/auth/login - Login`);
     logger.info(`   POST /api/v1/auth/refresh - Refresh token`);
     logger.info(`   GET /api/v1/auth/me - Get current user`);
+
+    // Start background cron jobs
+    startTokenRefreshCron();
+    logger.info(`🔄 Token Refresh Cron: scheduled`);
   });
 }
 

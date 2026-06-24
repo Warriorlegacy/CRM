@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
+import crypto from 'crypto';
 import { prisma } from '../prisma';
 import { generateToken, requireAuth, AuthedRequest } from '../middleware/auth';
 import { env } from '../env';
@@ -60,6 +61,14 @@ authRouter.post('/login', async (req, res) => {
       return res.status(401).json({
         error: 'Unauthorized',
         message: 'Account deactivated',
+      });
+    }
+
+    // Check if email is verified
+    if (!user.emailVerified) {
+      return res.status(401).json({
+        error: 'Unverified',
+        message: 'Please verify your email address before logging in.',
       });
     }
 
@@ -150,7 +159,7 @@ authRouter.post('/register', async (req, res) => {
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, env.BCRYPT_ROUNDS);
-
+ 
     // Create user and workspace in transaction
     const result = await prisma.$transaction(async (tx) => {
       // Create user
@@ -160,9 +169,10 @@ authRouter.post('/register', async (req, res) => {
           password: hashedPassword,
           name,
           active: true,
+          emailVerified: false,
         },
       });
-
+ 
       // Create workspace
       const workspace = await tx.workspace.create({
         data: {
@@ -171,7 +181,7 @@ authRouter.post('/register', async (req, res) => {
           ownerId: user.id,
         },
       });
-
+ 
       // Create workspace membership
       await tx.workspaceMember.create({
         data: {
@@ -180,26 +190,34 @@ authRouter.post('/register', async (req, res) => {
           role: 'admin',
         },
       });
-
-      return { user, workspace };
+ 
+      // Create VerificationToken
+      const token = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+      await tx.verificationToken.create({
+        data: {
+          token,
+          userId: user.id,
+          expiresAt,
+        },
+      });
+ 
+      return { user, workspace, verificationToken: token };
     });
-
-    // Generate JWT token
-    const token = generateToken(result.user.id, result.workspace.id);
-
+ 
+    // Log the token/URL for development
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    console.log(`[DEV] Verification token for ${email}: ${result.verificationToken}`);
+    console.log(`[DEV] Verification URL: ${frontendUrl}/verify?token=${result.verificationToken}`);
+ 
     return res.status(201).json({
       success: true,
+      message: 'Registration successful. Please check your email to verify your account.',
       data: {
-        token,
         user: {
           id: result.user.id,
           email: result.user.email,
           name: result.user.name,
-          role: 'admin',
-        },
-        workspace: {
-          id: result.workspace.id,
-          name: result.workspace.name,
         },
       },
     });
@@ -317,6 +335,106 @@ authRouter.post('/logout', async (req, res) => {
     success: true,
     message: 'Logged out successfully',
   });
+});
+
+const ForgotPasswordSchema = z.object({
+  email: z.string().email('Invalid email address'),
+});
+
+const ResetPasswordSchema = z.object({
+  token: z.string().min(1, 'Token is required'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+});
+
+/**
+ * POST /api/v1/auth/forgot-password
+ * Generate a password reset token and "send" link
+ */
+authRouter.post('/forgot-password', async (req, res) => {
+  try {
+    const parsed = ForgotPasswordSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: 'Validation Error', details: parsed.error.flatten() });
+    }
+
+    const { email } = parsed.data;
+    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+    
+    if (!user) {
+      // Don't reveal if user exists for security
+      return res.json({ success: true, message: 'If the email matches an account, a password reset link has been sent.' });
+    }
+
+    // Delete existing reset/verification tokens
+    await prisma.verificationToken.deleteMany({ where: { userId: user.id } });
+
+    // Create a new token
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 1 * 60 * 60 * 1000); // 1 hour expiration for reset
+
+    await prisma.verificationToken.create({
+      data: {
+        token,
+        userId: user.id,
+        expiresAt,
+      },
+    });
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    console.log(`[DEV] Password Reset token for ${email}: ${token}`);
+    console.log(`[DEV] Password Reset URL: ${frontendUrl}/reset-password?token=${token}`);
+
+    return res.json({ success: true, message: 'If the email matches an account, a password reset link has been sent.' });
+  } catch (error) {
+    logger.error('Forgot password error', { error });
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+/**
+ * POST /api/v1/auth/reset-password
+ * Reset password using the token
+ */
+authRouter.post('/reset-password', async (req, res) => {
+  try {
+    const parsed = ResetPasswordSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: 'Validation Error', details: parsed.error.flatten() });
+    }
+
+    const { token, password } = parsed.data;
+
+    const verificationToken = await prisma.verificationToken.findUnique({
+      where: { token },
+      include: { user: true },
+    });
+
+    if (!verificationToken || verificationToken.expiresAt < new Date()) {
+      if (verificationToken) {
+        await prisma.verificationToken.delete({ where: { id: verificationToken.id } }).catch(() => {});
+      }
+      return res.status(400).json({ error: 'Invalid or expired password reset token' });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(password, env.BCRYPT_ROUNDS);
+
+    // Update password and delete token
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: verificationToken.userId },
+        data: { password: hashedPassword },
+      }),
+      prisma.verificationToken.delete({
+        where: { id: verificationToken.id },
+      }),
+    ]);
+
+    return res.json({ success: true, message: 'Password has been reset successfully.' });
+  } catch (error) {
+    logger.error('Reset password error', { error });
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
 });
 
 export default authRouter;

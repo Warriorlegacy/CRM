@@ -1,3 +1,5 @@
+import { publishWs } from './websocket';
+
 type Listener = (data: any) => void;
 
 const listeners = new Map<string, Set<Listener>>();
@@ -14,6 +16,10 @@ export function subscribe(workspaceId: string, cb: Listener) {
 }
 
 export function publish(workspaceId: string, payload: any) {
+  // First publish via WebSockets
+  publishWs(workspaceId, payload);
+
+  // Fallback / legacy support for SSE listeners if any remain
   const subs = listeners.get(workspaceId);
   if (!subs) return;
 

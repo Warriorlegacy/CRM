@@ -59,13 +59,20 @@ verifyRouter.get('/:token', async (req: Request, res: Response) => {
   }
 
   if (verificationToken.expiresAt < new Date()) {
-    await prisma.verificationToken.delete({ where: { id: verificationToken.id } });
+    await prisma.verificationToken.delete({ where: { id: verificationToken.id } }).catch(() => {});
     return res.status(400).json({ error: 'Verification token has expired' });
   }
 
-  // Mark user as verified (if you have an emailVerified field)
-  // For now, just delete the token
-  await prisma.verificationToken.delete({ where: { id: verificationToken.id } });
+  // Set emailVerified to true on the User and delete the token in a transaction
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: verificationToken.userId },
+      data: { emailVerified: true },
+    }),
+    prisma.verificationToken.delete({
+      where: { id: verificationToken.id },
+    }),
+  ]);
 
   return res.json({ ok: true, message: 'Email verified successfully' });
 });

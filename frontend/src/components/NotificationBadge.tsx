@@ -4,7 +4,7 @@ interface NotificationBadgeProps {
 }
 
 export default function NotificationBadge({ count, variant = 'default' }: NotificationBadgeProps) {
-  if (count === 0) return null;
+  if (count <= 0) return null;
 
   const displayCount = count > 99 ? '99+' : count;
 

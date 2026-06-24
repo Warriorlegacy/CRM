@@ -19,9 +19,7 @@ describe('Auth Routes', () => {
 
       expect(response.status).toBe(201);
       expect(response.body.success).toBe(true);
-      expect(response.body.data).toHaveProperty('token');
       expect(response.body.data.user).toHaveProperty('email', 'newuser2@example.com');
-      expect(response.body.data.workspace).toHaveProperty('name', 'New Workspace');
     });
 
     it('should return 409 for duplicate email', async () => {
@@ -81,6 +79,7 @@ describe('Auth Routes', () => {
           email: testEmail,
           password: hashedPassword,
           name: 'Login Test User',
+          emailVerified: true,
         },
       });
 
