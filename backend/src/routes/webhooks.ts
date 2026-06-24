@@ -8,22 +8,24 @@ export const webhooksRouter = Router();
 // ── WhatsApp Webhook ──────────────────────────────────────────
 
 webhooksRouter.get('/webhook', (req, res) => {
-  const query = req.query;
-  
-  // Handle both flat and nested query parsing
-  const mode = (query['hub.mode'] || (query as any).hub?.mode)?.toString().trim();
-  const token = (query['hub.verify_token'] || (query as any).hub?.verify_token)?.toString().trim();
-  const challenge = (query['hub.challenge'] || (query as any).hub?.challenge)?.toString().trim();
+  // Manually parse the query string to avoid Express/qs nesting issues
+  const url = new URL(req.protocol + '://' + req.get('host') + req.originalUrl);
+  const params = url.searchParams;
+
+  const mode = params.get('hub.mode') || params.get('hub_mode');
+  const token = params.get('hub.verify_token') || params.get('hub_verify_token');
+  const challenge = params.get('hub.challenge') || params.get('hub_challenge');
 
   const expectedToken = env.WA_VERIFY_TOKEN?.trim();
 
-  console.log('--- WhatsApp Webhook Verification ---');
+  console.log('--- WhatsApp Webhook Verification (Manual Parse) ---');
   console.log('Mode:', mode);
   console.log('Token Received:', token);
   console.log('Token Expected:', expectedToken);
   console.log('Challenge:', challenge);
   console.log('Match:', token === expectedToken);
-  console.log('------------------------------------');
+  console.log('Full Query String:', url.search);
+  console.log('--------------------------------------------------');
 
   if (mode === 'subscribe' && token === expectedToken) {
     return res.status(200).send(challenge);
@@ -50,22 +52,23 @@ webhooksRouter.post('/webhook', async (req, res) => {
 // ── Instagram Webhook ─────────────────────────────────────────
 
 webhooksRouter.get('/webhook/instagram', (req, res) => {
-  const query = req.query;
+  const url = new URL(req.protocol + '://' + req.get('host') + req.originalUrl);
+  const params = url.searchParams;
 
-  // Handle both flat and nested query parsing
-  const mode = (query['hub.mode'] || (query as any).hub?.mode)?.toString().trim();
-  const token = (query['hub.verify_token'] || (query as any).hub?.verify_token)?.toString().trim();
-  const challenge = (query['hub.challenge'] || (query as any).hub?.challenge)?.toString().trim();
+  const mode = params.get('hub.mode') || params.get('hub_mode');
+  const token = params.get('hub.verify_token') || params.get('hub_verify_token');
+  const challenge = params.get('hub.challenge') || params.get('hub_challenge');
 
   const expectedToken = env.IG_VERIFY_TOKEN?.trim();
 
-  console.log('--- Instagram Webhook Verification ---');
+  console.log('--- Instagram Webhook Verification (Manual Parse) ---');
   console.log('Mode:', mode);
   console.log('Token Received:', token);
   console.log('Token Expected:', expectedToken);
   console.log('Challenge:', challenge);
   console.log('Match:', token === expectedToken);
-  console.log('------------------------------------');
+  console.log('Full Query String:', url.search);
+  console.log('----------------------------------------------------');
 
   if (mode === 'subscribe' && token === expectedToken) {
     return res.status(200).send(challenge);
