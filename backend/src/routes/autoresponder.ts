@@ -1,7 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../prisma';
-import { sendWhatsAppText } from '../whatsapp/meta';
 
 export const autoresponderRouter = Router();
 
@@ -18,13 +17,23 @@ const AutoresponderSchema = z.object({
 autoresponderRouter.get('/', async (req, res) => {
   const workspaceId = (req as any).workspaceId;
 
-  const responders = await prisma.$queryRaw`
-    SELECT * FROM Autoresponder 
-    WHERE workspaceId = ${workspaceId}
-    ORDER BY createdAt DESC
-  `;
+  try {
+    const responders = await prisma.autoresponder.findMany({
+      where: { workspaceId },
+      orderBy: { createdAt: 'desc' },
+    });
 
-  return res.json({ ok: true, responders });
+    // Adapt database representation to expected JSON format for stages and boolean
+    const adaptedResponders = responders.map((r) => ({
+      ...r,
+      stages: typeof r.stages === 'string' ? JSON.parse(r.stages) : r.stages,
+      isActive: Boolean(r.isActive),
+    }));
+
+    return res.json({ ok: true, responders: adaptedResponders });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
 });
 
 autoresponderRouter.post('/', async (req, res) => {
@@ -40,24 +49,24 @@ autoresponderRouter.post('/', async (req, res) => {
 
   const { name, trigger, keyword, delayMinutes, message, isActive, stages } = parsed.data;
 
-  await prisma.$executeRaw`
-    INSERT INTO Autoresponder (id, workspaceId, name, trigger, keyword, "delayMinutes", message, "isActive", stages, "createdAt", "updatedAt")
-    VALUES (
-      ${require('crypto').randomUUID()},
-      ${workspaceId},
-      ${name},
-      ${trigger},
-      ${keyword || null},
-      ${delayMinutes},
-      ${message},
-      ${isActive ? 1 : 0},
-      ${stages ? JSON.stringify(stages) : null},
-      ${new Date()},
-      ${new Date()}
-    )
-  `;
+  try {
+    const responder = await prisma.autoresponder.create({
+      data: {
+        workspaceId,
+        name,
+        trigger,
+        keyword: keyword || null,
+        delayMinutes,
+        message,
+        isActive,
+        stages: stages ? JSON.stringify(stages) : null,
+      },
+    });
 
-  return res.json({ ok: true, message: 'Autoresponder created' });
+    return res.json({ ok: true, message: 'Autoresponder created', responder });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
 });
 
 autoresponderRouter.patch('/:id', async (req, res) => {
@@ -65,61 +74,47 @@ autoresponderRouter.patch('/:id', async (req, res) => {
   const { id } = req.params;
   const { name, trigger, keyword, delayMinutes, message, isActive, stages } = req.body;
 
-  const updates: string[] = [];
-  const values: any[] = [];
+  try {
+    const responder = await prisma.autoresponder.updateMany({
+      where: { id, workspaceId },
+      data: {
+        ...(name !== undefined && { name }),
+        ...(trigger !== undefined && { trigger }),
+        ...(keyword !== undefined && { keyword: keyword || null }),
+        ...(delayMinutes !== undefined && { delayMinutes }),
+        ...(message !== undefined && { message }),
+        ...(isActive !== undefined && { isActive }),
+        ...(stages !== undefined && { stages: stages ? JSON.stringify(stages) : null }),
+      },
+    });
 
-  if (name !== undefined) {
-    updates.push('name = ?');
-    values.push(name);
-  }
-  if (trigger !== undefined) {
-    updates.push('trigger = ?');
-    values.push(trigger);
-  }
-  if (keyword !== undefined) {
-    updates.push('keyword = ?');
-    values.push(keyword);
-  }
-  if (delayMinutes !== undefined) {
-    updates.push('"delayMinutes" = ?');
-    values.push(delayMinutes);
-  }
-  if (message !== undefined) {
-    updates.push('message = ?');
-    values.push(message);
-  }
-  if (isActive !== undefined) {
-    updates.push('"isActive" = ?');
-    values.push(isActive ? 1 : 0);
-  }
-  if (stages !== undefined) {
-    updates.push('stages = ?');
-    values.push(JSON.stringify(stages));
-  }
+    if (responder.count === 0) {
+      return res.status(404).json({ error: 'Autoresponder not found' });
+    }
 
-  updates.push('"updatedAt" = ?');
-  values.push(new Date());
-  values.push(id, workspaceId);
-
-  await prisma.$executeRaw`
-    UPDATE Autoresponder 
-    SET ${require('util').format(updates.join(', '))}
-    WHERE id = ? AND workspaceId = ?
-  `;
-
-  return res.json({ ok: true, message: 'Autoresponder updated' });
+    return res.json({ ok: true, message: 'Autoresponder updated' });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
 });
 
 autoresponderRouter.delete('/:id', async (req, res) => {
   const workspaceId = (req as any).workspaceId;
   const { id } = req.params;
 
-  await prisma.$executeRaw`
-    DELETE FROM Autoresponder 
-    WHERE id = ${id} AND workspaceId = ${workspaceId}
-  `;
+  try {
+    const result = await prisma.autoresponder.deleteMany({
+      where: { id, workspaceId },
+    });
 
-  return res.json({ ok: true, message: 'Autoresponder deleted' });
+    if (result.count === 0) {
+      return res.status(404).json({ error: 'Autoresponder not found' });
+    }
+
+    return res.json({ ok: true, message: 'Autoresponder deleted' });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
 });
 
 export default autoresponderRouter;

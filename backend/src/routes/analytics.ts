@@ -3,6 +3,19 @@ import { prisma } from '../prisma';
 
 export const analyticsRouter = Router();
 
+const formatDate = (dateVal: any): string => {
+  if (!dateVal) return '';
+  if (typeof dateVal === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateVal)) {
+    return dateVal;
+  }
+  const d = new Date(dateVal);
+  if (isNaN(d.getTime())) return String(dateVal);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 analyticsRouter.get('/', async (req, res) => {
   const workspaceId = (req as any).workspaceId;
   const { period = '7d' } = req.query;
@@ -26,6 +39,8 @@ analyticsRouter.get('/', async (req, res) => {
   }
 
   try {
+    const isPostgres = process.env.DATABASE_URL?.includes('postgres') || process.env.RENDER || process.env.RAILWAY_ENVIRONMENT;
+
     const [
       totalContacts,
       newContacts,
@@ -47,22 +62,40 @@ analyticsRouter.get('/', async (req, res) => {
       prisma.message.count({
         where: { workspaceId, createdAt: { gte: startDate } },
       }),
-      prisma.$queryRaw`
-        SELECT DATE(createdAt) as date, COUNT(*) as count
-        FROM Message
-        WHERE workspaceId = ${workspaceId}
-        AND createdAt >= ${startDate}
-        GROUP BY DATE(createdAt)
-        ORDER BY date
-      `,
-      prisma.$queryRaw`
-        SELECT DATE(createdAt) as date, channel, COUNT(*) as count
-        FROM Message
-        WHERE workspaceId = ${workspaceId}
-        AND createdAt >= ${startDate}
-        GROUP BY DATE(createdAt), channel
-        ORDER BY date
-      `,
+      isPostgres
+        ? prisma.$queryRaw`
+            SELECT CAST("createdAt" AS DATE) as date, COUNT(*) as count
+            FROM "Message"
+            WHERE "workspaceId" = ${workspaceId}
+            AND "createdAt" >= ${startDate}
+            GROUP BY CAST("createdAt" AS DATE)
+            ORDER BY date
+          `
+        : prisma.$queryRaw`
+            SELECT DATE(createdAt) as date, COUNT(*) as count
+            FROM Message
+            WHERE workspaceId = ${workspaceId}
+            AND createdAt >= ${startDate}
+            GROUP BY DATE(createdAt)
+            ORDER BY date
+          `,
+      isPostgres
+        ? prisma.$queryRaw`
+            SELECT CAST("createdAt" AS DATE) as date, channel, COUNT(*) as count
+            FROM "Message"
+            WHERE "workspaceId" = ${workspaceId}
+            AND "createdAt" >= ${startDate}
+            GROUP BY CAST("createdAt" AS DATE), channel
+            ORDER BY date
+          `
+        : prisma.$queryRaw`
+            SELECT DATE(createdAt) as date, channel, COUNT(*) as count
+            FROM Message
+            WHERE workspaceId = ${workspaceId}
+            AND createdAt >= ${startDate}
+            GROUP BY DATE(createdAt), channel
+            ORDER BY date
+          `,
       prisma.contact.groupBy({
         by: ['stage'],
         where: { workspaceId },
@@ -129,7 +162,7 @@ analyticsRouter.get('/', async (req, res) => {
 
     const dailyMessages = Array.isArray(messagesByDay)
       ? messagesByDay.map((row: any) => ({
-          date: row.date,
+          date: formatDate(row.date),
           count: Number(row.count),
         }))
       : [];
@@ -138,7 +171,7 @@ analyticsRouter.get('/', async (req, res) => {
     const dailyByChannel: Record<string, { whatsapp: number; instagram: number }> = {};
     if (Array.isArray(messagesByDayAndChannel)) {
       for (const row of messagesByDayAndChannel as any[]) {
-        const date = String(row.date);
+        const date = formatDate(row.date);
         if (!dailyByChannel[date]) dailyByChannel[date] = { whatsapp: 0, instagram: 0 };
         if (row.channel === 'instagram') {
           dailyByChannel[date].instagram = Number(row.count);
