@@ -4,7 +4,15 @@ import { useEffect, useState, useRef } from 'react';
 
 interface RealtimeEvent {
   type: string;
-  data: Record<string, unknown>;
+  conversationId?: string;
+  contactId?: string;
+  message?: any;
+  unreadCount?: number;
+  userId?: string;
+  userName?: string | null;
+  status?: string;
+  analysis?: any;
+  data?: Record<string, unknown>;
 }
 
 export function useRealtime(workspaceId: string, onMessage: (data: RealtimeEvent) => void) {
