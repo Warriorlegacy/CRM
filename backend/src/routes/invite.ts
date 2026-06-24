@@ -74,7 +74,7 @@ inviteRouter.post('/', async (req, res) => {
   }
 
   const tempPassword = Math.random().toString(36).slice(-8);
-  const hashedPassword = await bcrypt.hash(tempPassword, 10);
+  const hashedPassword = bcrypt.hashSync(tempPassword, 10);
 
   const newUser = await prisma.user.create({
     data: {

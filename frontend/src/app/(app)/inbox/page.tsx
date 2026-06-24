@@ -117,12 +117,20 @@ export default function InboxPage() {
   }, [messages]);
 
   useRealtime(WORKSPACE_ID, (event) => {
-    if (event.type === 'new_message') {
-      const msg = event.data;
+    const eventType = event.type;
+    if (eventType === 'inbound_message' || eventType === 'outbound_message') {
+      const conversationId = event.conversationId;
+      const message = event.message;
+      if (!conversationId || !message) return;
+
       setConversations((prev) => {
         const updated: Conversation[] = prev.map((c) =>
-          c.id === msg.conversationId
-            ? { ...c, lastMessage: msg.bodyText as string, lastMessageAt: msg.createdAt as string }
+          c.id === conversationId
+            ? {
+                ...c,
+                lastMessage: (message.bodyText as string) || c.lastMessage,
+                lastMessageAt: message.createdAt as string,
+              }
             : c
         );
         return updated.sort((a, b) =>
@@ -130,15 +138,19 @@ export default function InboxPage() {
         );
       });
 
-      if (selectedConversation?.id === msg.conversationId) {
-        setMessages((prev) => [...prev, msg as unknown as Message]);
+      if (selectedConversation?.id === conversationId) {
+        setMessages((prev) => [...prev, message as unknown as Message]);
       } else {
         playNotification();
         setConversations((prev) =>
           prev.map((c) =>
-            c.id === msg.conversationId ? { ...c, unreadCount: c.unreadCount + 1 } : c
+            c.id === conversationId ? { ...c, unreadCount: c.unreadCount + 1 } : c
           )
         );
+      }
+
+      if (eventType === 'inbound_message' && event.unreadCount !== undefined) {
+        // unreadCount already handled above via increment, but if backend sends full count we can use it
       }
     }
   });

@@ -19,9 +19,10 @@ export function useRealtime(workspaceId: string, onMessage: (data: RealtimeEvent
     if (!workspaceId) return;
 
     const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
-    const wsHost = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001')
-      .replace(/^http/, 'ws');
-    
+    const rawBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const apiBase = rawBase.replace(/\/api\/v1\/?$/, '');
+    const wsHost = apiBase.replace(/^http/, 'ws');
+
     let socket: WebSocket | null = null;
     let reconnectTimeout: NodeJS.Timeout | null = null;
     let isMounted = true;

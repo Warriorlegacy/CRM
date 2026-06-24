@@ -190,7 +190,7 @@ export async function sendAutoReply(
     }
 
     if (sent) {
-      await prisma.message.create({
+      const message = await prisma.message.create({
         data: {
           workspaceId,
           conversationId,
@@ -222,12 +222,12 @@ export async function sendAutoReply(
         conversationId,
         channel,
         message: {
-          id: '',
+          id: message.id,
           direction: 'outbound',
           bodyText: replyText,
           type: 'text',
           channel,
-          createdAt: new Date(),
+          createdAt: message.createdAt,
           automated: true,
         },
       });
