@@ -17,7 +17,7 @@ export function useTypingIndicator(
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const prevConversationIdRef = useRef<string | null>(null);
 
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+  const API_BASE = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1`;
 
   // Send typing status
   const sendTypingStatus = useCallback(async (status: 'typing' | 'idle') => {

@@ -73,7 +73,7 @@ authRouter.post('/login', async (req, res) => {
     }
 
     // Verify password
-    const isValidPassword = await bcrypt.compare(password, user.password);
+    const isValidPassword = bcrypt.compareSync(password, user.password);
     if (!isValidPassword) {
       return res.status(401).json({
         error: 'Unauthorized',
@@ -158,8 +158,8 @@ authRouter.post('/register', async (req, res) => {
     }
 
     // Hash password
-    const hashedPassword = await bcrypt.hash(password, env.BCRYPT_ROUNDS);
- 
+    const hashedPassword = bcrypt.hashSync(password, env.BCRYPT_ROUNDS);
+    
     // Create user and workspace in transaction
     const result = await prisma.$transaction(async (tx) => {
       // Create user
@@ -417,7 +417,7 @@ authRouter.post('/reset-password', async (req, res) => {
     }
 
     // Hash new password
-    const hashedPassword = await bcrypt.hash(password, env.BCRYPT_ROUNDS);
+    const hashedPassword = bcrypt.hashSync(password, env.BCRYPT_ROUNDS);
 
     // Update password and delete token
     await prisma.$transaction([

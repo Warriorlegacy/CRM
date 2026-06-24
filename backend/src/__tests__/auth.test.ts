@@ -73,7 +73,7 @@ describe('Auth Routes', () => {
     const testPassword = 'password123';
 
     beforeEach(async () => {
-      const hashedPassword = await bcrypt.hash(testPassword, 10);
+      const hashedPassword = bcrypt.hashSync(testPassword, 10);
       const user = await prisma.user.create({
         data: {
           email: testEmail,
