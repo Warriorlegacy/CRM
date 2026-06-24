@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 import { Bot, Plus, Trash2, Zap, AlertTriangle, CheckCircle, XCircle, Loader2, TestTube, Brain, Sparkles } from 'lucide-react';
 
 interface AiProvider {
@@ -42,6 +43,7 @@ interface AiStatus {
 }
 
 const PROVIDER_ICONS: Record<string, string> = {
+  freellmapi: '🔌',
   openrouter: '🌐',
   groq: '⚡',
   cerebras: '🧠',
@@ -53,6 +55,7 @@ const PROVIDER_ICONS: Record<string, string> = {
 };
 
 export default function AiSettingsPage() {
+  const { user } = useAuth();
   const [providers, setProviders] = useState<AiProvider[]>([]);
   const [available, setAvailable] = useState<ProviderOption[]>([]);
   const [models, setModels] = useState<Record<string, { model: string; name: string }[]>>({});
@@ -61,6 +64,7 @@ export default function AiSettingsPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [testing, setTesting] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<Record<string, { ok: boolean; message: string }>>({});
+  const [isCustomModel, setIsCustomModel] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     provider: '',
@@ -100,6 +104,7 @@ export default function AiSettingsPage() {
       await api.post('/ai/providers', formData);
       setShowAdd(false);
       setFormData({ name: '', provider: '', apiKey: '', baseUrl: '', model: '', priority: 0, maxTokens: 1024, temperature: 0.7 });
+      setIsCustomModel(false);
       loadData();
     } catch (err) {
       console.error('Failed to add provider:', err);
@@ -325,20 +330,38 @@ export default function AiSettingsPage() {
               <select
                 value={formData.provider}
                 onChange={(e) => {
-                  const prov = available.find((p) => p.id === e.target.value);
-                  setFormData({
-                    ...formData,
-                    provider: e.target.value,
-                    model: prov?.models[0]?.model || '',
-                    name: prov?.name || '',
-                  });
+                  const provId = e.target.value;
+                  const prov = available.find((p) => p.id === provId);
+                  if (provId === 'freellmapi') {
+                    setFormData({
+                      ...formData,
+                      provider: provId,
+                      name: 'FreeLLMAPI',
+                      apiKey: 'freellmapi-82ee041ecf2784f97fbb8b0059bc99948e8f07c830b5d1a8',
+                      baseUrl: 'http://127.0.0.1:31415/v1',
+                      model: prov?.models[0]?.model || 'auto',
+                    });
+                    setIsCustomModel(false);
+                  } else {
+                    setFormData({
+                      ...formData,
+                      provider: provId,
+                      name: prov?.name || '',
+                      apiKey: '',
+                      baseUrl: '',
+                      model: prov?.models[0]?.model || '',
+                    });
+                    setIsCustomModel(false);
+                  }
                 }}
                 className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm"
               >
                 <option value="">Select provider...</option>
-                {available.map((p) => (
-                  <option key={p.id} value={p.id}>{PROVIDER_ICONS[p.id]} {p.name}</option>
-                ))}
+                {available
+                  .filter((p) => p.id !== 'freellmapi' || user?.email === 'piyushrajsingh092@gmail.com')
+                  .map((p) => (
+                    <option key={p.id} value={p.id}>{PROVIDER_ICONS[p.id]} {p.name}</option>
+                  ))}
               </select>
             </div>
 
@@ -365,16 +388,58 @@ export default function AiSettingsPage() {
                 </div>
 
                 <div>
+                  <label className="block text-xs text-zinc-500 mb-1">Base URL (Optional)</label>
+                  <input
+                    value={formData.baseUrl}
+                    onChange={(e) => setFormData({ ...formData, baseUrl: e.target.value })}
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm font-mono"
+                    placeholder="e.g. https://api.openai.com/v1"
+                  />
+                  <div className="text-xs text-zinc-600 mt-1">Override default API endpoint if using custom or local proxies.</div>
+                </div>
+
+                <div>
                   <label className="block text-xs text-zinc-500 mb-1">Model</label>
-                  <select
-                    value={formData.model}
-                    onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm"
-                  >
-                    {selectedProvider.models.map((m) => (
-                      <option key={m.model} value={m.model}>{m.name} ({m.model})</option>
-                    ))}
-                  </select>
+                  {!isCustomModel ? (
+                    <div className="flex gap-2">
+                      <select
+                        value={formData.model}
+                        onChange={(e) => {
+                          if (e.target.value === 'custom') {
+                            setIsCustomModel(true);
+                            setFormData({ ...formData, model: '' });
+                          } else {
+                            setFormData({ ...formData, model: e.target.value });
+                          }
+                        }}
+                        className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm"
+                      >
+                        {selectedProvider.models.map((m) => (
+                          <option key={m.model} value={m.model}>{m.name} ({m.model})</option>
+                        ))}
+                        <option value="custom">✏️ Custom Model...</option>
+                      </select>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <input
+                        value={formData.model}
+                        onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+                        className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm font-mono"
+                        placeholder="e.g. meta-llama/llama-3.2-3b-instruct"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsCustomModel(false);
+                          setFormData({ ...formData, model: selectedProvider.models[0]?.model || '' });
+                        }}
+                        className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white rounded-xl text-xs transition-colors"
+                      >
+                        Select List
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-3 gap-3">
@@ -415,7 +480,7 @@ export default function AiSettingsPage() {
 
             <div className="flex justify-end gap-3 pt-2">
               <button
-                onClick={() => setShowAdd(false)}
+                onClick={() => { setShowAdd(false); setIsCustomModel(false); }}
                 className="px-4 py-2 text-sm text-zinc-400 hover:text-white transition-colors"
               >
                 Cancel

@@ -25,17 +25,19 @@ interface AiProvider {
 }
 
 const PROVIDER_ICONS: Record<string, string> = {
-  openrouter: '🌐', groq: '⚡', cerebras: '🧠', mistral: '🌬️',
+  freellmapi: '🔌', openrouter: '🌐', groq: '⚡', cerebras: '🧠', mistral: '🌬️',
   nvidia_nim: '💚', xai: '✖️', gemini: '✨', cohere: '🔷',
 };
 
 const PROVIDER_LABELS: Record<string, string> = {
+  freellmapi: 'FreeLLMAPI',
   openrouter: 'OpenRouter', groq: 'Groq', cerebras: 'Cerebras',
   mistral: 'Mistral', nvidia_nim: 'NVIDIA NIM', xai: 'xAI',
   gemini: 'Gemini', cohere: 'Cohere',
 };
 
 const PROVIDER_DESCS: Record<string, string> = {
+  freellmapi: 'Local unified LLM router for API aggregation. Pre-configures local keys.',
   openrouter: 'Access 200+ models with automatic routing. Many free models.',
   groq: 'Ultra-fast inference on open-source models. Free tier available.',
   cerebras: 'Lightning-fast inference on Llama models. Free tier.',
@@ -47,6 +49,7 @@ const PROVIDER_DESCS: Record<string, string> = {
 };
 
 const PROVIDER_LINKS: Record<string, string> = {
+  freellmapi: 'http://127.0.0.1:31415/',
   openrouter: 'https://openrouter.ai/keys',
   groq: 'https://console.groq.com/keys',
   cerebras: 'https://cloud.cerebras.ai/',
@@ -58,6 +61,12 @@ const PROVIDER_LINKS: Record<string, string> = {
 };
 
 const FREE_MODELS: Record<string, { model: string; name: string }[]> = {
+  freellmapi: [
+    { model: 'meta-llama/llama-3.2-3b-instruct:free', name: 'Llama 3.2 3B (Free)' },
+    { model: 'liquid/lfm-2.5-1.2b-thinking:free', name: 'Liquid LFM 2.5 1.2B Thinking (Free)' },
+    { model: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B (Groq)' },
+    { model: 'auto', name: 'Auto Routing' },
+  ],
   openrouter: [
     { model: 'meta-llama/llama-4-scout:free', name: 'Llama 4 Scout (Free)' },
     { model: 'google/gemma-3-27b-it:free', name: 'Gemma 3 27B (Free)' },
@@ -90,7 +99,7 @@ const FREE_MODELS: Record<string, { model: string; name: string }[]> = {
 export default function SetupPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { workspace } = useAuth();
+  const { workspace, user } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [connections, setConnections] = useState<ConnectionStatus>({
@@ -99,7 +108,8 @@ export default function SetupPage() {
   });
   const [providers, setProviders] = useState<AiProvider[]>([]);
   const [showAddProvider, setShowAddProvider] = useState(false);
-  const [newProvider, setNewProvider] = useState({ provider: '', apiKey: '', model: '', name: '' });
+  const [isCustomModel, setIsCustomModel] = useState(false);
+  const [newProvider, setNewProvider] = useState({ provider: '', apiKey: '', model: '', name: '', baseUrl: '' });
   const [testing, setTesting] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<Record<string, { ok: boolean; message: string }>>({});
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -176,12 +186,14 @@ export default function SetupPage() {
         provider: newProvider.provider,
         apiKey: newProvider.apiKey,
         model: newProvider.model,
+        baseUrl: newProvider.baseUrl || undefined,
         priority: providers.length,
         maxTokens: 1024,
         temperature: 0.7,
       });
       setShowAddProvider(false);
-      setNewProvider({ provider: '', apiKey: '', model: '', name: '' });
+      setNewProvider({ provider: '', apiKey: '', model: '', name: '', baseUrl: '' });
+      setIsCustomModel(false);
       loadConnections();
     } catch {
       setMessage({ type: 'error', text: 'Failed to add provider' });
@@ -549,19 +561,36 @@ export default function SetupPage() {
                 value={newProvider.provider}
                 onChange={(e) => {
                   const val = e.target.value;
-                  setNewProvider({
-                    ...newProvider,
-                    provider: val,
-                    name: PROVIDER_LABELS[val] || '',
-                    model: FREE_MODELS[val]?.[0]?.model || '',
-                  });
+                  if (val === 'freellmapi') {
+                    setNewProvider({
+                      ...newProvider,
+                      provider: val,
+                      name: 'FreeLLMAPI',
+                      apiKey: 'freellmapi-82ee041ecf2784f97fbb8b0059bc99948e8f07c830b5d1a8',
+                      baseUrl: 'http://127.0.0.1:31415/v1',
+                      model: FREE_MODELS[val]?.[0]?.model || 'auto',
+                    });
+                    setIsCustomModel(false);
+                  } else {
+                    setNewProvider({
+                      ...newProvider,
+                      provider: val,
+                      name: PROVIDER_LABELS[val] || '',
+                      apiKey: '',
+                      baseUrl: '',
+                      model: FREE_MODELS[val]?.[0]?.model || '',
+                    });
+                    setIsCustomModel(false);
+                  }
                 }}
                 className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm"
               >
                 <option value="">Select provider...</option>
-                {Object.entries(PROVIDER_LABELS).map(([id, name]) => (
-                  <option key={id} value={id}>{PROVIDER_ICONS[id]} {name}</option>
-                ))}
+                {Object.entries(PROVIDER_LABELS)
+                  .filter(([id]) => id !== 'freellmapi' || user?.email === 'piyushrajsingh092@gmail.com')
+                  .map(([id, name]) => (
+                    <option key={id} value={id}>{PROVIDER_ICONS[id]} {name}</option>
+                  ))}
               </select>
             </div>
 
@@ -592,23 +621,65 @@ export default function SetupPage() {
                 </div>
 
                 <div>
+                  <label className="block text-xs text-zinc-500 mb-1">Base URL (Optional)</label>
+                  <input
+                    value={newProvider.baseUrl}
+                    onChange={(e) => setNewProvider({ ...newProvider, baseUrl: e.target.value })}
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm font-mono"
+                    placeholder="e.g. https://api.openai.com/v1"
+                  />
+                  <div className="text-xs text-zinc-600 mt-1">Override default API endpoint if using custom or local proxies.</div>
+                </div>
+
+                <div>
                   <label className="block text-xs text-zinc-500 mb-1">Model</label>
-                  <select
-                    value={newProvider.model}
-                    onChange={(e) => setNewProvider({ ...newProvider, model: e.target.value })}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm"
-                  >
-                    {selectedProviderModels.map((m) => (
-                      <option key={m.model} value={m.model}>{m.name} ({m.model})</option>
-                    ))}
-                  </select>
+                  {!isCustomModel ? (
+                    <div className="flex gap-2">
+                      <select
+                        value={newProvider.model}
+                        onChange={(e) => {
+                          if (e.target.value === 'custom') {
+                            setIsCustomModel(true);
+                            setNewProvider({ ...newProvider, model: '' });
+                          } else {
+                            setNewProvider({ ...newProvider, model: e.target.value });
+                          }
+                        }}
+                        className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm"
+                      >
+                        {selectedProviderModels.map((m) => (
+                          <option key={m.model} value={m.model}>{m.name} ({m.model})</option>
+                        ))}
+                        <option value="custom">✏️ Custom Model...</option>
+                      </select>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <input
+                        value={newProvider.model}
+                        onChange={(e) => setNewProvider({ ...newProvider, model: e.target.value })}
+                        className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm font-mono"
+                        placeholder="e.g. meta-llama/llama-3.2-3b-instruct"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsCustomModel(false);
+                          setNewProvider({ ...newProvider, model: selectedProviderModels[0]?.model || '' });
+                        }}
+                        className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white rounded-xl text-xs transition-colors"
+                      >
+                        Select List
+                      </button>
+                    </div>
+                  )}
                 </div>
               </>
             )}
 
             <div className="flex justify-end gap-3 pt-2">
               <button
-                onClick={() => { setShowAddProvider(false); setNewProvider({ provider: '', apiKey: '', model: '', name: '' }); }}
+                onClick={() => { setShowAddProvider(false); setNewProvider({ provider: '', apiKey: '', model: '', name: '', baseUrl: '' }); setIsCustomModel(false); }}
                 className="px-4 py-2 text-sm text-zinc-400 hover:text-white transition-colors"
               >
                 Cancel

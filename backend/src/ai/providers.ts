@@ -127,6 +127,7 @@ const cohereAdapter: AiProviderAdapter = {
 };
 
 export const providers: Record<string, AiProviderAdapter> = {
+  freellmapi: openAiCompatibleAdapter('freellmapi', 'http://127.0.0.1:31415/v1'),
   openrouter: openAiCompatibleAdapter('openrouter', 'https://openrouter.ai/api/v1'),
   groq: openAiCompatibleAdapter('groq', 'https://api.groq.com/openai/v1'),
   cerebras: openAiCompatibleAdapter('cerebras', 'https://api.cerebras.ai/v1'),
@@ -138,6 +139,12 @@ export const providers: Record<string, AiProviderAdapter> = {
 };
 
 export const FREE_MODELS: Record<string, { model: string; name: string }[]> = {
+  freellmapi: [
+    { model: 'meta-llama/llama-3.2-3b-instruct:free', name: 'Llama 3.2 3B (Free)' },
+    { model: 'liquid/lfm-2.5-1.2b-thinking:free', name: 'Liquid LFM 2.5 1.2B Thinking (Free)' },
+    { model: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B (Groq)' },
+    { model: 'auto', name: 'Auto Routing' },
+  ],
   openrouter: [
     { model: 'meta-llama/llama-4-scout:free', name: 'Llama 4 Scout (Free)' },
     { model: 'google/gemma-3-27b-it:free', name: 'Gemma 3 27B (Free)' },

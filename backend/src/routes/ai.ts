@@ -22,18 +22,32 @@ aiRouter.get('/providers', async (req, res) => {
   return res.json({ providers: provs });
 });
 
-aiRouter.get('/providers/models', (_req, res) => {
+aiRouter.get('/providers/models', async (req, res) => {
+  const userId = (req as any).userId;
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+  const isPiyush = user?.email === 'piyushrajsingh092@gmail.com';
+
+  if (!isPiyush) {
+    const { freellmapi, ...rest } = FREE_MODELS;
+    return res.json({ models: rest });
+  }
   return res.json({ models: FREE_MODELS });
 });
 
-aiRouter.get('/providers/available', (_req, res) => {
-  return res.json({
-    providers: Object.keys(providers).map((k) => ({
+aiRouter.get('/providers/available', async (req, res) => {
+  const userId = (req as any).userId;
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+  const isPiyush = user?.email === 'piyushrajsingh092@gmail.com';
+
+  const availableProviders = Object.keys(providers)
+    .filter((k) => k !== 'freellmapi' || isPiyush)
+    .map((k) => ({
       id: k,
       name: k.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
       models: FREE_MODELS[k] || [],
-    })),
-  });
+    }));
+
+  return res.json({ providers: availableProviders });
 });
 
 const ProviderSchema = z.object({
@@ -49,8 +63,16 @@ const ProviderSchema = z.object({
 
 aiRouter.post('/providers', async (req, res) => {
   const workspaceId = (req as any).workspaceId;
+  const userId = (req as any).userId;
   const parsed = ProviderSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Validation Error', details: parsed.error.flatten() });
+
+  if (parsed.data.provider === 'freellmapi') {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+    if (user?.email !== 'piyushrajsingh092@gmail.com') {
+      return res.status(403).json({ error: 'Forbidden', message: 'You do not have permission to configure this provider.' });
+    }
+  }
 
   const provider = await prisma.aiProvider.create({
     data: { workspaceId, ...parsed.data },
