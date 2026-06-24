@@ -28,6 +28,11 @@ jobs:
         ports:
           - 5432:5432
 
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/whatsapp_crm_test?schema=public
+      JWT_SECRET: test-secret-key-for-ci
+      NODE_ENV: test
+
     steps:
       - uses: actions/checkout@v4
 
@@ -46,8 +51,6 @@ jobs:
 
       - name: Run database migrations
         run: npx prisma migrate deploy
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/whatsapp_crm_test?schema=public
 
       - name: Run linter
         run: npm run lint
@@ -80,7 +83,9 @@ jobs:
         run: npm ci
 
       - name: Run tests
-        run: npm test -- --run
+        run: npx vitest run --reporter=verbose
+        env:
+          CI: true
 
   deploy:
     needs: [test-backend, test-frontend]
