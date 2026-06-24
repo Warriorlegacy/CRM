@@ -7,47 +7,62 @@ webhooksLogRouter.get('/', async (req, res) => {
   const workspaceId = (req as any).workspaceId;
   const { type, limit = '50' } = req.query;
 
-  const logs = await prisma.$queryRaw<any[]>`
-    SELECT * FROM WebhookLog 
-    WHERE workspaceId = ${workspaceId}
-    ${type ? require('prisma').$queryRaw`AND type = ${type}` : require('prisma').$queryRaw``}
-    ORDER BY createdAt DESC
-    LIMIT ${parseInt(limit as string)}
-  `;
+  try {
+    const logs = await prisma.webhookLog.findMany({
+      where: {
+        workspaceId,
+        ...(type ? { type: String(type) } : {}),
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      take: parseInt(limit as string),
+    });
 
-  const countResult = await prisma.$queryRaw<any[]>`
-    SELECT COUNT(*) as count FROM WebhookLog 
-    WHERE workspaceId = ${workspaceId}
-  `;
+    const count = await prisma.webhookLog.count({
+      where: { workspaceId },
+    });
 
-  return res.json({ 
-    ok: true, 
-    logs,
-    count: countResult[0]?.count || 0,
-  });
+    return res.json({ 
+      ok: true, 
+      logs,
+      count,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
 });
 
 webhooksLogRouter.get('/:id', async (req, res) => {
   const workspaceId = (req as any).workspaceId;
   const { id } = req.params;
 
-  const logResult = await prisma.$queryRaw<any[]>`
-    SELECT * FROM WebhookLog 
-    WHERE id = ${id} AND workspaceId = ${workspaceId}
-  `;
+  try {
+    const log = await prisma.webhookLog.findFirst({
+      where: { id, workspaceId },
+    });
 
-  return res.json({ ok: true, log: logResult[0] });
+    if (!log) {
+      return res.status(404).json({ error: 'Webhook log not found' });
+    }
+
+    return res.json({ ok: true, log });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
 });
 
 webhooksLogRouter.delete('/clear', async (req, res) => {
   const workspaceId = (req as any).workspaceId;
 
-  await prisma.$executeRaw`
-    DELETE FROM WebhookLog 
-    WHERE workspaceId = ${workspaceId}
-  `;
-
-  return res.json({ ok: true, message: 'Webhook logs cleared' });
+  try {
+    await prisma.webhookLog.deleteMany({
+      where: { workspaceId },
+    });
+    return res.json({ ok: true, message: 'Webhook logs cleared' });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
 });
 
 export default webhooksLogRouter;

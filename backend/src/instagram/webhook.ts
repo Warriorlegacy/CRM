@@ -173,11 +173,12 @@ async function processAutoresponders(
   igFrom: string
 ) {
   try {
-    const autoresponders = await prisma.$queryRaw<any[]>`
-      SELECT * FROM Autoresponder 
-      WHERE workspaceId = ${workspaceId}
-      AND isActive = 1
-    `;
+    const autoresponders = await prisma.autoresponder.findMany({
+      where: {
+        workspaceId,
+        isActive: true,
+      },
+    });
 
     for (const responder of autoresponders) {
       let shouldTrigger = false;
