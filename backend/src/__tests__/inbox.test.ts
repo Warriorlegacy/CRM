@@ -9,7 +9,7 @@ describe('Inbox API', () => {
   let workspaceId: string;
 
   beforeEach(async () => {
-    const hashedPassword = await bcrypt.hash('password123', 10);
+    const hashedPassword = bcrypt.hashSync('password123', 10);
     const user = await prisma.user.create({
       data: {
         email: 'inbox-test999@example.com',

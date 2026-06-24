@@ -25,7 +25,7 @@ afterEach(async () => {
 });
 
 export const createTestUser = async (email: string = 'test@example.com', password: string = 'password123') => {
-  const hashedPassword = await bcrypt.hash(password, 10);
+  const hashedPassword = bcrypt.hashSync(password, 10);
   return prisma.user.create({
     data: {
       email: email.toLowerCase(),
