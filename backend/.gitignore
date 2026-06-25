@@ -39,4 +39,4 @@ coverage/
 *.pid.lock
 
 .vercel
-start-tunnel.ps1
+start-tunnel.js
