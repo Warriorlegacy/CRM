@@ -28,15 +28,16 @@ export default function WebhooksLogPage() {
   };
 
   useEffect(() => {
-    if (!USER_ID || !WORKSPACE_ID || authLoading) return;
+    if (authLoading) return;
     loadLogs();
-  }, [USER_ID, WORKSPACE_ID, authLoading]);
+  }, [authLoading, filter]);
 
   const loadLogs = async () => {
+    setLoading(true);
     try {
       const query = filter !== 'all' ? `?type=${filter}` : '';
-      const data = await api.get<{ logs: WebhookLog[] }>(`/webhooks-log${query}`, { headers });
-      setLogs(data.logs);
+      const data = await api.get<{ logs: WebhookLog[] }>(`/webhooks-log${query}`);
+      setLogs(data.logs || []);
     } catch (error) {
       console.error('Failed to load webhook logs:', error);
     } finally {
@@ -96,7 +97,7 @@ export default function WebhooksLogPage() {
         {['all', 'messages', 'statuses', 'errors'].map((f) => (
           <button
             key={f}
-            onClick={() => { setFilter(f); loadLogs(); }}
+            onClick={() => setFilter(f)}
             className={`px-4 py-2 rounded-xl text-sm transition-colors ${
               filter === f
                 ? 'bg-zinc-800 text-white'
