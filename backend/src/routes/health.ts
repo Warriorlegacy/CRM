@@ -14,25 +14,6 @@ healthRouter.get('/health', (req, res) => {
   });
 });
 
-// Temporary endpoint to update freellmapi baseUrl in production
-healthRouter.get('/temp-update-db', async (req, res) => {
-  const { prisma } = await import('../prisma');
-  try {
-    const updated = await prisma.aiProvider.updateMany({
-      where: { provider: 'freellmapi' },
-      data: {
-        baseUrl: 'https://whatsapp-crm-piyush.loca.lt/v1',
-        errorCount: 0,
-        lastErrorAt: null,
-        isActive: true,
-      }
-    });
-    res.json({ ok: true, updated });
-  } catch (err: any) {
-    res.status(500).json({ ok: false, error: err.message });
-  }
-});
-
 // Detailed health check (for monitoring)
 healthRouter.get('/health/detailed', (req, res) => {
   const memoryUsage = process.memoryUsage();
