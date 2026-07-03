@@ -207,14 +207,16 @@ async function processAutoresponders(
         if (!contact) continue;
 
         if (responder.delayMinutes > 0) {
-          setTimeout(async () => {
-            await sendWhatsAppText({
-              accessToken: wa.accessToken,
-              phoneNumberId: wa.phoneNumberId,
-              to: contact.phone,
-              text: responder.message,
-            });
-          }, responder.delayMinutes * 60 * 1000);
+          // Store the scheduled autoresponse in the database for cron processing
+          await prisma.pendingAutoresponse.create({
+            data: {
+              workspaceId,
+              contactId,
+              conversationId,
+              message: responder.message,
+              sendAt: new Date(Date.now() + responder.delayMinutes * 60 * 1000),
+            },
+          });
         } else {
           await sendWhatsAppText({
             accessToken: wa.accessToken,

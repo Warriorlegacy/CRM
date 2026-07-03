@@ -2,6 +2,8 @@ import request from 'supertest';
 import app from '../server';
 import { prisma } from '../prisma';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { env } from '../env';
 
 const BASE_URL = '/api/v1/auth';
 
@@ -66,6 +68,17 @@ describe('Auth Routes', () => {
 
       expect(response.status).toBe(400);
     });
+
+    it('should return 400 for missing name', async () => {
+      const response = await request(app)
+        .post(`${BASE_URL}/register`)
+        .send({
+          email: 'noname@example.com',
+          password: 'password123',
+        });
+
+      expect(response.status).toBe(400);
+    });
   });
 
   describe('POST /auth/login', () => {
@@ -111,6 +124,7 @@ describe('Auth Routes', () => {
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.data).toHaveProperty('token');
+      expect(response.body.data.user).toHaveProperty('email', testEmail);
     });
 
     it('should return 401 for invalid password', async () => {
@@ -134,6 +148,186 @@ describe('Auth Routes', () => {
         });
 
       expect(response.status).toBe(401);
+    });
+
+    it('should return 400 for invalid email format', async () => {
+      const response = await request(app)
+        .post(`${BASE_URL}/login`)
+        .send({
+          email: 'not-an-email',
+          password: 'password123',
+        });
+
+      expect(response.status).toBe(400);
+    });
+  });
+
+  describe('GET /auth/me', () => {
+    it('should return current user with valid token', async () => {
+      const hashedPassword = bcrypt.hashSync('password123', 10);
+      const user = await prisma.user.create({
+        data: {
+          email: 'metest@example.com',
+          password: hashedPassword,
+          name: 'Me Test User',
+        },
+      });
+
+      const workspace = await prisma.workspace.create({
+        data: {
+          name: 'Me Test Workspace',
+          slug: `me-test-workspace-${Date.now()}`,
+          ownerId: user.id,
+        },
+      });
+
+      await prisma.workspaceMember.create({
+        data: {
+          userId: user.id,
+          workspaceId: workspace.id,
+          role: 'admin',
+        },
+      });
+
+      const token = jwt.sign(
+        { userId: user.id, workspaceId: workspace.id },
+        env.JWT_SECRET,
+        { expiresIn: '1h' }
+      );
+
+      const response = await request(app)
+        .get(`${BASE_URL}/me`)
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.user).toHaveProperty('email', 'metest@example.com');
+      expect(response.body.data.workspaces).toHaveLength(1);
+    });
+
+    it('should return 401 with no token', async () => {
+      const response = await request(app)
+        .get(`${BASE_URL}/me`);
+
+      expect(response.status).toBe(401);
+    });
+
+    it('should return 401 with invalid token', async () => {
+      const response = await request(app)
+        .get(`${BASE_URL}/me`)
+        .set('Authorization', 'Bearer invalid-token-here');
+
+      expect(response.status).toBe(401);
+    });
+
+    it('should return 401 with expired token', async () => {
+      const hashedPassword = bcrypt.hashSync('password123', 10);
+      const user = await prisma.user.create({
+        data: {
+          email: 'expired@example.com',
+          password: hashedPassword,
+          name: 'Expired Token User',
+        },
+      });
+
+      const workspace = await prisma.workspace.create({
+        data: {
+          name: 'Expired Workspace',
+          slug: `expired-workspace-${Date.now()}`,
+          ownerId: user.id,
+        },
+      });
+
+      await prisma.workspaceMember.create({
+        data: {
+          userId: user.id,
+          workspaceId: workspace.id,
+          role: 'admin',
+        },
+      });
+
+      const token = jwt.sign(
+        { userId: user.id, workspaceId: workspace.id },
+        env.JWT_SECRET,
+        { expiresIn: '0s' }
+      );
+
+      // Wait briefly to ensure expiry
+      await new Promise((resolve) => setTimeout(resolve, 1100));
+
+      const response = await request(app)
+        .get(`${BASE_URL}/me`)
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(response.status).toBe(401);
+    });
+  });
+
+  describe('POST /auth/refresh', () => {
+    it('should refresh token with valid token', async () => {
+      const hashedPassword = bcrypt.hashSync('password123', 10);
+      const user = await prisma.user.create({
+        data: {
+          email: 'refresh@example.com',
+          password: hashedPassword,
+          name: 'Refresh Test User',
+        },
+      });
+
+      const workspace = await prisma.workspace.create({
+        data: {
+          name: 'Refresh Workspace',
+          slug: `refresh-workspace-${Date.now()}`,
+          ownerId: user.id,
+        },
+      });
+
+      await prisma.workspaceMember.create({
+        data: {
+          userId: user.id,
+          workspaceId: workspace.id,
+          role: 'admin',
+        },
+      });
+
+      const token = jwt.sign(
+        { userId: user.id, workspaceId: workspace.id },
+        env.JWT_SECRET,
+        { expiresIn: '1h' }
+      );
+
+      const response = await request(app)
+        .post(`${BASE_URL}/refresh`)
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data).toHaveProperty('token');
+    });
+
+    it('should return 401 with invalid token on refresh', async () => {
+      const response = await request(app)
+        .post(`${BASE_URL}/refresh`)
+        .set('Authorization', 'Bearer invalid-token');
+
+      expect(response.status).toBe(401);
+    });
+
+    it('should return 401 with no token on refresh', async () => {
+      const response = await request(app)
+        .post(`${BASE_URL}/refresh`);
+
+      expect(response.status).toBe(401);
+    });
+  });
+
+  describe('POST /auth/logout', () => {
+    it('should logout successfully', async () => {
+      const response = await request(app)
+        .post(`${BASE_URL}/logout`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
     });
   });
 });

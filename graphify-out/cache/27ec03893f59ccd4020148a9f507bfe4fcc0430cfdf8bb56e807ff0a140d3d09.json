@@ -1,0 +1,1 @@
+{"nodes": [{"id": "backend_scripts_prepare_prisma_schema_js", "label": "prepare-prisma-schema.js", "file_type": "code", "source_file": "backend\\scripts\\prepare-prisma-schema.js", "source_location": "L1"}], "edges": [], "raw_calls": []}

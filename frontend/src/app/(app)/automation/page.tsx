@@ -5,6 +5,9 @@ import {
   Bot, Zap, MessageSquare, Users, BarChart3, Plus, 
   Loader2, Check, X, TrendingUp, Clock, Sparkles
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
+import { useNotification } from '@/contexts/NotificationContext';
 import { api } from '@/lib/api';
 
 interface Template {
@@ -26,6 +29,7 @@ interface AutomationStats {
 }
 
 export default function AutomationPage() {
+  const { addNotification } = useNotification();
   const [templates, setTemplates] = useState<Template[]>([]);
   const [stats, setStats] = useState<AutomationStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -54,9 +58,9 @@ export default function AutomationPage() {
     setCreating(templateId);
     try {
       await api.post(`/automation/templates/${templateId}/use`, {});
-      alert('Chatbot flow created! Go to Chatbot page to customize it.');
+      addNotification({ type: 'success', title: 'Chatbot flow created', message: 'Go to Chatbot page to customize it.' });
     } catch (error: any) {
-      alert(error.message || 'Failed to create flow');
+      addNotification({ type: 'error', title: 'Failed to create flow', message: error.message || 'Unknown error' });
     } finally {
       setCreating(null);
     }

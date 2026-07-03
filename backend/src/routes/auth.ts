@@ -6,6 +6,7 @@ import { prisma } from '../prisma';
 import { generateToken, requireAuth, AuthedRequest } from '../middleware/auth';
 import { env } from '../env';
 import { logger } from '../middleware/logger';
+import { sendVerificationEmail, sendPasswordResetEmail } from '../services/email';
 
 export const authRouter = Router();
 
@@ -205,10 +206,14 @@ authRouter.post('/register', async (req, res) => {
       return { user, workspace, verificationToken: token };
     });
  
-    // Log the token/URL for development
+    // Send verification email
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    console.log(`[DEV] Verification token for ${email}: ${result.verificationToken}`);
-    console.log(`[DEV] Verification URL: ${frontendUrl}/verify?token=${result.verificationToken}`);
+    const emailSent = await sendVerificationEmail(email, result.verificationToken);
+    if (!emailSent) {
+      logger.warn('Failed to send verification email, logging token for dev', { email });
+      console.log(`[DEV] Verification token for ${email}: ${result.verificationToken}`);
+      console.log(`[DEV] Verification URL: ${frontendUrl}/verify?token=${result.verificationToken}`);
+    }
  
     return res.status(201).json({
       success: true,
@@ -381,8 +386,12 @@ authRouter.post('/forgot-password', async (req, res) => {
     });
 
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    console.log(`[DEV] Password Reset token for ${email}: ${token}`);
-    console.log(`[DEV] Password Reset URL: ${frontendUrl}/reset-password?token=${token}`);
+    const emailSent = await sendPasswordResetEmail(email, token);
+    if (!emailSent) {
+      logger.warn('Failed to send password reset email, logging token for dev', { email });
+      console.log(`[DEV] Password Reset token for ${email}: ${token}`);
+      console.log(`[DEV] Password Reset URL: ${frontendUrl}/reset-password?token=${token}`);
+    }
 
     return res.json({ success: true, message: 'If the email matches an account, a password reset link has been sent.' });
   } catch (error) {

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNotification } from '@/contexts/NotificationContext';
 import { Bell, Check, Plus, Calendar, User, Phone, Clock, X } from 'lucide-react';
 
 interface Followup {
@@ -25,6 +26,7 @@ interface Contact {
 
 export default function FollowupsPage() {
   const { user, workspace, isLoading: authLoading } = useAuth();
+  const { addNotification } = useNotification();
   const USER_ID = user?.id || '';
   const WORKSPACE_ID = workspace?.id || '';
   const [followups, setFollowups] = useState<Followup[]>([]);
@@ -75,7 +77,7 @@ export default function FollowupsPage() {
       loadData();
     } catch (error) {
       console.error('Failed to add followup:', error);
-      alert('Failed to create follow-up');
+      addNotification({ type: 'error', title: 'Failed to create follow-up' });
     }
   };
 

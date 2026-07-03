@@ -6,8 +6,10 @@ import { useRealtime } from '@/hooks/useRealtime';
 import { useTypingIndicator } from '@/hooks/useTypingIndicator';
 import { useNotificationSound } from '@/hooks/useNotificationSound';
 import { useAuth } from '@/contexts/AuthContext';
-import { Send, User, Check, CheckCheck, Phone, MoreVertical, Loader2, MessageSquare, Search, Filter, X, FileText, ChevronDown, UserPlus, Clock, Instagram } from 'lucide-react';
+import { useNotification } from '@/contexts/NotificationContext';
+import { Send, Check, CheckCheck, Phone, Loader2, MessageSquare, Search, Filter, X, FileText, ChevronDown, UserPlus, Clock, Instagram } from 'lucide-react';
 import ChannelBadge, { ChannelDot } from '@/components/ChannelBadge';
+import { RealtimeMessage } from '@/hooks/useRealtime';
 
 interface Conversation {
   id: string;
@@ -50,6 +52,7 @@ interface TeamMember {
 
 export default function InboxPage() {
   const { user, workspace, isLoading: authLoading } = useAuth();
+  const { addNotification } = useNotification();
   const USER_ID = user?.id || '';
   const WORKSPACE_ID = workspace?.id || '';
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -121,15 +124,20 @@ export default function InboxPage() {
     if (eventType === 'inbound_message' || eventType === 'outbound_message') {
       const conversationId = event.conversationId;
       const message = event.message;
-      if (!conversationId || !message) return;
+      if (!conversationId || !message?.id) return;
+      const conversation = conversations.find((c) => c.id === conversationId);
+      const normalizedMessage = normalizeRealtimeMessage(
+        message,
+        conversation?.channel || selectedConversation?.channel || 'whatsapp'
+      );
 
       setConversations((prev) => {
         const updated: Conversation[] = prev.map((c) =>
           c.id === conversationId
             ? {
                 ...c,
-                lastMessage: (message.bodyText as string) || c.lastMessage,
-                lastMessageAt: message.createdAt as string,
+                lastMessage: normalizedMessage.bodyText || c.lastMessage,
+                lastMessageAt: normalizedMessage.createdAt,
               }
             : c
         );
@@ -139,7 +147,11 @@ export default function InboxPage() {
       });
 
       if (selectedConversation?.id === conversationId) {
-        setMessages((prev) => [...prev, message as unknown as Message]);
+        setMessages((prev) =>
+          prev.some((existing) => existing.id === normalizedMessage.id)
+            ? prev
+            : [...prev, normalizedMessage]
+        );
       } else {
         playNotification();
         setConversations((prev) =>
@@ -154,6 +166,20 @@ export default function InboxPage() {
       }
     }
   });
+
+  function normalizeRealtimeMessage(message: RealtimeMessage, fallbackChannel: string): Message {
+    return {
+      id: message.id,
+      bodyText: message.bodyText || '',
+      direction: message.direction || 'inbound',
+      type: message.type || 'text',
+      channel: message.channel || fallbackChannel,
+      createdAt: message.createdAt || new Date().toISOString(),
+      sentByUserId: message.sentByUserId || null,
+      sentByUser: message.sentByUser || null,
+      readReceipts: message.readReceipts || [],
+    };
+  }
 
   const loadConversations = async () => {
     try {
@@ -277,10 +303,10 @@ export default function InboxPage() {
       }, { headers });
       setShowFollowupModal(false);
       setFollowupData({ dueAt: '', note: '' });
-      alert('Follow-up created successfully!');
+      addNotification({ type: 'success', title: 'Follow-up created successfully!' });
     } catch (error) {
       console.error('Failed to create followup:', error);
-      alert('Failed to create follow-up');
+      addNotification({ type: 'error', title: 'Failed to create follow-up' });
     }
   };
 
@@ -308,7 +334,7 @@ export default function InboxPage() {
       await loadMessages(selectedConversation.id);
     } catch (error) {
       console.error('Failed to send message:', error);
-      alert('Failed to send message');
+      addNotification({ type: 'error', title: 'Failed to send message' });
     } finally {
       setSending(false);
     }

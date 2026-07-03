@@ -38,23 +38,33 @@ export function verifyToken(token: string): JWTPayload {
  * Extract token from request headers
  */
 function extractToken(req: Request): string | null {
-  // Check Authorization header (Bearer token)
+  // Check Authorization header (Bearer token) - XHR/fetch requests
   const authHeader = req.headers.authorization;
   if (authHeader?.startsWith('Bearer ')) {
     return authHeader.substring(7);
   }
-  
+
   // Fallback to x-access-token header
   const accessToken = req.header('x-access-token');
   if (accessToken) {
     return accessToken;
   }
-  
-  // Check query parameter (for webhooks)
+
+  // Check httpOnly cookie (set during OAuth pre-redirect flow)
+  const cookieToken = (req as any).cookies?.oauth_context;
+  if (cookieToken) {
+    return cookieToken;
+  }
+
+  // Check query parameter (for webhooks and legacy OAuth redirects)
+  // NOTE: OAuth redirects have a known limitation where the token
+  // may appear in the query string during the full-page redirect.
+  // The cookie-based pre-redirect flow (POST /api/v1/oauth/establish)
+  // resolves this by using an httpOnly cookie instead.
   if (req.query.token && typeof req.query.token === 'string') {
     return req.query.token;
   }
-  
+
   return null;
 }
 

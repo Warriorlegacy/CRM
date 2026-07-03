@@ -1,11 +1,35 @@
 import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
+type FetchCall = [RequestInfo | URL, RequestInit?];
+type MockedFetch = typeof fetch & {
+  mock: {
+    calls: FetchCall[];
+  };
+};
+
+function fetchCalls(): FetchCall[] {
+  return (global.fetch as MockedFetch).mock.calls;
+}
+
+function isTypingStatusCall(call: FetchCall, status: 'typing' | 'idle'): boolean {
+  const init = call[1];
+  if (init?.method !== 'POST' || typeof init.body !== 'string') return false;
+  const body = JSON.parse(init.body) as { status?: string };
+  return body.status === status;
+}
+
+async function flushHookEffects() {
+  await act(async () => {
+    await Promise.resolve();
+  });
+}
+
 describe('useTypingIndicator Hook', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    global.fetch = vi.fn().mockImplementation((url, init) => {
-      if (url.includes('/typing/')) {
+    global.fetch = vi.fn((url: RequestInfo | URL) => {
+      if (String(url).includes('/typing/')) {
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve({ ok: true, typingUsers: [] }),
@@ -15,7 +39,7 @@ describe('useTypingIndicator Hook', () => {
         ok: true,
         json: () => Promise.resolve({ ok: true }),
       } as Response);
-    });
+    }) as unknown as typeof fetch;
   });
 
   afterEach(() => {
@@ -27,6 +51,7 @@ describe('useTypingIndicator Hook', () => {
     const { useTypingIndicator } = await import('../hooks/useTypingIndicator');
     
     const { result } = renderHook(() => useTypingIndicator('conv-123'));
+    await flushHookEffects();
 
     expect(result.current.typingUsers).toEqual([]);
     expect(result.current.isTyping).toBe(false);
@@ -36,6 +61,7 @@ describe('useTypingIndicator Hook', () => {
     const { useTypingIndicator } = await import('../hooks/useTypingIndicator');
     
     const { result } = renderHook(() => useTypingIndicator('conv-123'));
+    await flushHookEffects();
 
     act(() => {
       result.current.sendTyping();
@@ -48,6 +74,7 @@ describe('useTypingIndicator Hook', () => {
     const { useTypingIndicator } = await import('../hooks/useTypingIndicator');
     
     const { result } = renderHook(() => useTypingIndicator('conv-123'));
+    await flushHookEffects();
 
     act(() => {
       result.current.sendTyping();
@@ -59,18 +86,14 @@ describe('useTypingIndicator Hook', () => {
       result.current.sendTyping();
     });
 
-    const postCalls = (global.fetch as any).mock.calls.filter((call: any) => 
-      call[1]?.method === 'POST' && JSON.parse(call[1].body).status === 'typing'
-    );
+    const postCalls = fetchCalls().filter((call) => isTypingStatusCall(call, 'typing'));
     expect(postCalls.length).toBe(1);
 
     act(() => {
       vi.advanceTimersByTime(3000);
     });
 
-    const idleCalls = (global.fetch as any).mock.calls.filter((call: any) => 
-      call[1]?.method === 'POST' && JSON.parse(call[1].body).status === 'idle'
-    );
+    const idleCalls = fetchCalls().filter((call) => isTypingStatusCall(call, 'idle'));
     expect(idleCalls.length).toBe(1);
   });
 
@@ -78,14 +101,13 @@ describe('useTypingIndicator Hook', () => {
     const { useTypingIndicator } = await import('../hooks/useTypingIndicator');
     
     const { result } = renderHook(() => useTypingIndicator(null));
+    await flushHookEffects();
 
     act(() => {
       result.current.sendTyping();
     });
 
-    const postCalls = (global.fetch as any).mock.calls.filter((call: any) => 
-      call[1]?.method === 'POST'
-    );
+    const postCalls = fetchCalls().filter((call) => call[1]?.method === 'POST');
     expect(postCalls.length).toBe(0);
   });
 });

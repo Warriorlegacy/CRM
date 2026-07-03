@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNotification } from '@/contexts/NotificationContext';
 import { User, Phone, Search, Plus, Filter, MoreHorizontal, X, MessageSquare, Instagram, StickyNote, ChevronDown } from 'lucide-react';
 import ChannelBadge, { ChannelDot } from '@/components/ChannelBadge';
 
@@ -54,6 +55,7 @@ function getLeadTemp(score: number): string {
 
 export default function ContactsPage() {
   const { user, workspace, isLoading: authLoading } = useAuth();
+  const { addNotification } = useNotification();
   const USER_ID = user?.id || '';
   const WORKSPACE_ID = workspace?.id || '';
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -115,7 +117,7 @@ export default function ContactsPage() {
       loadContacts();
     } catch (error) {
       console.error('Failed to add contact:', error);
-      alert('Failed to add contact');
+      addNotification({ type: 'error', title: 'Failed to add contact' });
     }
   };
 

@@ -18,7 +18,8 @@ const CreateContactSchema = z.object({
 
 contactsRouter.get('/', async (req, res) => {
   const { workspaceId } = req as unknown as AuthedRequest;
-  const { search, stage, tag } = req.query;
+  const { search, stage, tag, channel, cursor } = req.query;
+  const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
 
   const where: Record<string, unknown> = { workspaceId };
 
@@ -37,9 +38,18 @@ contactsRouter.get('/', async (req, res) => {
     where.tags = { contains: tag as string };
   }
 
+  if (channel) {
+    where.channel = channel;
+  }
+
+  if (cursor) {
+    where.lastMessageAt = { lt: new Date(cursor as string) };
+  }
+
   const contacts = await prisma.contact.findMany({
     where,
     orderBy: { lastMessageAt: 'desc' },
+    take: limit + 1,
     include: {
       assignedTo: {
         select: { id: true, name: true, email: true },
@@ -47,10 +57,18 @@ contactsRouter.get('/', async (req, res) => {
     },
   });
 
+  const hasMore = contacts.length > limit;
+  const data = hasMore ? contacts.slice(0, limit) : contacts;
+  const nextCursor = hasMore && data.length > 0
+    ? data[data.length - 1].lastMessageAt?.toISOString() || null
+    : null;
+
   return res.json({
     success: true,
-    data: { contacts },
-    contacts,
+    data: { contacts: data, nextCursor, hasMore },
+    contacts: data,
+    nextCursor,
+    hasMore,
   });
 });
 

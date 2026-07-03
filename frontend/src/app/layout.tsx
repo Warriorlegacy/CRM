@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { NotificationProvider } from "@/contexts/NotificationContext";
 
 export const metadata: Metadata = {
   title: "WhatsApp CRM | Convert Chats Into Revenue",
@@ -15,9 +16,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="font-sans antialiased bg-zinc-950 text-zinc-100">
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+        <NotificationProvider>
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+        </NotificationProvider>
       </body>
     </html>
   );

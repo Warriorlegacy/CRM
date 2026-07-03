@@ -1,5 +1,6 @@
 import express, { Request, Response, NextFunction } from 'express';
 import http from 'http';
+import cookieParser from 'cookie-parser';
 import { setupSecurity } from './middleware/security';
 import { logger, requestLogger, errorLogger } from './middleware/logger';
 import { prisma } from './prisma';
@@ -7,6 +8,7 @@ import { env } from './env';
 import { requireAuth } from './middleware/auth';
 import { initWebSocketServer } from './realtime/websocket';
 import { startTokenRefreshCron } from './cron/tokenRefresh';
+import { startAutoresponseCron } from './cron/autoresponse';
 
 // Routes
 import { webhooksRouter } from './routes/webhooks';
@@ -25,6 +27,7 @@ import { adminRouter } from './routes/admin';
 import { analyticsRouter } from './routes/analytics';
 import { exportRouter } from './routes/export';
 import broadcastRouter from './routes/broadcast';
+import { broadcastsRouter } from './routes/broadcasts';
 import mediaRouter from './routes/media';
 import inviteRouter from './routes/invite';
 import activityRouter from './routes/activity';
@@ -38,6 +41,9 @@ import automationRouter from './routes/automation';
 import { oauthRouter } from './routes/oauth';
 
 const app = express();
+
+// Parse cookies (used for OAuth context cookie)
+app.use(cookieParser());
 
 // Setup security middleware
 setupSecurity(app);
@@ -89,6 +95,7 @@ app.use('/api/v1/read-receipts', requireAuth, readReceiptRouter);
 app.use('/api/v1/analytics', requireAuth, analyticsRouter);
 app.use('/api/v1/export', requireAuth, exportRouter);
 app.use('/api/v1/broadcast', requireAuth, broadcastRouter);
+app.use('/api/v1/broadcasts', requireAuth, broadcastsRouter);
 app.use('/api/v1/media', requireAuth, mediaRouter);
 app.use('/api/v1/invite', requireAuth, inviteRouter);
 app.use('/api/v1/activity', requireAuth, activityRouter);
@@ -179,6 +186,8 @@ if (process.env.NODE_ENV !== 'test' && !isVercelRuntime) {
     // Start background cron jobs
     startTokenRefreshCron();
     logger.info(`🔄 Token Refresh Cron: scheduled`);
+    startAutoresponseCron();
+    logger.info(`⏰ Autoresponse Cron: scheduled`);
   });
 }
 

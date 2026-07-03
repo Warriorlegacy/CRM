@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import crypto from 'crypto';
 import { prisma } from '../prisma';
+import { sendVerificationEmail } from '../services/email';
 
 export const verifyRouter = Router();
 
@@ -37,10 +38,12 @@ verifyRouter.post('/request', async (req: Request, res: Response) => {
     },
   });
 
-  // TODO: Send verification email here
-  // For now, log the token for development
-  console.log(`[DEV] Verification token for ${email}: ${token}`);
-  console.log(`[DEV] Verification URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify?token=${token}`);
+  // Send verification email
+  const emailSent = await sendVerificationEmail(email, token);
+  if (!emailSent) {
+    console.log(`[DEV] Verification token for ${email}: ${token}`);
+    console.log(`[DEV] Verification URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify?token=${token}`);
+  }
 
   return res.json({ ok: true, message: 'If an account exists, a verification email has been sent.' });
 });

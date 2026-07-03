@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { api } from '@/lib/api';
+import { api, buildOAuthUrl, establishOAuthContext } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
 import { 
   Settings, Bell, Smartphone, Check, AlertTriangle, Bot, Trash2, Plus, Instagram,
-  RefreshCw, ExternalLink
+  RefreshCw, Loader2
 } from 'lucide-react';
 
 interface Workspace {
@@ -32,7 +33,7 @@ interface Autoresponder {
 }
 
 export default function SettingsPage() {
-  const { user, workspace, isLoading: authLoading } = useAuth();
+  const { isLoading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
@@ -112,11 +113,14 @@ export default function SettingsPage() {
     }
   };
 
-  const handleOAuthConnect = (channel: string) => {
-    if (!workspace) return;
+  const handleOAuthConnect = async (channel: 'whatsapp' | 'instagram') => {
     setConnectingChannel(channel);
-    const backendUrl = (process.env.NEXT_PUBLIC_API_URL || '').replace('/api/v1', '') || 'http://localhost:3001';
-    window.location.href = backendUrl + '/api/v1/oauth/' + channel + '?workspaceId=' + workspace.id;
+    try {
+      await establishOAuthContext(channel);
+      window.location.href = buildOAuthUrl(channel);
+    } catch {
+      setConnectingChannel(null);
+    }
   };
 
   const handleOAuthDisconnect = async (channel: string) => {
@@ -130,6 +134,7 @@ export default function SettingsPage() {
     setSaving(true);
     try {
       if (activeTab === 'general') {
+        await api.patch('/workspaces/current', { name: settings.workspaceName });
         showSuccess('Workspace settings saved');
       } else if (activeTab === 'whatsapp') {
         await api.post('/workspaces/wa-account', {
@@ -224,7 +229,7 @@ export default function SettingsPage() {
             {tabs.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as 'general' | 'whatsapp' | 'notifications' | 'autoresponders')}
+                onClick={() => setActiveTab(tab.id as 'general' | 'whatsapp' | 'instagram' | 'notifications' | 'autoresponders')}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition-colors ${
                   activeTab === tab.id
                     ? 'bg-zinc-800 text-white'

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import os from 'os';
+import { prisma } from '../prisma';
 import { env } from '../env';
 
 export const healthRouter = Router();
@@ -44,16 +45,23 @@ healthRouter.get('/health/detailed', (req, res) => {
   });
 });
 
-// Readiness check (for Kubernetes)
-healthRouter.get('/ready', (req, res) => {
-  // Check if database is connected
-  // Check if external services are available
-  res.status(200).json({
-    ready: true,
-    checks: {
-      database: 'connected',
-      api: 'operational',
-    },
+// Readiness check (for Kubernetes) - actually checks database
+healthRouter.get('/ready', async (req, res) => {
+  const checks: Record<string, string> = { api: 'operational' };
+  let allOk = true;
+
+  // Check database connectivity
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    checks.database = 'connected';
+  } catch {
+    checks.database = 'disconnected';
+    allOk = false;
+  }
+
+  res.status(allOk ? 200 : 503).json({
+    ready: allOk,
+    checks,
   });
 });
 
@@ -61,24 +69,6 @@ healthRouter.get('/ready', (req, res) => {
 healthRouter.get('/live', (req, res) => {
   res.status(200).json({
     alive: true,
-  });
-});
-
-// Debug env (no auth required)
-healthRouter.get('/debug-env', (req, res) => {
-  res.json({
-    wa_verify_token: env.WA_VERIFY_TOKEN || 'NOT SET',
-    wa_token_type: typeof env.WA_VERIFY_TOKEN,
-    wa_token_length: env.WA_VERIFY_TOKEN?.length || 0,
-    ig_verify_token: env.IG_VERIFY_TOKEN || 'NOT SET',
-    meta_app_id: env.META_APP_ID ? 'SET' : 'NOT SET',
-    node_env: env.NODE_ENV,
-    url: req.url,
-    raw_query: req.url.split('?')[1] || '(none)',
-    query_keys: Object.keys(req.query),
-    query_hub_mode_literal: req.query['hub.mode'],
-    query_hub_dot: (req.query as any).hub?.mode,
-    query_foo_literal: req.query['foo'],
   });
 });
 

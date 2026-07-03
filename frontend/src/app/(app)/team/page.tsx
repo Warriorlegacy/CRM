@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNotification } from '@/contexts/NotificationContext';
 import { Users, Crown, User, Mail, Shield, UserPlus, X, Check, Clock } from 'lucide-react';
 
 interface TeamMember {
@@ -26,6 +27,7 @@ interface Workspace {
 
 export default function TeamPage() {
   const { user, workspace, isLoading: authLoading } = useAuth();
+  const { addNotification } = useNotification();
   const USER_ID = user?.id || '';
   const WORKSPACE_ID = workspace?.id || '';
   const [workspaceData, setWorkspaceData] = useState<Workspace | null>(null);
@@ -59,7 +61,7 @@ export default function TeamPage() {
     e.preventDefault();
     // This would typically call an invite endpoint
     // For now, just show a success message
-    alert(`Invitation would be sent to ${inviteEmail} with ${inviteRole} role`);
+    addNotification({ type: 'info', title: 'Invitation', message: `Would be sent to ${inviteEmail} with ${inviteRole} role` });
     setShowInviteModal(false);
     setInviteEmail('');
     setInviteRole('agent');

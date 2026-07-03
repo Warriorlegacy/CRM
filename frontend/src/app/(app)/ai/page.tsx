@@ -337,7 +337,7 @@ export default function AiSettingsPage() {
                       ...formData,
                       provider: provId,
                       name: 'FreeLLMAPI',
-                      apiKey: 'freellmapi-82ee041ecf2784f97fbb8b0059bc99948e8f07c830b5d1a8',
+                      apiKey: '',
                       baseUrl: 'http://127.0.0.1:31415/v1',
                       model: prov?.models[0]?.model || 'auto',
                     });

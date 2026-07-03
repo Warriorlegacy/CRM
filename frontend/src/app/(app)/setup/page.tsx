@@ -8,7 +8,7 @@ import {
   RefreshCw, Unplug
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { api } from '@/lib/api';
+import { api, buildOAuthUrl, establishOAuthContext } from '@/lib/api';
 
 interface ConnectionStatus {
   whatsapp: { connected: boolean; phoneNumberId: string | null; businessAccountId: string | null; connectedAt: string | null };
@@ -249,18 +249,24 @@ export default function SetupPage() {
     loadConnections();
   }, [loadConnections]);
 
-  const handleConnectWhatsApp = () => {
-    if (!workspace) return;
+  const handleConnectWhatsApp = async () => {
     setConnectingChannel('whatsapp');
-    const backendUrl = (process.env.NEXT_PUBLIC_API_URL || '').replace('/api/v1', '') || 'http://localhost:3001';
-    window.location.href = backendUrl + '/api/v1/oauth/whatsapp?workspaceId=' + workspace.id;
+    try {
+      await establishOAuthContext('whatsapp');
+      window.location.href = buildOAuthUrl('whatsapp');
+    } catch {
+      setConnectingChannel(null);
+    }
   };
 
-  const handleConnectInstagram = () => {
-    if (!workspace) return;
+  const handleConnectInstagram = async () => {
     setConnectingChannel('instagram');
-    const backendUrl = (process.env.NEXT_PUBLIC_API_URL || '').replace('/api/v1', '') || 'http://localhost:3001';
-    window.location.href = backendUrl + '/api/v1/oauth/instagram?workspaceId=' + workspace.id;
+    try {
+      await establishOAuthContext('instagram');
+      window.location.href = buildOAuthUrl('instagram');
+    } catch {
+      setConnectingChannel(null);
+    }
   };
 
   const handleDisconnect = async (channel: string) => {
@@ -657,7 +663,7 @@ export default function SetupPage() {
                       ...newProvider,
                       provider: val,
                       name: 'FreeLLMAPI',
-                      apiKey: 'freellmapi-82ee041ecf2784f97fbb8b0059bc99948e8f07c830b5d1a8',
+                      apiKey: '',
                       baseUrl: 'http://127.0.0.1:31415/v1',
                       model: FREE_MODELS[val]?.[0]?.model || 'auto',
                     });
@@ -676,10 +682,8 @@ export default function SetupPage() {
                 }}
                 className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm"
               >
-                <option value="">Select provider...</option>
-                {Object.entries(PROVIDER_LABELS)
-                  .filter(([id]) => id !== 'freellmapi' || user?.email === 'piyushrajsingh092@gmail.com')
-                  .map(([id, name]) => (
+                  <option value="">Select provider...</option>
+                  {Object.entries(PROVIDER_LABELS).map(([id, name]) => (
                     <option key={id} value={id}>{PROVIDER_ICONS[id]} {name}</option>
                   ))}
               </select>

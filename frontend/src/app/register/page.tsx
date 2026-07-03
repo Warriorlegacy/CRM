@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 export default function RegisterPage() {
   const router = useRouter();
   const { register, isLoading } = useAuth();
+  const [success, setSuccess] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -21,6 +22,7 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
 
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
@@ -33,13 +35,14 @@ export default function RegisterPage() {
     }
 
     try {
-      await register(
+      const message = await register(
         formData.email,
         formData.password,
         formData.name,
         formData.workspaceName || undefined
       );
-      router.push('/inbox');
+      setSuccess(message);
+      setTimeout(() => router.push('/login?registered=1'), 1200);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Registration failed. Please try again.';
       setError(message);
@@ -116,6 +119,11 @@ export default function RegisterPage() {
               {error && (
                 <div className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
                   {error}
+                </div>
+              )}
+              {success && (
+                <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+                  {success}
                 </div>
               )}
 

@@ -8,6 +8,25 @@ import { requireAuth } from '../middleware/auth';
 
 export const oauthRouter = Router();
 
+// ── NEW: Establish OAuth context via httpOnly cookie ──────────────────────
+// This endpoint is called via XHR (with Authorization header) before the
+// full-page redirect to Meta OAuth. It sets a short-lived httpOnly cookie
+// so the backend can identify the user WITHOUT exposing the JWT in the URL.
+
+oauthRouter.post('/establish', requireAuth, (req: Request, res: Response) => {
+  const token = (req as any).token as string;
+
+  res.cookie('oauth_context', token, {
+    httpOnly: true,
+    secure: env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: 5 * 60 * 1000, // 5 minutes
+    path: '/api/v1/oauth',
+  });
+
+  return res.json({ ok: true });
+});
+
 // ── Helper: exchange short-lived token for long-lived token ─────────────
 
 export async function exchangeForLongLivedToken(shortToken: string): Promise<string> {
@@ -125,51 +144,58 @@ async function fetchInstagramAccounts(userToken: string): Promise<{
 
 // ── Helper: generate state token (JWT with nonce + workspaceId) ─────────
 
-function generateStateToken(workspaceId: string, channel: string): string {
+function getPublicApiBaseUrl(req: Request): string {
+  const configuredUrl =
+    process.env.API_PUBLIC_URL ||
+    process.env.BACKEND_URL ||
+    process.env.RENDER_EXTERNAL_URL ||
+    '';
+
+  if (configuredUrl) {
+    return configuredUrl.replace(/\/+$/, '').replace(/\/api\/v1$/, '');
+  }
+
+  const forwardedProto = req.header('x-forwarded-proto')?.split(',')[0]?.trim();
+  const protocol = forwardedProto || req.protocol;
+  const host = req.get('host');
+  return `${protocol}://${host}`;
+}
+
+function getOAuthRedirectUri(req: Request, channel: string): string {
+  return `${getPublicApiBaseUrl(req)}/api/v1/oauth/${channel}/callback`;
+}
+
+function generateStateToken(workspaceId: string, userId: string, channel: string, redirectUri: string): string {
   return jwt.sign(
-    { workspaceId, channel, nonce: crypto.randomBytes(16).toString('hex') },
+    { workspaceId, userId, channel, redirectUri, nonce: crypto.randomBytes(16).toString('hex') },
     env.JWT_SECRET,
     { expiresIn: '10m' }
   );
 }
 
-function verifyStateToken(token: string): { workspaceId: string; channel: string } | null {
+function verifyStateToken(token: string): { workspaceId: string; userId: string; channel: string; redirectUri: string } | null {
   try {
-    const payload = jwt.verify(token, env.JWT_SECRET) as { workspaceId: string; channel: string };
+    const payload = jwt.verify(token, env.JWT_SECRET) as {
+      workspaceId: string;
+      userId: string;
+      channel: string;
+      redirectUri: string;
+    };
     return payload;
   } catch {
     return null;
   }
 }
 
-// ── Extract workspaceId from JWT in query params ────────────────────────
-// OAuth redirects lose Authorization headers, so we pass JWT via query param
-
-function extractWorkspaceId(req: Request): string | null {
-  // Try query param first (for OAuth redirects)
-  const token = req.query.token as string;
-  if (token) {
-    try {
-      const payload = jwt.verify(token, env.JWT_SECRET) as { workspaceId: string };
-      return payload.workspaceId;
-    } catch {
-      return null;
-    }
-  }
-  return null;
-}
-
 // ══════════════════════════════════════════════════════════════════════════
 // WHATSAPP OAUTH
 // ══════════════════════════════════════════════════════════════════════════
 
-oauthRouter.get('/whatsapp', (req: Request, res: Response) => {
-  const workspaceId = req.query.workspaceId as string;
-  if (!workspaceId) {
-    return res.status(400).json({ error: 'workspaceId query parameter required' });
-  }
-
-  const state = generateStateToken(workspaceId, 'whatsapp');
+oauthRouter.get('/whatsapp', requireAuth, (req: Request, res: Response) => {
+  const workspaceId = (req as any).workspaceId as string;
+  const userId = (req as any).userId as string;
+  const redirectUri = getOAuthRedirectUri(req, 'whatsapp');
+  const state = generateStateToken(workspaceId, userId, 'whatsapp', redirectUri);
   const scopes = [
     'whatsapp_business_messaging',
     'whatsapp_business_management',
@@ -177,7 +203,7 @@ oauthRouter.get('/whatsapp', (req: Request, res: Response) => {
 
   const authUrl = `https://www.facebook.com/${env.META_API_VERSION}/dialog/oauth?` +
     `client_id=${env.META_APP_ID}` +
-    `&redirect_uri=${encodeURIComponent(env.FRONTEND_URL + '/api/v1/oauth/whatsapp/callback')}` +
+    `&redirect_uri=${encodeURIComponent(redirectUri)}` +
     `&scope=${encodeURIComponent(scopes)}` +
     `&state=${state}` +
     `&response_type=code`;
@@ -201,16 +227,21 @@ oauthRouter.get('/whatsapp/callback', async (req: Request, res: Response) => {
     return res.redirect(`${env.FRONTEND_URL}/setup?whatsapp=error&reason=invalid_state`);
   }
 
-  const { workspaceId } = statePayload;
+  const { workspaceId, userId, redirectUri } = statePayload;
 
   try {
+    const member = await prisma.workspaceMember.findFirst({ where: { workspaceId, userId } });
+    if (!member) {
+      return res.redirect(`${env.FRONTEND_URL}/setup?whatsapp=error&reason=workspace_access_denied`);
+    }
+
     // Exchange code for user access token
     const tokenResp = await axios.get(
       `https://graph.facebook.com/${env.META_API_VERSION}/oauth/access_token`, {
         params: {
           client_id: env.META_APP_ID,
           client_secret: env.META_APP_SECRET,
-          redirect_uri: env.FRONTEND_URL + '/api/v1/oauth/whatsapp/callback',
+          redirect_uri: redirectUri,
           code: String(code),
         },
       }
@@ -263,13 +294,11 @@ oauthRouter.get('/whatsapp/callback', async (req: Request, res: Response) => {
 // INSTAGRAM OAUTH
 // ══════════════════════════════════════════════════════════════════════════
 
-oauthRouter.get('/instagram', (req: Request, res: Response) => {
-  const workspaceId = req.query.workspaceId as string;
-  if (!workspaceId) {
-    return res.status(400).json({ error: 'workspaceId query parameter required' });
-  }
-
-  const state = generateStateToken(workspaceId, 'instagram');
+oauthRouter.get('/instagram', requireAuth, (req: Request, res: Response) => {
+  const workspaceId = (req as any).workspaceId as string;
+  const userId = (req as any).userId as string;
+  const redirectUri = getOAuthRedirectUri(req, 'instagram');
+  const state = generateStateToken(workspaceId, userId, 'instagram', redirectUri);
   const scopes = [
     'instagram_basic',
     'instagram_manage_messages',
@@ -279,7 +308,7 @@ oauthRouter.get('/instagram', (req: Request, res: Response) => {
 
   const authUrl = `https://www.facebook.com/${env.META_API_VERSION}/dialog/oauth?` +
     `client_id=${env.META_APP_ID}` +
-    `&redirect_uri=${encodeURIComponent(env.FRONTEND_URL + '/api/v1/oauth/instagram/callback')}` +
+    `&redirect_uri=${encodeURIComponent(redirectUri)}` +
     `&scope=${encodeURIComponent(scopes)}` +
     `&state=${state}` +
     `&response_type=code`;
@@ -303,16 +332,21 @@ oauthRouter.get('/instagram/callback', async (req: Request, res: Response) => {
     return res.redirect(`${env.FRONTEND_URL}/setup?instagram=error&reason=invalid_state`);
   }
 
-  const { workspaceId } = statePayload;
+  const { workspaceId, userId, redirectUri } = statePayload;
 
   try {
+    const member = await prisma.workspaceMember.findFirst({ where: { workspaceId, userId } });
+    if (!member) {
+      return res.redirect(`${env.FRONTEND_URL}/setup?instagram=error&reason=workspace_access_denied`);
+    }
+
     // Exchange code for user access token
     const tokenResp = await axios.get(
       `https://graph.facebook.com/${env.META_API_VERSION}/oauth/access_token`, {
         params: {
           client_id: env.META_APP_ID,
           client_secret: env.META_APP_SECRET,
-          redirect_uri: env.FRONTEND_URL + '/api/v1/oauth/instagram/callback',
+          redirect_uri: redirectUri,
           code: String(code),
         },
       }

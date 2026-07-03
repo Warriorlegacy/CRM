@@ -2,6 +2,8 @@ import request from 'supertest';
 import app from '../server';
 import { prisma } from '../prisma';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { env } from '../env';
 
 describe('Templates API', () => {
   let token: string;
@@ -36,8 +38,6 @@ describe('Templates API', () => {
       },
     });
 
-    const jwt = require('jsonwebtoken');
-    const { env } = require('../env');
     token = jwt.sign({ userId: user.id, workspaceId: workspace.id }, env.JWT_SECRET, { expiresIn: '1h' });
   });
 
@@ -74,6 +74,17 @@ describe('Templates API', () => {
       expect(response.body.success).toBe(true);
       expect(response.body.data.templates).toHaveLength(2);
     });
+
+    it('should return templates ordered by creation date', async () => {
+      const response = await request(app)
+        .get('/api/v1/templates')
+        .set(headers());
+
+      expect(response.status).toBe(200);
+      const templates = response.body.data.templates;
+      expect(templates[0].title).toBe('Follow up');
+      expect(templates[1].title).toBe('Greeting');
+    });
   });
 
   describe('POST /templates', () => {
@@ -100,6 +111,123 @@ describe('Templates API', () => {
         });
 
       expect(response.status).toBe(400);
+    });
+
+    it('should return 400 for missing body', async () => {
+      const response = await request(app)
+        .post('/api/v1/templates')
+        .set(headers())
+        .send({
+          title: 'Template without body',
+        });
+
+      expect(response.status).toBe(400);
+    });
+
+    it('should return 400 for empty title', async () => {
+      const response = await request(app)
+        .post('/api/v1/templates')
+        .set(headers())
+        .send({
+          title: '',
+          body: 'Some body',
+        });
+
+      expect(response.status).toBe(400);
+    });
+  });
+
+  describe('PATCH /templates/:id', () => {
+    it('should update a template', async () => {
+      const createResponse = await request(app)
+        .post('/api/v1/templates')
+        .set(headers())
+        .send({
+          title: 'Original Title',
+          body: 'Original Body',
+        });
+
+      const templateId = createResponse.body.data.template.id;
+
+      const response = await request(app)
+        .patch(`/api/v1/templates/${templateId}`)
+        .set(headers())
+        .send({
+          title: 'Updated Title',
+          body: 'Updated Body',
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+    });
+
+    it('should return 404 for non-existent template', async () => {
+      const response = await request(app)
+        .patch('/api/v1/templates/non-existent-id')
+        .set(headers())
+        .send({
+          title: 'Updated Title',
+          body: 'Updated Body',
+        });
+
+      expect(response.status).toBe(404);
+    });
+
+    it('should return 400 for invalid update data', async () => {
+      const createResponse = await request(app)
+        .post('/api/v1/templates')
+        .set(headers())
+        .send({
+          title: 'Test Template',
+          body: 'Test Body',
+        });
+
+      const templateId = createResponse.body.data.template.id;
+
+      const response = await request(app)
+        .patch(`/api/v1/templates/${templateId}`)
+        .set(headers())
+        .send({
+          title: '',
+        });
+
+      expect(response.status).toBe(400);
+    });
+  });
+
+  describe('DELETE /templates/:id', () => {
+    it('should delete a template', async () => {
+      const createResponse = await request(app)
+        .post('/api/v1/templates')
+        .set(headers())
+        .send({
+          title: 'To Delete',
+          body: 'Delete me',
+        });
+
+      const templateId = createResponse.body.data.template.id;
+
+      const response = await request(app)
+        .delete(`/api/v1/templates/${templateId}`)
+        .set(headers());
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+
+      // Verify deleted
+      const getResponse = await request(app)
+        .get('/api/v1/templates')
+        .set(headers());
+
+      expect(getResponse.body.data.templates).toHaveLength(0);
+    });
+
+    it('should return 404 for non-existent template', async () => {
+      const response = await request(app)
+        .delete('/api/v1/templates/non-existent-id')
+        .set(headers());
+
+      expect(response.status).toBe(404);
     });
   });
 });

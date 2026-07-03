@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { env } from '../env';
 import { handleWhatsAppWebhook } from '../whatsapp/webhook';
 import { handleInstagramWebhook } from '../instagram/webhook';
+import { logger } from '../middleware/logger';
 
 export const webhooksRouter = Router();
 
@@ -17,34 +18,28 @@ webhooksRouter.get('/webhook', (req, res) => {
   const challenge = params.get('hub.challenge') || params.get('hub_challenge');
 
   const expectedToken = env.WA_VERIFY_TOKEN?.trim();
+  const isMatch = mode === 'subscribe' && token === expectedToken;
 
-  console.log('--- WhatsApp Webhook Verification (Manual Parse) ---');
-  console.log('Mode:', mode);
-  console.log('Token Received:', token);
-  console.log('Token Expected:', expectedToken);
-  console.log('Challenge:', challenge);
-  console.log('Match:', token === expectedToken);
-  console.log('Full Query String:', url.search);
-  console.log('--------------------------------------------------');
+  logger.info('WhatsApp webhook verification request', {
+    mode,
+    hasToken: Boolean(token),
+    hasChallenge: Boolean(challenge),
+    match: isMatch,
+  });
 
-  if (mode === 'subscribe' && token === expectedToken) {
+  if (isMatch) {
     return res.status(200).send(challenge);
   }
-  return res.status(403).json({ 
-    error: 'Forbidden', 
-    debug: process.env.NODE_ENV !== 'production' ? { 
-      received: token, 
-      expected: expectedToken 
-    } : undefined 
-  });
+  return res.status(403).json({ error: 'Forbidden' });
 });
 
 webhooksRouter.post('/webhook', async (req, res) => {
   try {
     const result = await handleWhatsAppWebhook(req.body);
     return res.status(200).json(result);
-  } catch (e: any) {
-    console.error('WhatsApp webhook error:', e?.message || e);
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : String(e);
+    logger.error('WhatsApp webhook error', { error: message });
     return res.status(500).json({ error: 'Webhook failed' });
   }
 });
@@ -60,34 +55,28 @@ webhooksRouter.get('/webhook/instagram', (req, res) => {
   const challenge = params.get('hub.challenge') || params.get('hub_challenge');
 
   const expectedToken = env.IG_VERIFY_TOKEN?.trim();
+  const isMatch = mode === 'subscribe' && token === expectedToken;
 
-  console.log('--- Instagram Webhook Verification (Manual Parse) ---');
-  console.log('Mode:', mode);
-  console.log('Token Received:', token);
-  console.log('Token Expected:', expectedToken);
-  console.log('Challenge:', challenge);
-  console.log('Match:', token === expectedToken);
-  console.log('Full Query String:', url.search);
-  console.log('----------------------------------------------------');
+  logger.info('Instagram webhook verification request', {
+    mode,
+    hasToken: Boolean(token),
+    hasChallenge: Boolean(challenge),
+    match: isMatch,
+  });
 
-  if (mode === 'subscribe' && token === expectedToken) {
+  if (isMatch) {
     return res.status(200).send(challenge);
   }
-  return res.status(403).json({ 
-    error: 'Forbidden', 
-    debug: process.env.NODE_ENV !== 'production' ? { 
-      received: token, 
-      expected: expectedToken 
-    } : undefined 
-  });
+  return res.status(403).json({ error: 'Forbidden' });
 });
 
 webhooksRouter.post('/webhook/instagram', async (req, res) => {
   try {
     const result = await handleInstagramWebhook(req.body);
     return res.status(200).json(result);
-  } catch (e: any) {
-    console.error('Instagram webhook error:', e?.message || e);
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : String(e);
+    logger.error('Instagram webhook error', { error: message });
     return res.status(500).json({ error: 'Instagram webhook failed' });
   }
 });

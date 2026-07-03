@@ -45,6 +45,7 @@ model Workspace {
   messages      Message[]
   followups     Followup[]
   templates     Template[]
+  broadcasts    Broadcast[]
 
   @@index([ownerId])
 }
@@ -107,6 +108,7 @@ model Contact {
   messages       Message[]
   followups      Followup[]
   flowExecutions FlowExecution[]
+  broadcastMessages BroadcastMessage[]
 
   @@unique([workspaceId, phone])
   @@index([workspaceId, stage])
@@ -252,6 +254,20 @@ model Autoresponder {
 
   @@index([workspaceId])
   @@index([isActive])
+}
+
+model PendingAutoresponse {
+  id             String   @id @default(uuid())
+  workspaceId    String
+  contactId      String
+  conversationId String
+  message        String
+  sendAt         DateTime
+  sent           Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  @@index([sendAt, sent])
+  @@index([workspaceId])
 }
 
 model WebhookLog {
@@ -415,4 +431,43 @@ model VerificationToken {
 
   @@index([token])
   @@index([userId])
+}
+
+model Broadcast {
+  id              String          @id @default(uuid())
+  workspaceId     String
+  name            String
+  message         String
+  recipientFilter String?
+  status          String          @default("draft")
+  scheduledAt     DateTime?
+  sentAt          DateTime?
+  totalRecipients Int             @default(0)
+  sentCount       Int             @default(0)
+  deliveredCount  Int             @default(0)
+  failedCount     Int             @default(0)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  workspace       Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  messages        BroadcastMessage[]
+
+  @@index([workspaceId])
+  @@index([status])
+}
+
+model BroadcastMessage {
+  id          String    @id @default(uuid())
+  broadcastId String
+  contactId   String
+  status      String    @default("pending")
+  waMessageId String?
+  error       String?
+  sentAt      DateTime?
+  createdAt   DateTime  @default(now())
+  broadcast   Broadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+  contact     Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([broadcastId])
+  @@index([contactId])
+  @@index([status])
 }

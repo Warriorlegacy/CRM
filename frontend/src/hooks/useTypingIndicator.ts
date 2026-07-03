@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { API_BASE, getAuthHeaders } from '@/lib/api';
 
 interface TypingUser {
   userId: string;
@@ -17,8 +18,6 @@ export function useTypingIndicator(
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const prevConversationIdRef = useRef<string | null>(null);
 
-  const API_BASE = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1`;
-
   // Send typing status
   const sendTypingStatus = useCallback(async (status: 'typing' | 'idle') => {
     if (!conversationId) return;
@@ -26,11 +25,7 @@ export function useTypingIndicator(
     try {
       await fetch(`${API_BASE}/typing`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(userId && { 'x-user-id': userId }),
-          ...(workspaceId && { 'x-workspace-id': workspaceId }),
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ conversationId, status }),
       });
     } catch (error) {
@@ -67,10 +62,7 @@ export function useTypingIndicator(
       const res = await fetch(
         `${API_BASE}/typing/${conversationId}`,
         {
-          headers: {
-            ...(userId && { 'x-user-id': userId }),
-            ...(workspaceId && { 'x-workspace-id': workspaceId }),
-          },
+          headers: getAuthHeaders(),
         }
       );
       const data = await res.json();
@@ -81,7 +73,7 @@ export function useTypingIndicator(
     } catch (error) {
       console.error('Failed to fetch typing users:', error);
     }
-  }, [conversationId, workspaceId, userId, API_BASE]);
+  }, [conversationId, userId]);
 
   // Poll typing status every 2 seconds
   useEffect(() => {

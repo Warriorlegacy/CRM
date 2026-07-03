@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNotification } from '@/contexts/NotificationContext';
 import { FileText, Plus, Edit2, Trash2, X, Copy, Check, MessageSquare } from 'lucide-react';
 
 interface Template {
@@ -15,6 +16,7 @@ interface Template {
 
 export default function TemplatesPage() {
   const { user, workspace, isLoading: authLoading } = useAuth();
+  const { addNotification } = useNotification();
   const USER_ID = user?.id || '';
   const WORKSPACE_ID = workspace?.id || '';
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -59,7 +61,7 @@ export default function TemplatesPage() {
       loadTemplates();
     } catch (error) {
       console.error('Failed to save template:', error);
-      alert('Failed to save template');
+      addNotification({ type: 'error', title: 'Failed to save template' });
     }
   };
 

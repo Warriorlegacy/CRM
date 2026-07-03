@@ -92,11 +92,11 @@ inviteRouter.post('/', async (req, res) => {
     },
   });
 
+  // NOTE: tempPassword should be sent via email, never exposed in the API response
   return res.json({ 
     ok: true, 
-    message: 'User invited successfully. They can login with their email and temporary password.',
+    message: 'User invited successfully. They will receive an email with their temporary password.',
     user: { id: newUser.id, email: newUser.email, name: newUser.name },
-    tempPassword,
   });
 });
 
