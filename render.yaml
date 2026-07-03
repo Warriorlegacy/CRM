@@ -4,7 +4,7 @@ services:
     name: whatsapp-crm-backend
     runtime: node
     plan: free
-    buildCommand: npm install --include=dev && npx prisma generate && npm run build
+    buildCommand: npm install --include=dev && npx prisma generate && npx prisma migrate deploy && npm run build
     startCommand: node dist/server.js
     healthCheckPath: /health
     envVars:
