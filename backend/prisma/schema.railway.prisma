@@ -29,23 +29,26 @@ model User {
 }
 
 model Workspace {
-  id            String            @id @default(uuid())
-  name          String
-  slug          String            @unique
-  ownerId       String
-  plan          String            @default("free")
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
-  owner         User              @relation("WorkspaceOwner", fields: [ownerId], references: [id])
-  members       WorkspaceMember[]
-  wa            WaAccount?
-  ig            IgAccount?
-  contacts      Contact[]
-  conversations Conversation[]
-  messages      Message[]
-  followups     Followup[]
-  templates     Template[]
-  broadcasts    Broadcast[]
+  id                  String            @id @default(uuid())
+  name                String
+  slug                String            @unique
+  ownerId             String
+  plan                String            @default("free")
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  businessHoursEnabled Boolean          @default(false)
+  businessHoursJson   String?
+  owner               User              @relation("WorkspaceOwner", fields: [ownerId], references: [id])
+  members             WorkspaceMember[]
+  wa                  WaAccount?
+  ig                  IgAccount?
+  contacts            Contact[]
+  conversations       Conversation[]
+  messages            Message[]
+  followups           Followup[]
+  templates           Template[]
+  broadcasts          Broadcast[]
+  awayMessages        AwayMessage[]
 
   @@index([ownerId])
 }
@@ -93,6 +96,7 @@ model Contact {
   phone          String
   email          String?
   igUsername      String?
+  profilePicture String?
   tags           String         @default("")
   stage          String         @default("new")
   leadScore      Int            @default(0)
@@ -114,6 +118,9 @@ model Contact {
   @@index([workspaceId, stage])
   @@index([assignedToId])
   @@index([igUsername])
+  @@index([channel])
+  @@index([email])
+  @@index([lastMessageAt])
 }
 
 model Conversation {
@@ -125,15 +132,19 @@ model Conversation {
   lastReadAt  DateTime?
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
+  tags        String[]          @default([])
   workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   contact     Contact           @relation(fields: [contactId], references: [id], onDelete: Cascade)
   messages    Message[]
   typingUsers TypingIndicator[]
+  tagAssignments ConversationTagAssignment[] @relation("ConversationTagAssignments")
 
   @@unique([workspaceId, contactId])
   @@index([workspaceId])
   @@index([contactId])
   @@index([channel])
+  @@index([workspaceId, status])
+  @@index([workspaceId, updatedAt])
 }
 
 model TypingIndicator {
@@ -163,6 +174,9 @@ model Message {
   bodyText       String?
   waMessageId    String?
   igMessageId    String?
+  mediaUrl       String?
+  mediaType      String?
+  mediaMimeType  String?
   sentByUserId   String?
   readAt         DateTime?
   createdAt      DateTime      @default(now())
@@ -177,6 +191,8 @@ model Message {
   @@index([contactId, createdAt])
   @@index([waMessageId])
   @@index([igMessageId])
+  @@index([direction])
+  @@index([sentByUserId])
 }
 
 model ReadReceipt {
@@ -433,6 +449,21 @@ model VerificationToken {
   @@index([userId])
 }
 
+model AwayMessage {
+  id          String   @id @default(uuid())
+  workspaceId String
+  message     String
+  isActive    Boolean  @default(true)
+  priority    Int      @default(0)
+  showWhenNoAgent Boolean @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([workspaceId, isActive, priority])
+}
+
 model Broadcast {
   id              String          @id @default(uuid())
   workspaceId     String
@@ -470,4 +501,33 @@ model BroadcastMessage {
   @@index([broadcastId])
   @@index([contactId])
   @@index([status])
+}
+
+model ConversationTag {
+  id          String                   @id @default(uuid())
+  workspaceId String
+  name        String
+  color       String                   @default("#6366f1")
+  description String?
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+  assignments ConversationTagAssignment[]
+
+  @@unique([workspaceId, name])
+  @@index([workspaceId])
+}
+
+model ConversationTagAssignment {
+  id             String        @id @default(uuid())
+  workspaceId    String?
+  conversationId String
+  tagId          String
+  assignedAt     DateTime      @default(now())
+  tag            ConversationTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  conversation   Conversation  @relation("ConversationTagAssignments", fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, tagId])
+  @@index([tagId])
+  @@index([conversationId])
+  @@index([workspaceId])
 }

@@ -58,6 +58,32 @@ export interface ContactNote {
   createdAt: string;
 }
 
+// ─── Conversation Tags ────────────────────────────────────────────
+
+export interface ConversationTag {
+  id: string;
+  workspaceId: string;
+  name: string;
+  color: string;
+  description: string | null;
+  count?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ConversationTagAssignment {
+  id: string;
+  workspaceId: string | null;
+  conversationId: string;
+  tagId: string;
+  assignedAt: string;
+  tag?: {
+    id: string;
+    name: string;
+    color: string;
+  };
+}
+
 // ─── Conversations & Messages ─────────────────────────────────────
 
 export interface Conversation {
@@ -69,6 +95,7 @@ export interface Conversation {
   lastReadAt: string | null;
   contact: Contact | null;
   messages: Message[];
+  tags: ConversationTag[];
   unreadCount: number;
   // Inbox-specific fields returned by the API
   name: string;
@@ -95,6 +122,9 @@ export interface Message {
   readAt: string | null;
   createdAt: string;
   readReceipts: { userId: string; user: { id: string; name: string } }[];
+  mediaUrl?: string;
+  mediaType?: 'image' | 'document' | 'audio' | 'sticker' | 'voice';
+  mediaMimeType?: string;
 }
 
 // ─── Follow-ups ───────────────────────────────────────────────────
@@ -204,6 +234,22 @@ export interface Autoresponder {
   message: string;
   isActive: boolean;
   stages: string | null;
+}
+
+export interface BusinessHoursSettings {
+  businessHoursEnabled: boolean;
+  businessHoursJson: Record<string, [string, string]>;
+}
+
+export interface AwayMessage {
+  id: string;
+  workspaceId: string;
+  message: string;
+  isActive: boolean;
+  priority: number;
+  showWhenNoAgent: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ─── Dashboard & Analytics ────────────────────────────────────────

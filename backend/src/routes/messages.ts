@@ -9,8 +9,14 @@ export const messagesRouter = Router();
 
 const SendSchema = z.object({
   conversationId: z.string(),
-  text: z.string().min(1),
-});
+  text: z.string().optional().default(''),
+  mediaUrl: z.string().url().optional().or(z.literal('')),
+  mediaType: z.enum(['image', 'document', 'audio', 'sticker', 'voice']).optional(),
+  mediaMimeType: z.string().optional(),
+}).refine(
+  (data) => data.text?.trim() || (data.mediaUrl && data.mediaUrl.trim()),
+  { message: 'Either text or media is required', path: ['text'] }
+);
 
 messagesRouter.post('/send', async (req, res) => {
   const userId = (req as any).userId;
@@ -21,7 +27,7 @@ messagesRouter.post('/send', async (req, res) => {
     return res.status(400).json({ error: parsed.error.flatten() });
   }
 
-  const { conversationId, text } = parsed.data;
+  const { conversationId, text, mediaUrl, mediaType, mediaMimeType } = parsed.data;
 
   const convo = await prisma.conversation.findFirst({
     where: { id: conversationId, workspaceId },
@@ -78,11 +84,16 @@ messagesRouter.post('/send', async (req, res) => {
       contactId: convo.contactId,
       channel,
       direction: 'outbound',
-      type: 'text',
-      bodyText: text,
+      type: mediaUrl ? (mediaType || 'document') : 'text',
+      bodyText: text || null,
       waMessageId: channel === 'whatsapp' ? platformMessageId : null,
       igMessageId: channel === 'instagram' ? platformMessageId : null,
       sentByUserId: userId,
+      ...(mediaUrl ? {
+        mediaUrl,
+        mediaType: mediaType || 'document',
+        mediaMimeType: mediaMimeType || null,
+      } : {}),
     },
   });
 
@@ -94,9 +105,14 @@ messagesRouter.post('/send', async (req, res) => {
       id: message.id,
       direction: 'outbound',
       bodyText: text,
-      type: 'text',
+      type: message.type,
       createdAt: message.createdAt,
       sentByUserId: userId,
+      ...(mediaUrl ? {
+        mediaUrl,
+        mediaType: mediaType || 'document',
+        mediaMimeType: mediaMimeType || null,
+      } : {}),
     },
   });
 

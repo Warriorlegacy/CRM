@@ -11,40 +11,58 @@ searchRouter.get('/messages', async (req, res) => {
     return res.status(400).json({ error: 'Search query is required' });
   }
 
+  const queryString = (q as string).trim();
   const take = Math.min(parseInt(limit as string), 100);
   const skip = parseInt(offset as string) || 0;
 
+  const whereClause: Record<string, unknown> = {
+    workspaceId,
+    OR: [
+      { bodyText: { contains: queryString, mode: 'insensitive' } },
+    ],
+  };
+
   const [messages, total] = await Promise.all([
     prisma.message.findMany({
-      where: {
-        workspaceId,
-        bodyText: {
-          contains: q as string,
-        },
-      },
+      where: whereClause,
       orderBy: { createdAt: 'desc' },
       take,
       skip,
       include: {
+        conversation: {
+          select: { id: true, status: true, channel: true },
+        },
         contact: {
-          select: { id: true, name: true, phone: true },
+          select: { id: true, name: true, phone: true, email: true },
         },
         sentByUser: {
-          select: { name: true },
+          select: { id: true, name: true },
         },
       },
     }),
-    prisma.message.count({
-      where: {
-        workspaceId,
-        bodyText: { contains: q as string },
-      },
-    }),
+    prisma.message.count({ where: whereClause }),
   ]);
 
   return res.json({
     ok: true,
-    messages,
+    messages: messages.map((m) => ({
+      id: m.id,
+      workspaceId: m.workspaceId,
+      conversationId: m.conversationId,
+      contactId: m.contactId,
+      channel: m.channel,
+      direction: m.direction,
+      type: m.type,
+      bodyText: m.bodyText,
+      waMessageId: m.waMessageId,
+      igMessageId: m.igMessageId,
+      sentByUserId: m.sentByUserId,
+      readAt: m.readAt,
+      createdAt: m.createdAt,
+      contact: m.contact,
+      conversation: m.conversation,
+      sentByUser: m.sentByUser,
+    })),
     pagination: {
       total,
       limit: take,

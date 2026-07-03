@@ -295,3 +295,274 @@ describe('Contacts API', () => {
     });
   });
 });
+
+// ─── Conversation Tags API ──────────────────────────────────────────
+
+describe('Conversation Tags API', () => {
+  let token: string;
+  let userId: string;
+  let workspaceId: string;
+  let contactId: string;
+  let conversationId: string;
+
+  // Use `as any` so that tests compile before running `prisma generate`
+  // after the ConversationTag schema migration is applied.
+  const xprisma = prisma as any;
+
+  beforeEach(async () => {
+    const hashedPassword = bcrypt.hashSync('password123', 10);
+    const user = await prisma.user.create({
+      data: {
+        email: `tags-test-${Date.now()}@example.com`,
+        password: hashedPassword,
+        name: 'Tags Test User',
+      },
+    });
+    userId = user.id;
+
+    const workspace = await prisma.workspace.create({
+      data: {
+        name: `Tags Workspace ${Date.now()}`,
+        slug: `tags-workspace-${Date.now()}`,
+        ownerId: user.id,
+      },
+    });
+    workspaceId = workspace.id;
+
+    await prisma.workspaceMember.create({
+      data: {
+        userId: user.id,
+        workspaceId: workspace.id,
+        role: 'admin',
+      },
+    });
+
+    token = jwt.sign({ userId: user.id, workspaceId: workspace.id }, env.JWT_SECRET, { expiresIn: '1h' });
+
+    const contact = await prisma.contact.create({
+      data: {
+        workspaceId,
+        phone: `+${Date.now() % 10000000000}`,
+        name: 'Tag Test Contact',
+        stage: 'new',
+      },
+    });
+    contactId = contact.id;
+
+    const conversation = await prisma.conversation.create({
+      data: {
+        workspaceId,
+        contactId: contact.id,
+        channel: 'whatsapp',
+        status: 'open',
+      },
+    });
+    conversationId = conversation.id;
+  });
+
+  const headers = () => ({
+    Authorization: `Bearer ${token}`,
+    'x-user-id': userId,
+    'x-workspace-id': workspaceId,
+  });
+
+  describe('GET /contacts/conversations/tags', () => {
+    it('should return empty array when no tags exist', async () => {
+      const response = await request(app)
+        .get('/api/v1/contacts/conversations/tags')
+        .set(headers());
+
+      expect(response.status).toBe(200);
+      expect(response.body.tags).toEqual([]);
+    });
+
+    it('should return all tags for workspace', async () => {
+      await xprisma.conversationTag.create({
+        data: { workspaceId, name: 'Hot', color: '#ff0000' },
+      });
+      await xprisma.conversationTag.create({
+        data: { workspaceId, name: 'Cold', color: '#0000ff' },
+      });
+
+      const response = await request(app)
+        .get('/api/v1/contacts/conversations/tags')
+        .set(headers());
+
+      expect(response.status).toBe(200);
+      expect(response.body.tags).toHaveLength(2);
+      expect(response.body.tags.map((t: any) => t.name).sort()).toEqual(['Cold', 'Hot']);
+    });
+
+    it('should return tags with assignment counts', async () => {
+      const tag = await xprisma.conversationTag.create({
+        data: { workspaceId, name: 'VIP' },
+      });
+
+      await xprisma.conversationTagAssignment.create({
+        data: {
+          workspaceId,
+          conversationId,
+          tagId: tag.id,
+        },
+      });
+
+      const response = await request(app)
+        .get('/api/v1/contacts/conversations/tags')
+        .set(headers());
+
+      expect(response.status).toBe(200);
+      const vipTag = response.body.tags.find((t: any) => t.name === 'VIP');
+      expect(vipTag).toBeDefined();
+      expect(vipTag._count.assignments).toBe(1);
+    });
+  });
+
+  describe('POST /contacts/conversations/tags', () => {
+    it('should create a new tag', async () => {
+      const response = await request(app)
+        .post('/api/v1/contacts/conversations/tags')
+        .set(headers())
+        .send({ name: 'Priority', color: '#10b981' });
+
+      expect(response.status).toBe(201);
+      expect(response.body.tag).toHaveProperty('name', 'Priority');
+      expect(response.body.tag).toHaveProperty('color', '#10b981');
+    });
+
+    it('should reject duplicate tag names within workspace', async () => {
+      await xprisma.conversationTag.create({
+        data: { workspaceId, name: 'UniqueTag' },
+      });
+
+      const response = await request(app)
+        .post('/api/v1/contacts/conversations/tags')
+        .set(headers())
+        .send({ name: 'UniqueTag' });
+
+      expect(response.status).toBe(400);
+    });
+
+    it('should use default color if none provided', async () => {
+      const response = await request(app)
+        .post('/api/v1/contacts/conversations/tags')
+        .set(headers())
+        .send({ name: 'DefaultColor' });
+
+      expect(response.status).toBe(201);
+      expect(response.body.tag.color).toBe('#6366f1');
+    });
+  });
+
+  describe('DELETE /contacts/conversations/tags/:tagId', () => {
+    it('should delete a tag and its assignments', async () => {
+      const tag = await xprisma.conversationTag.create({
+        data: { workspaceId, name: 'ToDelete' },
+      });
+
+      await xprisma.conversationTagAssignment.create({
+        data: { workspaceId, conversationId, tagId: tag.id },
+      });
+
+      const response = await request(app)
+        .delete(`/api/v1/contacts/conversations/tags/${tag.id}`)
+        .set(headers());
+
+      expect(response.status).toBe(204);
+
+      const tagsResponse = await request(app)
+        .get('/api/v1/contacts/conversations/tags')
+        .set(headers());
+
+      expect(tagsResponse.body.tags.find((t: any) => t.id === tag.id)).toBeUndefined();
+    });
+
+    it('should return 404 for non-existent tag', async () => {
+      const response = await request(app)
+        .delete('/api/v1/contacts/conversations/tags/non-existent-id')
+        .set(headers());
+
+      expect(response.status).toBe(404);
+    });
+  });
+
+  describe('POST /contacts/conversations/:id/tags', () => {
+    it('should assign a tag to a conversation', async () => {
+      const tag = await xprisma.conversationTag.create({
+        data: { workspaceId, name: 'AssignedTag' },
+      });
+
+      const response = await request(app)
+        .post(`/api/v1/contacts/conversations/${conversationId}/tags`)
+        .set(headers())
+        .send({ tagId: tag.id });
+
+      expect(response.status).toBe(201);
+      expect(response.body.assignment).toHaveProperty('tagId', tag.id);
+      expect(response.body.assignment).toHaveProperty('conversationId', conversationId);
+    });
+
+    it('should reject assignment from another workspace tag', async () => {
+      const otherWorkspace = await prisma.workspace.create({
+        data: {
+          name: 'Other WS',
+          slug: `other-ws-${Date.now()}`,
+          ownerId: userId,
+        },
+      });
+      const otherTag = await xprisma.conversationTag.create({
+        data: { workspaceId: otherWorkspace.id, name: 'OtherTag' },
+      });
+
+      const response = await request(app)
+        .post(`/api/v1/contacts/conversations/${conversationId}/tags`)
+        .set(headers())
+        .send({ tagId: otherTag.id });
+
+      expect(response.status).toBe(404);
+    });
+
+    it('should reject when tagId is missing', async () => {
+      const response = await request(app)
+        .post(`/api/v1/contacts/conversations/${conversationId}/tags`)
+        .set(headers())
+        .send({});
+
+      expect(response.status).toBe(400);
+    });
+  });
+
+  describe('DELETE /contacts/conversations/:id/tags/:tagId', () => {
+    it('should remove a tag from a conversation', async () => {
+      const tag = await xprisma.conversationTag.create({
+        data: { workspaceId, name: 'RemoveMe' },
+      });
+
+      await xprisma.conversationTagAssignment.create({
+        data: { workspaceId, conversationId, tagId: tag.id },
+      });
+
+      const response = await request(app)
+        .delete(`/api/v1/contacts/conversations/${conversationId}/tags/${tag.id}`)
+        .set(headers());
+
+      expect(response.status).toBe(204);
+
+      const assignments = await xprisma.conversationTagAssignment.findMany({
+        where: { conversationId, tagId: tag.id },
+      });
+      expect(assignments).toHaveLength(0);
+    });
+
+    it('should return 404 for non-assigned tag', async () => {
+      const tag = await xprisma.conversationTag.create({
+        data: { workspaceId, name: 'NeverAssigned' },
+      });
+
+      const response = await request(app)
+        .delete(`/api/v1/contacts/conversations/${conversationId}/tags/${tag.id}`)
+        .set(headers());
+
+      expect(response.status).toBe(404);
+    });
+  });
+});

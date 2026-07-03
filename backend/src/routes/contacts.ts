@@ -6,6 +6,150 @@ import { getWorkspaceLimits, checkLimit } from '../middleware/limits';
 
 export const contactsRouter = Router();
 
+// Cast prisma to `any` so that post-schema-migration models are callable
+// before `prisma generate` is re-run with the updated schema.
+const xprisma = prisma as any;
+
+// ─── Conversation Tags ──────────────────────────────────────────────
+
+const CreateTagSchema = z.object({
+  name: z.string().min(1, 'Tag name is required').max(50, 'Tag name must be ≤ 50 chars'),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Color must be a hex code like #6366f1').optional(),
+  description: z.string().max(200).optional().or(z.literal('')),
+});
+
+contactsRouter.get('/conversations/tags', async (req, res) => {
+  const { workspaceId } = req as unknown as AuthedRequest;
+
+  const tags = await (prisma as any).conversationTag.findMany({
+    where: { workspaceId },
+    orderBy: { name: 'asc' },
+    include: {
+      _count: {
+        select: { assignments: true },
+      },
+    },
+  });
+
+  return res.json({ tags });
+});
+
+contactsRouter.post('/conversations/tags', async (req, res) => {
+  const { workspaceId } = req as unknown as AuthedRequest;
+  const parsed = CreateTagSchema.safeParse(req.body);
+
+  if (!parsed.success) {
+    return res.status(400).json({
+      error: 'Validation Error',
+      details: parsed.error.flatten(),
+    });
+  }
+
+  const { name, color, description } = parsed.data;
+  const safeColor = color || '#6366f1';
+
+  const tag = await (prisma as any).conversationTag.create({
+    data: {
+      workspaceId,
+      name: name.trim(),
+      color: safeColor,
+      description: description?.trim() || null,
+    },
+  });
+
+  return res.status(201).json({ tag });
+});
+
+contactsRouter.delete('/conversations/tags/:tagId', async (req, res) => {
+  const { workspaceId } = req as unknown as AuthedRequest;
+  const { tagId } = req.params;
+
+  const tag = await (prisma as any).conversationTag.findFirst({
+    where: { id: tagId, workspaceId },
+  });
+
+  if (!tag) {
+    return res.status(404).json({ error: 'Tag not found' });
+  }
+
+  await (prisma as any).conversationTagAssignment.deleteMany({
+    where: { tagId },
+  });
+
+  await (prisma as any).conversationTag.delete({
+    where: { id: tagId },
+  });
+
+  return res.status(204).send();
+});
+
+contactsRouter.post('/conversations/:id/tags', async (req, res) => {
+  const { workspaceId } = req as unknown as AuthedRequest;
+  const conversationId = req.params.id;
+  const { tagId } = req.body;
+
+  if (!tagId) {
+    return res.status(400).json({ error: 'tagId is required' });
+  }
+
+  const conversation = await prisma.conversation.findFirst({
+    where: { id: conversationId, workspaceId },
+  });
+
+  if (!conversation) {
+    return res.status(404).json({ error: 'Conversation not found' });
+  }
+
+  const tag = await xprisma.conversationTag.findFirst({
+    where: { id: tagId, workspaceId },
+  });
+
+  if (!tag) {
+    return res.status(404).json({ error: 'Tag not found in this workspace' });
+  }
+
+  const assignment = await xprisma.conversationTagAssignment.create({
+    data: {
+      conversationId,
+      tagId,
+      workspaceId,
+    },
+    include: { tag: true },
+  });
+
+  return res.status(201).json({ assignment });
+});
+
+contactsRouter.delete('/conversations/:id/tags/:tagId', async (req, res) => {
+  const { workspaceId } = req as unknown as AuthedRequest;
+  const conversationId = req.params.id;
+  const { tagId } = req.params;
+
+  const conversation = await prisma.conversation.findFirst({
+    where: { id: conversationId, workspaceId },
+  });
+
+  if (!conversation) {
+    return res.status(404).json({ error: 'Conversation not found' });
+  }
+
+  const assignment = await xprisma.conversationTagAssignment.findFirst({
+    where: { conversationId, tagId },
+  });
+
+  if (!assignment) {
+    return res.status(404).json({ error: 'Tag not assigned to this conversation' });
+  }
+
+  await xprisma.conversationTagAssignment.delete({
+    where: { id: assignment.id },
+  });
+
+  return res.status(204).send();
+});
+
+// ── Contact Notes ─────────────────────────────────────────────
+
 const CreateContactSchema = z.object({
   name: z.string().min(1).optional(),
   phone: z.string().min(1, 'Phone is required'),

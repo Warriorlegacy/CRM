@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotification } from '@/contexts/NotificationContext';
-import { User, Phone, Search, Plus, Filter, MoreHorizontal, X, MessageSquare, Instagram, StickyNote, ChevronDown } from 'lucide-react';
+import { User, Phone, Search, Plus, Filter, MoreHorizontal, X, MessageSquare, Instagram, StickyNote, ChevronDown, Tag as TagIcon } from 'lucide-react';
+import { ConversationTag } from '@/lib/types';
 import ChannelBadge, { ChannelDot } from '@/components/ChannelBadge';
 
 interface Contact {
@@ -76,6 +77,8 @@ export default function ContactsPage() {
     igUsername: '',
     channel: 'whatsapp',
   });
+  const [allTags, setAllTags] = useState<ConversationTag[]>([]);
+  const [conversationTagMap, setConversationTagMap] = useState<Record<string, ConversationTag[]>>({});
 
   const headers = {
     'x-user-id': USER_ID,
@@ -85,6 +88,7 @@ export default function ContactsPage() {
   useEffect(() => {
     if (!USER_ID || !WORKSPACE_ID || authLoading) return;
     loadContacts();
+    loadAllTags();
   }, [USER_ID, WORKSPACE_ID, authLoading]);
 
   const loadContacts = async () => {
@@ -99,6 +103,15 @@ export default function ContactsPage() {
       console.error('Failed to load contacts:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadAllTags = async () => {
+    try {
+      const data = await api.get<{ tags: ConversationTag[] }>('/contacts/conversations/tags', { headers });
+      setAllTags(data.tags || []);
+    } catch (error) {
+      console.error('Failed to load tags:', error);
     }
   };
 
@@ -139,10 +152,30 @@ export default function ContactsPage() {
     setSelectedContact(contact);
     setShowDetailPanel(true);
     try {
-      const data = await api.get<{ notes: ContactNote[] }>(`/contacts/${contact.id}/notes`, { headers });
-      setContactNotes(data.notes);
+      const notesData = await api.get<{ notes: ContactNote[] }>(`/contacts/${contact.id}/notes`, { headers });
+      setContactNotes(notesData.notes);
+
+      const convosData = await api.get<{ conversations: any[] }>(`/inbox/conversations`, { headers });
+      const contactConvos = (convosData.conversations || []).filter((c: any) => c.contactId === contact.id);
+      if (contactConvos.length > 0) {
+        const firstConvo = contactConvos[0];
+        setConversationTagMap(prev => ({
+          ...prev,
+          [contact.id]: (firstConvo.tags || []).map((t: any) => ({
+            id: t.id,
+            workspaceId: '',
+            name: t.name,
+            color: t.color,
+            description: null,
+            createdAt: '',
+            updatedAt: '',
+          })),
+        }));
+      } else {
+        setConversationTagMap(prev => ({ ...prev, [contact.id]: [] }));
+      }
     } catch (error) {
-      console.error('Failed to load notes:', error);
+      console.error('Failed to load detail panel data:', error);
     }
   };
 
@@ -179,6 +212,37 @@ export default function ContactsPage() {
       setContacts(prev => prev.map(c => c.id === selectedContact.id ? { ...c, stage } : c));
     } catch (error) {
       console.error('Failed to update stage:', error);
+    }
+  };
+
+  // Conversation tag assignment - finds or creates a conversation for this contact and assigns tag
+  const assignConversationTag = async (tagId: string) => {
+    if (!selectedContact) return;
+    try {
+      const conversationsData = await api.get<{ conversations: any[] }>(
+        `/inbox/conversations`,
+        { headers: { ...headers } }
+      );
+
+      const existingConvo = (conversationsData.conversations || []).find(
+        (c: any) => c.contactId === selectedContact.id
+      );
+
+      if (!existingConvo) {
+        addNotification({ type: 'error', title: 'No conversation found for this contact' });
+        return;
+      }
+
+      await api.post(`/contacts/conversations/${existingConvo.id}/tags`, { tagId }, { headers });
+      const tag = allTags.find((t) => t.id === tagId);
+      addNotification({ type: 'success', title: `Tag "${tag?.name || tagId}" assigned` });
+      setConversationTagMap(prev => ({
+        ...prev,
+        [selectedContact.id]: [...(prev[selectedContact.id] || []), { ...tag!, id: tagId, workspaceId: '', description: null, createdAt: '', updatedAt: '' }],
+      }));
+    } catch (error) {
+      console.error('Failed to assign tag:', error);
+      addNotification({ type: 'error', title: 'Failed to assign tag' });
     }
   };
 
@@ -425,18 +489,72 @@ export default function ContactsPage() {
 
             {/* Tags */}
             <div className="p-4 bg-zinc-800/30 rounded-xl">
-              <span className="text-sm text-zinc-400 block mb-2">Tags</span>
-              <div className="flex flex-wrap gap-1">
-                {selectedContact.tags ? (
-                  selectedContact.tags.split(',').map((tag) => (
-                    <span key={tag} className="px-2 py-1 bg-zinc-700 text-zinc-300 text-xs rounded-lg">
-                      {tag.trim()}
-                    </span>
-                  ))
-                ) : (
-                  <span className="text-zinc-600 text-sm">No tags</span>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-zinc-400">Conversation Tags</span>
+                {allTags.length > 0 && (
+                  <span className="text-xs text-zinc-600">{allTags.length} tag types defined</span>
                 )}
               </div>
+              {(() => {
+                const currentTags = conversationTagMap[selectedContact.id] || [];
+                const available = allTags.filter((t) => !currentTags.find((ct) => ct.id === t.id));
+                if (currentTags.length === 0 && available.length === 0) {
+                  return <p className="text-xs text-zinc-600">No tags defined. Create tags via the Inbox panel.</p>;
+                }
+                return (
+                  <>
+                    {currentTags.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mb-2">
+                        {currentTags.map((tag) => (
+                          <button
+                            key={tag.id}
+                            onClick={async () => {
+                              try {
+                                const convosData = await api.get<{ conversations: { id: string }[] }>(`/inbox/conversations`, { headers });
+                                const contactConvos = convosData.conversations.filter((c: any) => c.contactId === selectedContact.id);
+                                for (const c of contactConvos) {
+                                  await api.delete(`/contacts/conversations/${c.id}/tags/${tag.id}`, { headers });
+                                }
+                                setConversationTagMap(prev => ({
+                                  ...prev,
+                                  [selectedContact.id]: (prev[selectedContact.id] || []).filter((t) => t.id !== tag.id),
+                                }));
+                              } catch (err) {
+                                console.error('Failed to remove tag:', err);
+                              }
+                            }}
+                            className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-lg hover:opacity-80 transition-opacity"
+                            style={{ backgroundColor: `${tag.color}20`, color: tag.color }}
+                          >
+                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: tag.color }} />
+                            {tag.name}
+                            <X className="w-3 h-3 ml-0.5 opacity-60" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {currentTags.length === 0 && (
+                      <p className="text-xs text-zinc-600 mb-2">No tags assigned to conversations yet.</p>
+                    )}
+                    {available.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        <span className="text-xs text-zinc-600 block w-full mb-1">Assign to conversation:</span>
+                        {available.map((tag) => (
+                          <button
+                            key={tag.id}
+                            onClick={() => assignConversationTag(tag.id)}
+                            className="inline-flex items-center gap-1.5 px-2 py-1 text-xs rounded-lg transition-colors border border-dashed hover:opacity-80"
+                            style={{ color: tag.color, borderColor: `${tag.color}60`, backgroundColor: `${tag.color}15` }}
+                          >
+                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: tag.color }} />
+                            {tag.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
 
             {/* Notes */}

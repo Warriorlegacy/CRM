@@ -13,6 +13,9 @@ export interface RealtimeMessage {
   sentByUserId?: string | null;
   sentByUser?: { id: string; name: string } | null;
   readReceipts?: { userId: string; user: { id: string; name: string } }[];
+  mediaUrl?: string | null;
+  mediaType?: string;
+  mediaMimeType?: string | null;
 }
 
 interface RealtimeEvent {

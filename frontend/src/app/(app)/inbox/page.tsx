@@ -7,7 +7,8 @@ import { useTypingIndicator } from '@/hooks/useTypingIndicator';
 import { useNotificationSound } from '@/hooks/useNotificationSound';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotification } from '@/contexts/NotificationContext';
-import { Send, Check, CheckCheck, Phone, Loader2, MessageSquare, Search, Filter, X, FileText, ChevronDown, UserPlus, Clock, Instagram } from 'lucide-react';
+import { Send, Check, CheckCheck, Phone, Loader2, MessageSquare, Search, Filter, X, FileText, ChevronDown, UserPlus, Clock, Instagram, Paperclip, Image as ImageIcon, Tag } from 'lucide-react';
+import { ConversationTag, ConversationTagAssignment } from '@/lib/types';
 import ChannelBadge, { ChannelDot } from '@/components/ChannelBadge';
 import { RealtimeMessage } from '@/hooks/useRealtime';
 
@@ -24,6 +25,7 @@ interface Conversation {
   lastMessage: string;
   lastMessageAt: string | null;
   status: string;
+  tags: ConversationTag[];
 }
 
 interface Message {
@@ -36,6 +38,9 @@ interface Message {
   sentByUserId: string | null;
   sentByUser: { id: string; name: string } | null;
   readReceipts: { userId: string; user: { id: string; name: string } }[];
+  mediaUrl?: string | null;
+  mediaType?: string;
+  mediaMimeType?: string | null;
 }
 
 interface Template {
@@ -61,6 +66,8 @@ export default function InboxPage() {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [selectedMedia, setSelectedMedia] = useState<File | null>(null);
+  const [mediaPreviewUrl, setMediaPreviewUrl] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [stageFilter, setStageFilter] = useState<string>('all');
   const [channelFilter, setChannelFilter] = useState<string>('all');
@@ -74,10 +81,15 @@ export default function InboxPage() {
   const [followupData, setFollowupData] = useState({ dueAt: '', note: '' });
   const [smartReplies, setSmartReplies] = useState<string[]>([]);
   const [loadingSmartReplies, setLoadingSmartReplies] = useState(false);
+  const [allTags, setAllTags] = useState<ConversationTag[]>([]);
+  const [tagFilter, setTagFilter] = useState<string>('all');
+  const [showTagMenu, setShowTagMenu] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const templateMenuRef = useRef<HTMLDivElement>(null);
   const assignMenuRef = useRef<HTMLDivElement>(null);
   const stageMenuRef = useRef<HTMLDivElement>(null);
+  const tagMenuRef = useRef<HTMLDivElement>(null);
   const { playNotificationSound: playNotification } = useNotificationSound();
   const { typingUsers, sendTyping } = useTypingIndicator(selectedConversation?.id || '', WORKSPACE_ID, USER_ID);
 
@@ -91,6 +103,7 @@ export default function InboxPage() {
     loadConversations();
     loadTemplates();
     loadTeamMembers();
+    loadAllTags();
   }, [USER_ID, WORKSPACE_ID, authLoading]);
 
   useEffect(() => {
@@ -104,10 +117,22 @@ export default function InboxPage() {
       if (stageMenuRef.current && !stageMenuRef.current.contains(event.target as Node)) {
         setShowStageMenu(false);
       }
+      if (tagMenuRef.current && !tagMenuRef.current.contains(event.target as Node)) {
+        setShowTagMenu(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const loadAllTags = async () => {
+    try {
+      const data = await api.get<{ tags: ConversationTag[] }>('/contacts/conversations/tags', { headers });
+      setAllTags(data.tags || []);
+    } catch (error) {
+      console.error('Failed to load tags:', error);
+    }
+  };
 
   useEffect(() => {
     if (selectedConversation) {
@@ -178,6 +203,9 @@ export default function InboxPage() {
       sentByUserId: message.sentByUserId || null,
       sentByUser: message.sentByUser || null,
       readReceipts: message.readReceipts || [],
+      ...(message.mediaUrl ? { mediaUrl: message.mediaUrl } : {}),
+      ...(message.mediaType ? { mediaType: message.mediaType } : {}),
+      ...(message.mediaMimeType ? { mediaMimeType: message.mediaMimeType } : {}),
     };
   }
 
@@ -185,6 +213,7 @@ export default function InboxPage() {
     try {
       const params = new URLSearchParams();
       if (channelFilter !== 'all') params.set('channel', channelFilter);
+      if (tagFilter !== 'all') params.set('tag', tagFilter);
       const data = await api.get<{ conversations: Conversation[] }>(`/inbox/conversations?${params}`, { headers });
       setConversations(data.conversations);
       if (data.conversations.length > 0 && !selectedConversation) {
@@ -291,6 +320,49 @@ export default function InboxPage() {
     }
   };
 
+  const assignConversationTag = async (tagId: string) => {
+    if (!selectedConversation) return;
+    try {
+      await api.post(`/contacts/conversations/${selectedConversation.id}/tags`, { tagId }, { headers });
+      const tag = allTags.find((t) => t.id === tagId);
+      const newTag: ConversationTag = { id: tagId, workspaceId: '', name: tag?.name || '', color: tag?.color || '#6366f1', description: null, createdAt: '', updatedAt: '' };
+      setConversations(prev => prev.map(c =>
+        c.id === selectedConversation.id
+          ? { ...c, tags: [...c.tags, newTag] }
+          : c
+      ));
+      if (selectedConversation) {
+        setSelectedConversation({
+          ...selectedConversation,
+          tags: [...selectedConversation.tags, newTag],
+        });
+      }
+      setShowTagMenu(false);
+    } catch (error) {
+      console.error('Failed to assign tag:', error);
+    }
+  };
+
+  const removeConversationTag = async (tagId: string) => {
+    if (!selectedConversation) return;
+    try {
+      await api.delete(`/contacts/conversations/${selectedConversation.id}/tags/${tagId}`, { headers });
+      setConversations(prev => prev.map(c =>
+        c.id === selectedConversation.id
+          ? { ...c, tags: c.tags.filter((t) => t.id !== tagId) }
+          : c
+      ));
+      if (selectedConversation) {
+        setSelectedConversation({
+          ...selectedConversation,
+          tags: selectedConversation.tags.filter((t) => t.id !== tagId),
+        });
+      }
+    } catch (error) {
+      console.error('Failed to remove tag:', error);
+    }
+  };
+
   const createFollowup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedConversation) return;
@@ -323,14 +395,46 @@ export default function InboxPage() {
   };
 
   const sendMessage = async () => {
-    if (!newMessage.trim() || !selectedConversation) return;
+    if (!selectedConversation) return;
+    const hasText = newMessage.trim().length > 0;
+    const hasMedia = !!selectedMedia;
+    if (!hasText && !hasMedia) return;
+
     setSending(true);
     try {
+      let mediaUrl: string | undefined;
+      let mediaType: string | undefined;
+      let mediaMimeType: string | undefined;
+
+      if (hasMedia && selectedMedia) {
+        const presign = await api.post<{ url: string; key: string }>('/media/presign', {
+          filename: selectedMedia.name,
+          contentType: selectedMedia.type,
+        }, { headers });
+
+        const isImage = selectedMedia.type.startsWith('image/');
+        mediaType = isImage ? 'image' : 'document';
+        mediaMimeType = selectedMedia.type;
+        mediaUrl = presign.url;
+
+        await new Promise<void>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open('PUT', presign.url);
+          xhr.setRequestHeader('Content-Type', selectedMedia.type);
+          xhr.onload = () => resolve();
+          xhr.onerror = () => reject(new Error('Upload failed'));
+          xhr.send(selectedMedia);
+        });
+      }
+
       await api.post('/messages/send', {
         conversationId: selectedConversation.id,
-        text: newMessage,
+        text: hasText ? newMessage : '',
+        ...(mediaUrl ? { mediaUrl, mediaType, mediaMimeType } : {}),
       }, { headers });
+
       setNewMessage('');
+      clearMedia();
       await loadMessages(selectedConversation.id);
     } catch (error) {
       console.error('Failed to send message:', error);
@@ -345,6 +449,41 @@ export default function InboxPage() {
       e.preventDefault();
       sendMessage();
     }
+  };
+
+  const handleAttach = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    processMediaFile(file);
+    e.target.value = '';
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of Array.from(items)) {
+      if (item.type.startsWith('image/')) {
+        const file = item.getAsFile();
+        if (file) processMediaFile(file);
+        break;
+      }
+    }
+  };
+
+  const processMediaFile = (file: File) => {
+    setSelectedMedia(file);
+    const url = URL.createObjectURL(file);
+    setMediaPreviewUrl(url);
+  };
+
+  const clearMedia = () => {
+    if (mediaPreviewUrl) URL.revokeObjectURL(mediaPreviewUrl);
+    setSelectedMedia(null);
+    setMediaPreviewUrl(null);
   };
 
   const formatTime = (dateStr: string | null) => {
@@ -387,7 +526,8 @@ export default function InboxPage() {
       conversation.lastMessage?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStage = stageFilter === 'all' || conversation.stage === stageFilter;
     const matchesChannel = channelFilter === 'all' || conversation.channel === channelFilter;
-    return matchesSearch && matchesStage && matchesChannel;
+    const matchesTag = tagFilter === 'all' || conversation.tags.some((t) => t.id === tagFilter);
+    return matchesSearch && matchesStage && matchesChannel && matchesTag;
   });
 
   // Count unread per channel
@@ -494,6 +634,33 @@ export default function InboxPage() {
             </div>
           )}
 
+              {/* Tag filter chips */}
+              {allTags.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {(allTags || []).map((tag) => {
+                    const active = tagFilter === tag.id;
+                    return (
+                      <button
+                        key={tag.id}
+                        onClick={() => setTagFilter(active ? 'all' : tag.id)}
+                        className={[
+                          'inline-flex items-center gap-1 px-2 py-1 text-xs rounded-lg transition-colors border',
+                          active ? 'border-current' : 'border-transparent bg-zinc-800 text-zinc-400 hover:text-white',
+                        ].join(' ')}
+                        style={active ? ({
+                          color: tag.color,
+                          backgroundColor: `${tag.color}20`,
+                          borderColor: `${tag.color}60`,
+                        } as any) : ({} as any)}
+                      >
+                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: tag.color }} />
+                        {tag.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
           <p className="text-sm text-zinc-500">
             {filteredConversations.length} of {conversations.length} conversations
           </p>
@@ -504,12 +671,13 @@ export default function InboxPage() {
             <div className="p-8 text-center">
               <MessageSquare className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
               <p className="text-zinc-500 text-sm">No conversations found</p>
-              {(searchQuery || stageFilter !== 'all' || channelFilter !== 'all') && (
+              {(searchQuery || stageFilter !== 'all' || channelFilter !== 'all' || tagFilter !== 'all') && (
                 <button
                   onClick={() => {
                     setSearchQuery('');
                     setStageFilter('all');
                     setChannelFilter('all');
+                    setTagFilter('all');
                   }}
                   className="mt-2 text-sm text-blue-400 hover:text-blue-300"
                 >
@@ -560,6 +728,21 @@ export default function InboxPage() {
                       <span className="text-xs text-zinc-500">
                         {conversation.assignedTo.name}
                       </span>
+                    )}
+                    {conversation.tags.length > 0 && (
+                      <div className="flex items-center gap-1 ml-auto">
+                        {conversation.tags.slice(0, 3).map((t) => (
+                          <span
+                            key={t.id}
+                            className="w-3 h-3 rounded-full border border-white/20"
+                            style={{ backgroundColor: t.color }}
+                            title={t.name}
+                          />
+                        ))}
+                        {conversation.tags.length > 3 && (
+                          <span className="text-[10px] text-zinc-500">+{conversation.tags.length - 3}</span>
+                        )}
+                      </div>
                     )}
                   </div>
                 </button>
@@ -675,6 +858,7 @@ export default function InboxPage() {
             {messages.map((message) => {
               const isOutbound = message.direction === 'outbound';
               const isIg = message.channel === 'instagram' || selectedConversation.channel === 'instagram';
+              const hasMedia = !!message.mediaUrl;
 
               return (
                 <div
@@ -682,7 +866,7 @@ export default function InboxPage() {
                   className={`flex ${isOutbound ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-[70%] px-4 py-2.5 rounded-2xl ${
+                    className={`max-w-[70%] rounded-2xl ${
                       isOutbound
                         ? isIg
                           ? 'bg-pink-500 text-white rounded-br-md'
@@ -690,8 +874,35 @@ export default function InboxPage() {
                         : 'bg-zinc-800 text-white rounded-bl-md'
                     }`}
                   >
-                    <p className="text-sm">{message.bodyText}</p>
-                    <div className="flex items-center justify-end gap-1 mt-1">
+                    {hasMedia && message.mediaType === 'image' && message.mediaUrl && (
+                      <img
+                        src={message.mediaUrl}
+                        alt="attachment"
+                        className="max-w-full rounded-t-2xl cursor-pointer"
+                        style={{ maxHeight: 240 }}
+                        onClick={() => window.open(message.mediaUrl!, '_blank')}
+                      />
+                    )}
+                    {hasMedia && message.mediaType === 'document' && message.mediaUrl && (
+                      <a
+                        href={message.mediaUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 px-3 py-2 hover:opacity-80 transition-opacity"
+                      >
+                        <FileText className="w-5 h-5 flex-shrink-0" />
+                        <span className="text-sm underline truncate">
+                          {message.mediaMimeType?.split('/').pop() || 'Document'}
+                        </span>
+                      </a>
+                    )}
+                    {message.bodyText && (
+                      <p className="text-sm px-4 py-2.5">{message.bodyText}</p>
+                    )}
+                    {!hasMedia && !message.bodyText && (
+                      <p className="text-sm px-4 py-2.5 opacity-60">Media</p>
+                    )}
+                    <div className="flex items-center justify-end gap-1 mt-1 px-4 pb-1">
                       <span className="text-xs opacity-60">
                         {formatTime(message.createdAt)}
                       </span>
@@ -725,6 +936,21 @@ export default function InboxPage() {
 
           {/* Input */}
           <div className="p-4 border-t border-zinc-800">
+            {mediaPreviewUrl && selectedMedia && (
+              <div className="relative inline-block mb-2 ml-4">
+                <img
+                  src={mediaPreviewUrl}
+                  alt="preview"
+                  className="max-h-24 rounded-lg border border-zinc-700"
+                />
+                <button
+                  onClick={clearMedia}
+                  className="absolute -top-2 -right-2 p-1 bg-zinc-800 text-zinc-400 hover:text-white rounded-full border border-zinc-700"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            )}
             {smartReplies.length > 0 && (
               <div className="flex gap-2 px-4 py-2">
                 {smartReplies.map((reply, i) => (
@@ -767,6 +993,21 @@ export default function InboxPage() {
               </div>
 
               <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+              <button
+                onClick={handleAttach}
+                className="p-2 text-zinc-400 hover:text-white transition-colors"
+                title="Attach media"
+              >
+                <Paperclip className="w-5 h-5" />
+              </button>
+
+              <input
                 type="text"
                 value={newMessage}
                 onChange={(e) => {
@@ -774,6 +1015,7 @@ export default function InboxPage() {
                   sendTyping();
                 }}
                 onKeyPress={handleKeyPress}
+                onPaste={handlePaste}
                 placeholder={`Message via ${selectedConversation.channel === 'instagram' ? 'Instagram' : 'WhatsApp'}...`}
                 className="flex-1 bg-transparent text-white placeholder-zinc-500 outline-none text-sm"
               />
@@ -791,7 +1033,7 @@ export default function InboxPage() {
               </button>
               <button
                 onClick={sendMessage}
-                disabled={sending || !newMessage.trim()}
+                disabled={sending || (!newMessage.trim() && !selectedMedia)}
                 className={`p-2 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                   selectedConversation.channel === 'instagram'
                     ? 'bg-pink-500 text-white hover:bg-pink-600'

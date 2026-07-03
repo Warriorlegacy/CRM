@@ -53,3 +53,9 @@ next-env.d.ts
 
 # Docker
 .dockerignore
+
+# AI artifacts & temp
+graphify-out/
+.temp/
+tmp/
+*.tmp

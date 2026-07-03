@@ -20,9 +20,19 @@ function getInboundMessage(payload: any) {
   const type = messages.type;
 
   let bodyText: string | null = null;
+  let mediaUrl: string | null = null;
+  let mediaMimeType: string | null = null;
 
   if (type === 'text') {
     bodyText = messages.text?.body || null;
+  } else if (['image', 'document', 'audio', 'sticker', 'voice'].includes(type)) {
+    const media = messages[type];
+    if (media) {
+      mediaUrl = media.id || null;
+      mediaMimeType = media.mime_type || null;
+      if (type === 'image') bodyText = media.caption || null;
+      if (type === 'document') bodyText = media.caption || null;
+    }
   }
 
   return {
@@ -31,6 +41,8 @@ function getInboundMessage(payload: any) {
     waMessageId,
     type,
     bodyText,
+    mediaUrl,
+    mediaMimeType,
     raw: payload,
   };
 }
@@ -102,15 +114,19 @@ export async function handleWhatsAppWebhook(payload: any) {
       conversationId: conversation.id,
       contactId: contact.id,
       direction: 'inbound',
-      type:
-        inbound.type === 'image'
-          ? 'image'
-          : inbound.type === 'document'
-          ? 'document'
-          : 'text',
+      type: inbound.type === 'text'
+        ? 'text'
+        : ['image', 'document', 'audio', 'sticker', 'voice'].includes(inbound.type)
+        ? inbound.type
+        : 'text',
       bodyText: inbound.bodyText,
       waMessageId: inbound.waMessageId,
       sentByUserId: null,
+      ...(inbound.mediaUrl ? {
+        mediaUrl: inbound.mediaUrl,
+        mediaType: inbound.type === 'text' ? null : inbound.type,
+        mediaMimeType: inbound.mediaMimeType,
+      } : {}),
     },
   });
 
@@ -125,12 +141,24 @@ export async function handleWhatsAppWebhook(payload: any) {
       bodyText: inbound.bodyText,
       type: message.type,
       createdAt: message.createdAt,
+      ...(message.mediaUrl ? {
+        mediaUrl: message.mediaUrl,
+        mediaType: message.mediaType,
+        mediaMimeType: message.mediaMimeType,
+      } : {}),
     },
     unreadCount: contact.unreadCount,
   });
 
   // 5) Process autoresponders
-  await processAutoresponders(workspace.id, contact.id, conversation.id, inbound.bodyText);
+  await processAutoresponders(
+    workspace.id,
+    contact.id,
+    conversation.id,
+    inbound.bodyText,
+    workspace.businessHoursEnabled,
+    workspace.businessHoursJson
+  );
 
   // 6) Process chatbot flows
   await processChatbotMessage({
@@ -171,7 +199,9 @@ async function processAutoresponders(
   workspaceId: string,
   contactId: string,
   conversationId: string,
-  messageText: string | null
+  messageText: string | null,
+  businessHoursEnabled: boolean = false,
+  businessHoursJson: string | null = null
 ) {
   try {
     const autoresponders = await prisma.autoresponder.findMany({
@@ -183,8 +213,37 @@ async function processAutoresponders(
 
     for (const responder of autoresponders) {
       let shouldTrigger = false;
+      let messageToSend = responder.message;
 
-      if (responder.trigger === 'keyword' && responder.keyword) {
+      if (responder.trigger === 'away_message') {
+        if (!businessHoursEnabled || !businessHoursJson) continue;
+        const config = JSON.parse(businessHoursJson);
+        const dayKey = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][
+          new Date().getDay()
+        ];
+        const range = config[dayKey];
+        if (!range || !Array.isArray(range) || range.length !== 2) continue;
+        const [startStr, endStr] = range;
+        const start = parseInt(startStr.split(':')[0]) * 60 + parseInt(startStr.split(':')[1]);
+        const end = parseInt(endStr.split(':')[0]) * 60 + parseInt(endStr.split(':')[1]);
+        const now = new Date();
+        const current = now.getHours() * 60 + now.getMinutes();
+        const outside = end > start
+          ? (current < start || current >= end)
+          : (current < start && current >= end);
+        if (!outside) continue;
+
+        const highestPriority = await prisma.awayMessage.findFirst({
+          where: { workspaceId, isActive: true },
+          orderBy: { priority: 'desc' },
+        });
+        if (highestPriority) {
+          messageToSend = highestPriority.message;
+        } else {
+          continue;
+        }
+        shouldTrigger = true;
+      } else if (responder.trigger === 'keyword' && responder.keyword) {
         shouldTrigger = messageText?.toLowerCase().includes(responder.keyword.toLowerCase()) || false;
       } else if (responder.trigger === 'new_contact') {
         const existingMessages = await prisma.message.count({
@@ -207,13 +266,12 @@ async function processAutoresponders(
         if (!contact) continue;
 
         if (responder.delayMinutes > 0) {
-          // Store the scheduled autoresponse in the database for cron processing
           await prisma.pendingAutoresponse.create({
             data: {
               workspaceId,
               contactId,
               conversationId,
-              message: responder.message,
+              message: messageToSend,
               sendAt: new Date(Date.now() + responder.delayMinutes * 60 * 1000),
             },
           });
@@ -222,7 +280,7 @@ async function processAutoresponders(
             accessToken: wa.accessToken,
             phoneNumberId: wa.phoneNumberId,
             to: contact.phone,
-            text: responder.message,
+            text: messageToSend,
           });
         }
       }

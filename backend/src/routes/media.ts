@@ -1,8 +1,29 @@
-import { Router } from 'express';
+import { Router, Response } from 'express';
 import axios from 'axios';
 import { prisma } from '../prisma';
 
 export const mediaRouter = Router();
+
+mediaRouter.post('/presign', (req: any, res: Response) => {
+  const workspaceId = req.workspaceId;
+  const { filename, contentType } = req.body;
+
+  if (!filename || !contentType) {
+    return res.status(400).json({ error: 'filename and contentType are required' });
+  }
+
+  const ext = filename.split('.').pop() || 'bin';
+  const key = `media/${workspaceId}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+
+  const storageUrl = process.env.SUPABASE_URL || process.env.STORAGE_URL || 'http://localhost:9000';
+  const uploadUrl = `${storageUrl}/storage/v1/object/upload?path=${encodeURIComponent(key)}`;
+
+  return res.json({
+    ok: true,
+    url: uploadUrl,
+    key,
+  });
+});
 
 mediaRouter.get('/:messageId', async (req, res) => {
   const { messageId } = req.params;

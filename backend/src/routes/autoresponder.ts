@@ -6,7 +6,7 @@ export const autoresponderRouter = Router();
 
 const AutoresponderSchema = z.object({
   name: z.string().min(1, 'Name is required'),
-  trigger: z.enum(['keyword', 'new_contact', 'no_reply']),
+  trigger: z.enum(['keyword', 'new_contact', 'no_reply', 'away_message']),
   keyword: z.string().optional(),
   delayMinutes: z.number().min(0).max(1440).default(0),
   message: z.string().min(1, 'Message is required'),

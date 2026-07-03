@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { 
   Settings, Bell, Smartphone, Check, AlertTriangle, Bot, Trash2, Plus, Instagram,
-  RefreshCw, Loader2
+  RefreshCw, Loader2, Clock, MessageSquare
 } from 'lucide-react';
 
 interface Workspace {
@@ -37,7 +37,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
-  const [activeTab, setActiveTab] = useState<'general' | 'whatsapp' | 'instagram' | 'notifications' | 'autoresponders'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'whatsapp' | 'instagram' | 'notifications' | 'autoresponders' | 'businessHours'>('general');
   const [autoresponders, setAutoresponders] = useState<Autoresponder[]>([]);
   const [oauthStatus, setOauthStatus] = useState<{
     whatsapp: { connected: boolean; phoneNumberId: string | null };
@@ -59,6 +59,30 @@ export default function SettingsPage() {
     soundEnabled: true,
   });
 
+  const [businessHoursEnabled, setBusinessHoursEnabled] = useState(false);
+  const [businessHours, setBusinessHours] = useState<Record<string, [string, string]>>({
+    mon: ['09:00', '18:00'],
+    tue: ['09:00', '18:00'],
+    wed: ['09:00', '18:00'],
+    thu: ['09:00', '18:00'],
+    fri: ['09:00', '18:00'],
+  });
+
+  const [awayMessages, setAwayMessages] = useState<Array<{
+    id: string;
+    message: string;
+    isActive: boolean;
+    priority: number;
+    showWhenNoAgent: boolean;
+  }>>([]);
+
+  const [newAwayMessage, setNewAwayMessage] = useState({
+    message: '',
+    isActive: true,
+    priority: 0,
+    showWhenNoAgent: false,
+  });
+
   const [newResponder, setNewResponder] = useState({
     name: '',
     trigger: 'keyword',
@@ -73,6 +97,8 @@ export default function SettingsPage() {
     loadWorkspace();
     loadAutoresponders();
     loadOauthStatus();
+    loadBusinessHours();
+    loadAwayMessages();
   }, [authLoading]);
 
   const loadWorkspace = async () => {
@@ -110,6 +136,37 @@ export default function SettingsPage() {
       setOauthStatus(status);
     } catch (error) {
       console.error('Failed to load OAuth status:', error);
+    }
+  };
+
+  const loadBusinessHours = async () => {
+    try {
+      const data = await api.get<{
+        ok: boolean;
+        businessHoursEnabled: boolean;
+        businessHoursJson: Record<string, [string, string]>;
+      }>('/workspaces/business-hours');
+      setBusinessHoursEnabled(data.businessHoursEnabled);
+      setBusinessHours(data.businessHoursJson || {});
+    } catch (error) {
+      console.error('Failed to load business hours:', error);
+    }
+  };
+
+  const loadAwayMessages = async () => {
+    try {
+      const data = await api.get<{ ok: boolean; awayMessages: Array<{
+        id: string;
+        message: string;
+        isActive: boolean;
+        priority: number;
+        showWhenNoAgent: boolean;
+        createdAt: string;
+        updatedAt: string;
+      }> }>('/workspaces/away-messages');
+      setAwayMessages(data.awayMessages);
+    } catch (error) {
+      console.error('Failed to load away messages:', error);
     }
   };
 
@@ -151,6 +208,8 @@ export default function SettingsPage() {
           webhookVerifyToken: settings.igWebhookVerifyToken,
         });
         showSuccess('Instagram settings saved');
+      } else if (activeTab === 'businessHours') {
+        await handleSaveBusinessHours();
       }
     } catch (error) {
       console.error('Failed to save settings:', error);
@@ -187,6 +246,69 @@ export default function SettingsPage() {
     }
   };
 
+  const handleSaveBusinessHours = async () => {
+    try {
+      await api.patch('/workspaces/business-hours', {
+        enabled: businessHoursEnabled,
+        hours: businessHours,
+      });
+      showSuccess('Business hours saved');
+    } catch (error) {
+      console.error('Failed to save business hours:', error);
+    }
+  };
+
+  const handleUpdateBusinessHour = (day: string, field: 'start' | 'end', value: string) => {
+    setBusinessHours(prev => ({
+      ...prev,
+      [day]: field === 'start'
+        ? [value, prev[day]?.[1] || '18:00']
+        : [prev[day]?.[0] || '09:00', value],
+    }));
+  };
+
+  const handleToggleDay = (day: string) => {
+    setBusinessHours(prev => {
+      const next = { ...prev };
+      if (next[day]) {
+        delete next[day];
+      } else {
+        next[day] = ['09:00', '18:00'];
+      }
+      return next;
+    });
+  };
+
+  const handleCreateAwayMessage = async () => {
+    try {
+      await api.post('/workspaces/away-messages', newAwayMessage);
+      showSuccess('Away message created');
+      setNewAwayMessage({ message: '', isActive: true, priority: 0, showWhenNoAgent: false });
+      loadAwayMessages();
+    } catch (error) {
+      console.error('Failed to create away message:', error);
+    }
+  };
+
+  const handleDeleteAwayMessage = async (id: string) => {
+    if (!confirm('Delete this away message?')) return;
+    try {
+      await api.delete(`/workspaces/away-messages/${id}`);
+      loadAwayMessages();
+    } catch (error) {
+      console.error('Failed to delete away message:', error);
+    }
+  };
+
+  const handleToggleAwayMessageActive = async (id: string, isActive: boolean) => {
+    try {
+      await api.patch(`/workspaces/away-messages/${id}`, { isActive: !isActive });
+      loadAwayMessages();
+    } catch (error) {
+      console.error('Failed to toggle away message:', error);
+    }
+  };
+
   const showSuccess = (msg: string) => {
     setSuccessMessage(msg);
     setTimeout(() => setSuccessMessage(''), 3000);
@@ -205,6 +327,7 @@ export default function SettingsPage() {
     { id: 'whatsapp', label: 'WhatsApp', icon: Smartphone },
     { id: 'instagram', label: 'Instagram', icon: Instagram },
     { id: 'notifications', label: 'Notifications', icon: Bell },
+    { id: 'businessHours', label: 'Business Hours', icon: Clock },
     { id: 'autoresponders', label: 'Auto-Responders', icon: Bot },
   ];
 
@@ -514,6 +637,167 @@ export default function SettingsPage() {
             </div>
           )}
 
+          {activeTab === 'businessHours' && (
+            <div className="space-y-6">
+              <h2 className="text-lg font-semibold text-white">Business Hours</h2>
+              <p className="text-sm text-zinc-400">Configure when agents are working and how to handle messages outside those hours.</p>
+
+              <div className="p-4 bg-zinc-800/50 rounded-xl">
+                <label className="flex items-center justify-between cursor-pointer">
+                  <div>
+                    <div className="text-sm font-medium text-white">Enable Business Hours</div>
+                    <div className="text-xs text-zinc-500">Send away messages when outside working hours and no agents are online</div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={businessHoursEnabled}
+                    onChange={(e) => setBusinessHoursEnabled(e.target.checked)}
+                    className="w-5 h-5 rounded"
+                  />
+                </label>
+              </div>
+
+              {businessHoursEnabled && (
+                <div className="space-y-3">
+                  <h3 className="text-sm font-medium text-zinc-300">Working Hours</h3>
+                  {['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map((day) => {
+                    const dayLabels: Record<string, string> = {
+                      mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday',
+                      thu: 'Thursday', fri: 'Friday', sat: 'Saturday', sun: 'Sunday'
+                    };
+                    const isSet = !!businessHours[day];
+                    return (
+                      <div key={day} className="flex items-center gap-4 p-3 bg-zinc-800/50 rounded-xl">
+                        <label className="flex items-center gap-2 w-32 shrink-0 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={isSet}
+                            onChange={() => handleToggleDay(day)}
+                            className="w-4 h-4 rounded"
+                          />
+                          <span className="text-sm text-zinc-300 capitalize">{dayLabels[day]}</span>
+                        </label>
+                        {isSet && (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="time"
+                              value={businessHours[day]?.[0] || '09:00'}
+                              onChange={(e) => handleUpdateBusinessHour(day, 'start', e.target.value)}
+                              className="px-3 py-1.5 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm"
+                            />
+                            <span className="text-zinc-500">-</span>
+                            <input
+                              type="time"
+                              value={businessHours[day]?.[1] || '18:00'}
+                              onChange={(e) => handleUpdateBusinessHour(day, 'end', e.target.value)}
+                              className="px-3 py-1.5 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  <button
+                    onClick={handleSaveBusinessHours}
+                    className="px-4 py-2 bg-white text-black rounded-xl font-medium hover:bg-zinc-100"
+                  >
+                    Save Business Hours
+                  </button>
+                </div>
+              )}
+
+              <div className="mt-8 space-y-4">
+                <h3 className="text-sm font-medium text-zinc-300 flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4" />
+                  Away Messages
+                </h3>
+                <p className="text-xs text-zinc-500">Messages sent when outside business hours. Higher priority messages are shown first.</p>
+
+                <div className="p-4 bg-zinc-800/50 rounded-xl space-y-4">
+                  <div>
+                    <label className="block text-sm text-zinc-400 mb-2">Message</label>
+                    <textarea
+                      value={newAwayMessage.message}
+                      onChange={(e) => setNewAwayMessage({ ...newAwayMessage, message: e.target.value })}
+                      rows={3}
+                      className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-xl text-white outline-none"
+                      placeholder="We're currently away. We'll respond when we're back online."
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm text-zinc-400 mb-2">Priority (higher = shown first)</label>
+                      <input
+                        type="number"
+                        value={newAwayMessage.priority}
+                        onChange={(e) => setNewAwayMessage({ ...newAwayMessage, priority: parseInt(e.target.value) || 0 })}
+                        className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-xl text-white outline-none"
+                        min={0}
+                      />
+                    </div>
+                    <label className="flex items-center gap-2 p-4 bg-zinc-800/50 rounded-xl cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={newAwayMessage.showWhenNoAgent}
+                        onChange={(e) => setNewAwayMessage({ ...newAwayMessage, showWhenNoAgent: e.target.checked })}
+                        className="w-4 h-4 rounded"
+                      />
+                      <span className="text-sm text-zinc-300">Only when no agent online</span>
+                    </label>
+                  </div>
+                  <button
+                    onClick={handleCreateAwayMessage}
+                    disabled={!newAwayMessage.message}
+                    className="w-full px-4 py-2 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-500 disabled:opacity-50"
+                  >
+                    <Plus className="w-4 h-4 inline mr-2" />
+                    Add Away Message
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  {awayMessages
+                    .sort((a, b) => b.priority - a.priority)
+                    .map((msg) => (
+                      <div key={msg.id} className="flex items-start justify-between p-4 bg-zinc-800/30 border border-zinc-800 rounded-xl">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-sm text-zinc-400">Priority: {msg.priority}</span>
+                            {msg.showWhenNoAgent && (
+                              <span className="text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full">No Agent Only</span>
+                            )}
+                          </div>
+                          <p className="text-sm text-white">{msg.message}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleToggleAwayMessageActive(msg.id, msg.isActive)}
+                            className={`px-3 py-1 text-xs rounded-lg ${
+                              msg.isActive
+                                ? 'bg-green-500/20 text-green-400'
+                                : 'bg-zinc-700 text-zinc-400'
+                            }`}
+                          >
+                            {msg.isActive ? 'Active' : 'Inactive'}
+                          </button>
+                          <button
+                            onClick={() => handleDeleteAwayMessage(msg.id)}
+                            className="p-2 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 rounded-lg"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  {awayMessages.length === 0 && (
+                    <div className="text-center py-8 text-zinc-500">
+                      No away messages configured
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
           {activeTab === 'autoresponders' && (
             <div className="space-y-6">
               <div className="flex items-center justify-between">
@@ -543,6 +827,7 @@ export default function SettingsPage() {
                       <option value="keyword">Keyword</option>
                       <option value="new_contact">New Contact</option>
                       <option value="no_reply">No Reply (24h)</option>
+                      <option value="away_message">Away Message</option>
                     </select>
                   </div>
                   {newResponder.trigger === 'keyword' && (
@@ -555,6 +840,11 @@ export default function SettingsPage() {
                         className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-xl text-white outline-none"
                         placeholder="Hi"
                       />
+                    </div>
+                  )}
+                  {newResponder.trigger === 'away_message' && (
+                    <div className="col-span-2 bg-amber-500/10 border border-amber-500/20 rounded-xl p-3">
+                      <p className="text-xs text-amber-300">This trigger uses the highest priority active away message. Configure away messages in the Business Hours tab.</p>
                     </div>
                   )}
                 </div>

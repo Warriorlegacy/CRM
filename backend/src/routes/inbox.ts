@@ -8,15 +8,24 @@ inboxRouter.get('/conversations', async (req, res) => {
   const { workspaceId } = req as unknown as AuthedRequest;
   const status = typeof req.query.status === 'string' ? req.query.status : undefined;
   const channel = typeof req.query.channel === 'string' ? req.query.channel : undefined;
+  const tagId = typeof req.query.tag === 'string' ? req.query.tag : undefined;
 
-  const conversations = await prisma.conversation.findMany({
+  // Use `as any` casts here: `tagAssignments` + result shape depend on
+  // the ConversationTag models being defined in the Prisma schema.
+  // Once `npx prisma generate` is re-run, these casts can be removed.
+  const xprisma = prisma as any;
+  const conversations = await xprisma.conversation.findMany({
     where: {
       workspaceId,
       ...(status ? { status } : {}),
       ...(channel && channel !== 'all' ? { channel } : {}),
+      ...(tagId ? { tagAssignments: { some: { tagId } } } : {}),
     },
     orderBy: { updatedAt: 'desc' },
     include: {
+      tagAssignments: {
+        include: { tag: { select: { id: true, name: true, color: true } } },
+      },
       contact: {
         include: {
           assignedTo: {
@@ -31,19 +40,24 @@ inboxRouter.get('/conversations', async (req, res) => {
     },
   });
 
-  const data = conversations.map((conversation) => ({
+  const data = (conversations || []).map((conversation: any) => ({
     id: conversation.id,
     contactId: conversation.contactId,
-    name: conversation.contact.name,
-    phone: conversation.contact.phone,
-    stage: conversation.contact.stage,
+    name: conversation.contact?.name,
+    phone: conversation.contact?.phone,
+    stage: conversation.contact?.stage,
     channel: conversation.channel,
-    assignedToId: conversation.contact.assignedToId,
-    assignedTo: conversation.contact.assignedTo,
-    unreadCount: conversation.contact.unreadCount,
-    lastMessage: conversation.messages[0]?.bodyText || '',
-    lastMessageAt: conversation.messages[0]?.createdAt || null,
+    assignedToId: conversation.contact?.assignedToId,
+    assignedTo: conversation.contact?.assignedTo,
+    unreadCount: conversation.contact?.unreadCount ?? 0,
+    lastMessage: conversation.messages?.[0]?.bodyText || '',
+    lastMessageAt: conversation.messages?.[0]?.createdAt || null,
     status: conversation.status,
+    tags: (conversation.tagAssignments || []).map((a: any) => ({
+      id: a.tag?.id,
+      name: a.tag?.name,
+      color: a.tag?.color,
+    })),
   }));
 
   return res.json({
