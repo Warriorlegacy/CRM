@@ -19,7 +19,6 @@ export default function AppLayout({
     }
   }, [isAuthenticated, isLoading, router]);
 
-  // Show loading state while checking authentication
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-zinc-950">
@@ -31,7 +30,6 @@ export default function AppLayout({
     );
   }
 
-  // Don't render protected content if not authenticated
   if (!isAuthenticated) {
     return null;
   }

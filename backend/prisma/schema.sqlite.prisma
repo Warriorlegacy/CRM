@@ -26,6 +26,8 @@ model User {
   typingStatuses    TypingIndicator[]
   readReceipts      ReadReceipt[]
   verificationTokens VerificationToken[]
+  conversationNotes ConversationNote[]
+  agentActivities   AgentActivity[]   @relation("AgentActivities")
 }
 
 model Workspace {
@@ -124,20 +126,25 @@ model Contact {
 }
 
 model Conversation {
-  id          String            @id @default(uuid())
-  workspaceId String
-  contactId   String
-  channel     String            @default("whatsapp")
-  status      String            @default("open")
-  lastReadAt  DateTime?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  tags        String[]          @default([])
-  workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  contact     Contact           @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  messages    Message[]
-  typingUsers TypingIndicator[]
-  tagAssignments ConversationTagAssignment[] @relation("ConversationTagAssignments")
+  id                 String            @id @default(uuid())
+  workspaceId        String
+  contactId          String
+  channel            String            @default("whatsapp")
+  status             String            @default("open")
+  lastReadAt         DateTime?
+  lockedByUserId     String?
+  lockedAt           DateTime?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  tags               String[]           @default([])
+  lastKnownLanguage  String?            @default("en")
+  workspace           Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  contact            Contact           @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  messages           Message[]
+  typingUsers        TypingIndicator[]
+  tagAssignments     ConversationTagAssignment[] @relation("ConversationTagAssignments")
+  activities         AgentActivity[]
+  notes              ConversationNote[] @relation("ConversationNotes")
 
   @@unique([workspaceId, contactId])
   @@index([workspaceId])
@@ -253,6 +260,23 @@ model ContactNote {
 
   @@index([workspaceId])
   @@index([contactId])
+}
+
+model ConversationNote {
+  id             String   @id @default(uuid())
+  workspaceId    String
+  conversationId String
+  userId         String
+  content        String
+  priority       String   @default("normal")
+  mentions       String[] @default([])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  conversation   Conversation @relation("ConversationNotes", fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, conversationId, createdAt])
 }
 
 model Autoresponder {
@@ -530,4 +554,19 @@ model ConversationTagAssignment {
   @@index([tagId])
   @@index([conversationId])
   @@index([workspaceId])
+}
+
+model AgentActivity {
+  id             String      @id @default(uuid())
+  workspaceId    String
+  userId         String
+  action         String
+  conversationId String
+  createdAt      DateTime    @default(now())
+
+  user           User         @relation("AgentActivities", fields: [userId], references: [id], onDelete: Cascade)
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, conversationId, createdAt])
+  @@index([userId])
 }

@@ -39,6 +39,8 @@ import { aiRouter } from './routes/ai';
 import verifyRouter from './routes/verify';
 import automationRouter from './routes/automation';
 import { oauthRouter } from './routes/oauth';
+import notesRouter from './routes/notes';
+import conversationLocksRouter from './routes/conversationLocks';
 
 const app = express();
 
@@ -87,6 +89,7 @@ app.use('/api/v1/verify', verifyRouter);
 app.use('/api/v1/inbox', requireAuth, inboxRouter);
 app.use('/api/v1/messages', requireAuth, messagesRouter);
 app.use('/api/v1/contacts', requireAuth, contactsRouter);
+app.use('/api/v1/notes', requireAuth, notesRouter);
 app.use('/api/v1/followups', requireAuth, followupsRouter);
 app.use('/api/v1/templates', requireAuth, templatesRouter);
 app.use('/api/v1/workspaces', requireAuth, workspaceRouter);

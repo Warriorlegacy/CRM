@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { 
   Settings, Bell, Smartphone, Check, AlertTriangle, Bot, Trash2, Plus, Instagram,
-  RefreshCw, Loader2, Clock, MessageSquare
+  RefreshCw, Loader2, Clock, MessageSquare, Globe
 } from 'lucide-react';
 
 interface Workspace {
@@ -37,7 +37,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
-  const [activeTab, setActiveTab] = useState<'general' | 'whatsapp' | 'instagram' | 'notifications' | 'autoresponders' | 'businessHours'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'whatsapp' | 'instagram' | 'notifications' | 'autoresponders' | 'businessHours' | 'languages'>('general');
   const [autoresponders, setAutoresponders] = useState<Autoresponder[]>([]);
   const [oauthStatus, setOauthStatus] = useState<{
     whatsapp: { connected: boolean; phoneNumberId: string | null };
@@ -76,6 +76,12 @@ export default function SettingsPage() {
     showWhenNoAgent: boolean;
   }>>([]);
 
+  const [languageSettings, setLanguageSettings] = useState({
+    defaultLanguage: 'en',
+    autoDetect: true,
+    enabledLanguages: ['en', 'hi', 'es', 'pt', 'fr', 'de', 'ar', 'bn', 'ta', 'te', 'mr', 'gu', 'pa', 'ur', 'zh', 'ja', 'ko', 'ru', 'it', 'nl', 'tr', 'id', 'ms', 'th', 'vi'],
+  });
+
   const [newAwayMessage, setNewAwayMessage] = useState({
     message: '',
     isActive: true,
@@ -91,6 +97,34 @@ export default function SettingsPage() {
     message: '',
     isActive: true,
   });
+
+  const SUPPORTED_LANGUAGES = [
+    { code: 'en', name: 'English' },
+    { code: 'hi', name: 'Hindi' },
+    { code: 'es', name: 'Spanish' },
+    { code: 'pt', name: 'Portuguese' },
+    { code: 'fr', name: 'French' },
+    { code: 'de', name: 'German' },
+    { code: 'ar', name: 'Arabic' },
+    { code: 'bn', name: 'Bengali' },
+    { code: 'ta', name: 'Tamil' },
+    { code: 'te', name: 'Telugu' },
+    { code: 'mr', name: 'Marathi' },
+    { code: 'gu', name: 'Gujarati' },
+    { code: 'pa', name: 'Punjabi' },
+    { code: 'ur', name: 'Urdu' },
+    { code: 'zh', name: 'Chinese' },
+    { code: 'ja', name: 'Japanese' },
+    { code: 'ko', name: 'Korean' },
+    { code: 'ru', name: 'Russian' },
+    { code: 'it', name: 'Italian' },
+    { code: 'nl', name: 'Dutch' },
+    { code: 'tr', name: 'Turkish' },
+    { code: 'id', name: 'Indonesian' },
+    { code: 'ms', name: 'Malay' },
+    { code: 'th', name: 'Thai' },
+    { code: 'vi', name: 'Vietnamese' },
+  ];
 
   useEffect(() => {
     if (authLoading) return;
@@ -210,6 +244,8 @@ export default function SettingsPage() {
         showSuccess('Instagram settings saved');
       } else if (activeTab === 'businessHours') {
         await handleSaveBusinessHours();
+      } else if (activeTab === 'languages') {
+        showSuccess('Language settings saved');
       }
     } catch (error) {
       console.error('Failed to save settings:', error);
@@ -329,6 +365,7 @@ export default function SettingsPage() {
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'businessHours', label: 'Business Hours', icon: Clock },
     { id: 'autoresponders', label: 'Auto-Responders', icon: Bot },
+    { id: 'languages', label: 'Languages', icon: Globe },
   ];
 
   return (
@@ -352,7 +389,7 @@ export default function SettingsPage() {
             {tabs.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as 'general' | 'whatsapp' | 'instagram' | 'notifications' | 'autoresponders')}
+                onClick={() => setActiveTab(tab.id as 'general' | 'whatsapp' | 'instagram' | 'notifications' | 'autoresponders' | 'businessHours' | 'languages')}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition-colors ${
                   activeTab === tab.id
                     ? 'bg-zinc-800 text-white'
@@ -897,6 +934,71 @@ export default function SettingsPage() {
                     No autoresponders configured
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'languages' && (
+            <div className="space-y-6">
+              <h2 className="text-lg font-semibold text-white">Language Settings</h2>
+              <p className="text-sm text-zinc-400">Configure supported languages for AI responses and auto-detection</p>
+
+              <div className="p-4 bg-zinc-800/50 rounded-xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-medium text-white">Auto-detect Language</div>
+                    <div className="text-xs text-zinc-500">Automatically detect customer's language using AI</div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={languageSettings.autoDetect}
+                    onChange={(e) => setLanguageSettings({ ...languageSettings, autoDetect: e.target.checked })}
+                    className="w-5 h-5 rounded"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-zinc-400 mb-2">Default Language</label>
+                  <select
+                    value={languageSettings.defaultLanguage}
+                    onChange={(e) => setLanguageSettings({ ...languageSettings, defaultLanguage: e.target.value })}
+                    className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-xl text-white outline-none"
+                  >
+                    {SUPPORTED_LANGUAGES.map((lang) => (
+                      <option key={lang.code} value={lang.code}>{lang.name} ({lang.code})</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="p-4 bg-zinc-800/50 rounded-xl">
+                <h3 className="text-sm font-medium text-zinc-300 mb-3">Enabled Languages</h3>
+                <p className="text-xs text-zinc-500 mb-4">Toggle languages that the AI can respond in. Disabled languages fallback to the default.</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                  {SUPPORTED_LANGUAGES.map((lang) => {
+                    const isEnabled = languageSettings.enabledLanguages.includes(lang.code);
+                    return (
+                      <button
+                        key={lang.code}
+                        onClick={() => {
+                          setLanguageSettings((prev) => ({
+                            ...prev,
+                            enabledLanguages: isEnabled
+                              ? prev.enabledLanguages.filter((c) => c !== lang.code)
+                              : [...prev.enabledLanguages, lang.code],
+                          }));
+                        }}
+                        className={`p-3 rounded-xl text-sm transition-colors border ${
+                          isEnabled
+                            ? 'bg-zinc-700 border-zinc-600 text-white'
+                            : 'bg-zinc-800/50 border-zinc-800 text-zinc-500 hover:border-zinc-700'
+                        }`}
+                      >
+                        <div className="font-medium">{lang.name}</div>
+                        <div className="text-xs text-zinc-500">{lang.code}</div>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           )}

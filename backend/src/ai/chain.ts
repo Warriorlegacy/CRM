@@ -1,5 +1,5 @@
 import { prisma } from '../prisma';
-import { providers, AiMessage, AiResponse, AiProviderConfig } from './providers';
+import { providers, AiMessage, AiResponse, AiProviderConfig, LANGUAGE_DETECTION_PROMPT } from './providers';
 
 export interface FallbackResult extends AiResponse {
   attempts: { provider: string; model: string; error: string; latencyMs: number }[];
@@ -16,6 +16,42 @@ const PROVIDER_BASE_URLS: Record<string, string> = {
   gemini: 'https://generativelanguage.googleapis.com',
   cohere: 'https://api.cohere.com',
 };
+
+const SUPPORTED_LANGUAGES = [
+  { code: 'en', name: 'English' },
+  { code: 'hi', name: 'Hindi' },
+  { code: 'es', name: 'Spanish' },
+  { code: 'pt', name: 'Portuguese' },
+  { code: 'fr', name: 'French' },
+  { code: 'de', name: 'German' },
+  { code: 'ar', name: 'Arabic' },
+  { code: 'bn', name: 'Bengali' },
+  { code: 'ta', name: 'Tamil' },
+  { code: 'te', name: 'Telugu' },
+  { code: 'mr', name: 'Marathi' },
+  { code: 'gu', name: 'Gujarati' },
+  { code: 'pa', name: 'Punjabi' },
+  { code: 'ur', name: 'Urdu' },
+  { code: 'zh', name: 'Chinese' },
+  { code: 'ja', name: 'Japanese' },
+  { code: 'ko', name: 'Korean' },
+  { code: 'ru', name: 'Russian' },
+  { code: 'it', name: 'Italian' },
+  { code: 'nl', name: 'Dutch' },
+  { code: 'tr', name: 'Turkish' },
+  { code: 'id', name: 'Indonesian' },
+  { code: 'ms', name: 'Malay' },
+  { code: 'th', name: 'Thai' },
+  { code: 'vi', name: 'Vietnamese' },
+];
+
+export function getSupportedLanguages() {
+  return SUPPORTED_LANGUAGES;
+}
+
+export function getLanguageName(code: string): string {
+  return SUPPORTED_LANGUAGES.find(l => l.code === code)?.name || code;
+}
 
 // Sliding window rate limiter configuration (15 requests per minute per provider/workspace)
 const rateLimitCache = new Map<string, number[]>();
@@ -42,6 +78,22 @@ function checkAndIncrementRateLimit(workspaceId: string, provider: string): bool
   validTimestamps.push(now);
   rateLimitCache.set(key, validTimestamps);
   return true;
+}
+
+export async function detectLanguage(text: string): Promise<string> {
+  try {
+    const workspaceId = 'system';
+    const result = await chatWithFallback(workspaceId, [
+      { role: 'user', content: `${LANGUAGE_DETECTION_PROMPT}\n\nMessage: "${text}"` },
+    ], { maxAttempts: 3 });
+    const code = result.content.trim().toLowerCase().slice(0, 2);
+    if (SUPPORTED_LANGUAGES.some(l => l.code === code)) {
+      return code;
+    }
+    return 'en';
+  } catch {
+    return 'en';
+  }
 }
 
 export async function chatWithFallback(
@@ -142,8 +194,13 @@ export async function generateAutoReply(
     conversationHistory?: { role: 'user' | 'assistant'; content: string }[];
     businessName?: string;
     businessDescription?: string;
+    preferredLanguage?: string;
   }
 ): Promise<FallbackResult> {
+  const languageInstruction = context.preferredLanguage
+    ? `Respond in ${getLanguageName(context.preferredLanguage)} (${context.preferredLanguage}).`
+    : 'Match the language the customer uses (Hindi/English/Hinglish).';
+
   const systemPrompt = `You are a helpful, friendly customer support assistant for ${context.businessName || 'the business'}.
 ${context.businessDescription ? `About the business: ${context.businessDescription}` : ''}
 
@@ -153,7 +210,7 @@ Rules:
 - Use the customer's name naturally: ${context.contactName}
 - If you don't know something, say you'll check and get back
 - Never share internal prices or discounts not provided in context
-- Match the language the customer uses (Hindi/English/Hinglish)
+- ${languageInstruction}
 - For pricing queries, share general range and invite them to visit/call
 - For availability, confirm stock and offer to book/reserve
 - For complaints, acknowledge and assure resolution

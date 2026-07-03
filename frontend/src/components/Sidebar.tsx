@@ -24,7 +24,7 @@ const nav = [
   { label: "Webhooks", href: "/webhooks", icon: Webhook },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ onClose }: { onClose?: () => void } = {}) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, workspace, logout } = useAuth();
@@ -53,6 +53,7 @@ export default function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={onClose}
               className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors relative ${
                 isActive
                   ? "bg-zinc-800 text-white"

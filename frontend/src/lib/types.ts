@@ -58,6 +58,17 @@ export interface ContactNote {
   createdAt: string;
 }
 
+export interface ConversationNote {
+  id: string;
+  userId: string;
+  userName: string | null;
+  content: string;
+  priority: 'low' | 'normal' | 'high';
+  mentions: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ─── Conversation Tags ────────────────────────────────────────────
 
 export interface ConversationTag {
@@ -105,6 +116,8 @@ export interface Conversation {
   assignedTo: { id: string; name: string; email: string } | null;
   lastMessage: string;
   lastMessageAt: string | null;
+  lockedByUserId: string | null;
+  lockedAt: string | null;
 }
 
 export interface Message {
@@ -317,4 +330,19 @@ export interface PaginatedResponse<T> {
   page: number;
   limit: number;
   hasMore: boolean;
+}
+
+export interface AgentActivity {
+  id: string;
+  userId: string;
+  userName: string;
+  action: string;
+  conversationId: string;
+  createdAt: string;
+}
+
+export interface ConversationLocked {
+  lockedByUserId: string | null;
+  lockedByName: string | null;
+  lockedAt: string | null;
 }

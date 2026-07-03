@@ -5,7 +5,7 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotification } from '@/contexts/NotificationContext';
 import { User, Phone, Search, Plus, Filter, MoreHorizontal, X, MessageSquare, Instagram, StickyNote, ChevronDown, Tag as TagIcon } from 'lucide-react';
-import { ConversationTag } from '@/lib/types';
+import { ConversationTag, ConversationNote } from '@/lib/types';
 import ChannelBadge, { ChannelDot } from '@/components/ChannelBadge';
 
 interface Contact {
@@ -68,7 +68,10 @@ export default function ContactsPage() {
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [showDetailPanel, setShowDetailPanel] = useState(false);
   const [contactNotes, setContactNotes] = useState<ContactNote[]>([]);
+  const [conversationNotes, setConversationNotes] = useState<ConversationNote[]>([]);
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [newNote, setNewNote] = useState('');
+  const [newInternalNote, setNewInternalNote] = useState('');
   const [newContact, setNewContact] = useState({
     name: '',
     phone: '',
@@ -151,6 +154,10 @@ export default function ContactsPage() {
   const openDetailPanel = async (contact: Contact) => {
     setSelectedContact(contact);
     setShowDetailPanel(true);
+    setConversationNotes([]);
+    setSelectedConversationId(null);
+    setNewNote('');
+    setNewInternalNote('');
     try {
       const notesData = await api.get<{ notes: ContactNote[] }>(`/contacts/${contact.id}/notes`, { headers });
       setContactNotes(notesData.notes);
@@ -159,6 +166,7 @@ export default function ContactsPage() {
       const contactConvos = (convosData.conversations || []).filter((c: any) => c.contactId === contact.id);
       if (contactConvos.length > 0) {
         const firstConvo = contactConvos[0];
+        setSelectedConversationId(firstConvo.id);
         setConversationTagMap(prev => ({
           ...prev,
           [contact.id]: (firstConvo.tags || []).map((t: any) => ({
@@ -171,6 +179,9 @@ export default function ContactsPage() {
             updatedAt: '',
           })),
         }));
+
+        const notesRes = await api.get<{ notes: ConversationNote[] }>(`/inbox/conversations/${firstConvo.id}/notes`, { headers });
+        setConversationNotes(notesRes.notes || []);
       } else {
         setConversationTagMap(prev => ({ ...prev, [contact.id]: [] }));
       }
@@ -191,6 +202,23 @@ export default function ContactsPage() {
       setContactNotes(data.notes);
     } catch (error) {
       console.error('Failed to add note:', error);
+    }
+  };
+
+  const addInternalNote = async () => {
+    if (!selectedConversationId || !newInternalNote.trim()) return;
+    try {
+      await api.post('/notes', {
+        conversationId: selectedConversationId,
+        content: newInternalNote,
+        priority: 'normal',
+        mentions: [],
+      }, { headers });
+      setNewInternalNote('');
+      const data = await api.get<{ notes: ConversationNote[] }>(`/inbox/conversations/${selectedConversationId}/notes`, { headers });
+      setConversationNotes(data.notes || []);
+    } catch (error) {
+      console.error('Failed to add internal note:', error);
     }
   };
 
@@ -267,7 +295,7 @@ export default function ContactsPage() {
   return (
     <div className="flex h-[calc(100vh-80px)] gap-4">
       {/* Main Contacts Table */}
-      <div className="flex-1 space-y-4">
+      <div className={`flex-1 space-y-4 ${showDetailPanel ? 'hidden md:block' : 'block'}`}>
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-white">Contacts</h1>
@@ -323,95 +351,150 @@ export default function ContactsPage() {
         </div>
 
         <div className="bg-zinc-900/30 border border-zinc-800 rounded-2xl overflow-hidden">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-zinc-800">
-                <th className="text-left px-6 py-4 text-sm font-medium text-zinc-400">Contact</th>
-                <th className="text-left px-6 py-4 text-sm font-medium text-zinc-400">Channel</th>
-                <th className="text-left px-6 py-4 text-sm font-medium text-zinc-400">Stage</th>
-                <th className="text-left px-6 py-4 text-sm font-medium text-zinc-400">Lead Score</th>
-                <th className="text-left px-6 py-4 text-sm font-medium text-zinc-400">Tags</th>
-                <th className="text-left px-6 py-4 text-sm font-medium text-zinc-400">Assigned To</th>
-                <th className="px-6 py-4"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredContacts.map((contact) => {
-                const leadTemp = getLeadTemp(contact.leadScore);
-                return (
-                  <tr
-                    key={contact.id}
-                    onClick={() => openDetailPanel(contact)}
-                    className="border-b border-zinc-800/50 hover:bg-zinc-800/30 cursor-pointer"
-                  >
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center">
-                          <User className="w-5 h-5 text-zinc-400" />
-                        </div>
-                        <div>
-                          <div className="font-medium text-white">{contact.name || 'Unknown'}</div>
-                          <div className="flex items-center gap-1 text-sm text-zinc-500">
-                            <Phone className="w-3 h-3" />
-                            {contact.phone}
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-zinc-800">
+                  <th className="text-left px-6 py-4 text-sm font-medium text-zinc-400">Contact</th>
+                  <th className="text-left px-6 py-4 text-sm font-medium text-zinc-400">Channel</th>
+                  <th className="text-left px-6 py-4 text-sm font-medium text-zinc-400">Stage</th>
+                  <th className="text-left px-6 py-4 text-sm font-medium text-zinc-400">Lead Score</th>
+                  <th className="text-left px-6 py-4 text-sm font-medium text-zinc-400">Tags</th>
+                  <th className="text-left px-6 py-4 text-sm font-medium text-zinc-400">Assigned To</th>
+                  <th className="px-6 py-4"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredContacts.map((contact) => {
+                  const leadTemp = getLeadTemp(contact.leadScore);
+                  return (
+                    <tr
+                      key={contact.id}
+                      onClick={() => openDetailPanel(contact)}
+                      className="border-b border-zinc-800/50 hover:bg-zinc-800/30 cursor-pointer"
+                    >
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center">
+                            <User className="w-5 h-5 text-zinc-400" />
+                          </div>
+                          <div>
+                            <div className="font-medium text-white">{contact.name || 'Unknown'}</div>
+                            <div className="flex items-center gap-1 text-sm text-zinc-500">
+                              <Phone className="w-3 h-3" />
+                              {contact.phone}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <ChannelBadge channel={contact.channel} showLabel />
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-3 py-1 text-xs rounded-full ${STAGE_COLORS[contact.stage] || 'bg-zinc-500/20 text-zinc-400'}`}>
-                        {contact.stage}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-sm font-bold text-white">{contact.leadScore}</span>
-                        <span className={`px-2 py-0.5 text-xs rounded-full ${LEAD_TEMP_COLORS[leadTemp]}`}>
-                          {leadTemp.replace('_', ' ')}
+                      </td>
+                      <td className="px-6 py-4">
+                        <ChannelBadge channel={contact.channel} showLabel />
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`px-3 py-1 text-xs rounded-full ${STAGE_COLORS[contact.stage] || 'bg-zinc-500/20 text-zinc-400'}`}>
+                          {contact.stage}
                         </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-wrap gap-1">
-                        {contact.tags ? (
-                          contact.tags.split(',').map((tag) => (
-                            <span key={tag} className="px-2 py-0.5 bg-zinc-800 text-zinc-400 text-xs rounded">
-                              {tag.trim()}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="text-zinc-600 text-sm">-</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      {contact.assignedTo ? (
+                      </td>
+                      <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-zinc-700 flex items-center justify-center text-xs text-zinc-300">
-                            {contact.assignedTo.name.charAt(0)}
-                          </div>
-                          <span className="text-sm text-zinc-300">{contact.assignedTo.name}</span>
+                          <span className="font-mono text-sm font-bold text-white">{contact.leadScore}</span>
+                          <span className={`px-2 py-0.5 text-xs rounded-full ${LEAD_TEMP_COLORS[leadTemp]}`}>
+                            {leadTemp.replace('_', ' ')}
+                          </span>
                         </div>
-                      ) : (
-                        <span className="text-zinc-600 text-sm">Unassigned</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleDeleteContact(contact.id); }}
-                        className="p-2 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 rounded-lg transition-colors"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-wrap gap-1">
+                          {contact.tags ? (
+                            contact.tags.split(',').map((tag) => (
+                              <span key={tag} className="px-2 py-0.5 bg-zinc-800 text-zinc-400 text-xs rounded">
+                                {tag.trim()}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-zinc-600 text-sm">-</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        {contact.assignedTo ? (
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-zinc-700 flex items-center justify-center text-xs text-zinc-300">
+                              {contact.assignedTo.name.charAt(0)}
+                            </div>
+                            <span className="text-sm text-zinc-300">{contact.assignedTo.name}</span>
+                          </div>
+                        ) : (
+                          <span className="text-zinc-600 text-sm">Unassigned</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDeleteContact(contact.id); }}
+                          className="p-2 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 rounded-lg transition-colors"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile cards */}
+          <div className="md:hidden divide-y divide-zinc-800">
+            {filteredContacts.map((contact) => {
+              const leadTemp = getLeadTemp(contact.leadScore);
+              return (
+                <button
+                  key={contact.id}
+                  onClick={() => openDetailPanel(contact)}
+                  className="w-full p-4 text-left hover:bg-zinc-800/30 transition-colors"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center">
+                        <User className="w-5 h-5 text-zinc-400" />
+                      </div>
+                      <div>
+                        <div className="font-medium text-white">{contact.name || 'Unknown'}</div>
+                        <div className="flex items-center gap-1 text-sm text-zinc-500">
+                          <Phone className="w-3 h-3" />
+                          {contact.phone}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <ChannelBadge channel={contact.channel} showLabel />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 mt-2 ml-[52px]">
+                    <span className={`px-2 py-0.5 text-xs rounded-full ${STAGE_COLORS[contact.stage] || 'bg-zinc-500/20 text-zinc-400'}`}>
+                      {contact.stage}
+                    </span>
+                    <span className="font-mono text-xs text-zinc-400">{contact.leadScore}</span>
+                    {contact.assignedTo && (
+                      <span className="text-xs text-zinc-500">{contact.assignedTo.name}</span>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-1 mt-2 ml-[52px]">
+                    {contact.tags ? (
+                      contact.tags.split(',').map((tag) => (
+                        <span key={tag} className="px-2 py-0.5 bg-zinc-800 text-zinc-400 text-xs rounded">
+                          {tag.trim()}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-zinc-600 text-sm">-</span>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
 
           {filteredContacts.length === 0 && (
             <div className="p-12 text-center">
@@ -602,6 +685,78 @@ export default function ContactsPage() {
                 </button>
               </div>
             </div>
+
+            {/* Conversation Notes (Internal) */}
+            {selectedConversationId && (
+              <div className="p-4 bg-zinc-800/30 rounded-xl">
+                <div className="flex items-center gap-2 mb-3">
+                  <MessageSquare className="w-4 h-4 text-indigo-400" />
+                  <span className="text-sm text-zinc-400">Internal Notes</span>
+                  <span className="text-[10px] text-zinc-600 ml-auto">Team only, not sent</span>
+                </div>
+                <div className="space-y-2 mb-3">
+                  {conversationNotes.map((note) => (
+                    <div
+                      key={note.id}
+                      className={`p-3 rounded-lg border ${
+                        note.priority === 'high'
+                          ? 'bg-amber-500/10 border-amber-500/30'
+                          : note.priority === 'low'
+                            ? 'bg-zinc-800/50 border-zinc-700'
+                            : 'bg-blue-500/10 border-blue-500/30'
+                      }`}
+                    >
+                      <p className="text-sm text-zinc-300 whitespace-pre-wrap">{note.content}</p>
+                      <div className="flex items-center justify-between mt-1">
+                        <span className="text-xs text-zinc-500">
+                          {note.userName || 'Unknown'} &middot; {formatDate(note.createdAt)}
+                        </span>
+                        <span
+                          className={`text-[10px] px-1.5 py-0.5 rounded-full uppercase font-medium ${
+                            note.priority === 'high'
+                              ? 'bg-amber-500/20 text-amber-400'
+                              : note.priority === 'low'
+                                ? 'bg-zinc-700 text-zinc-400'
+                                : 'bg-blue-500/20 text-blue-400'
+                          }`}
+                        >
+                          {note.priority}
+                        </span>
+                      </div>
+                      {note.mentions && note.mentions.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {note.mentions.map((m, i) => (
+                            <span key={i} className="text-[10px] bg-zinc-700 text-zinc-300 px-1.5 py-0.5 rounded-full">
+                              @{m}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {conversationNotes.length === 0 && (
+                    <p className="text-xs text-zinc-600">No internal notes yet</p>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newInternalNote}
+                    onChange={(e) => setNewInternalNote(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && addInternalNote()}
+                    placeholder="Add internal note..."
+                    className="flex-1 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 outline-none"
+                  />
+                  <button
+                    onClick={addInternalNote}
+                    disabled={!newInternalNote.trim()}
+                    className="px-3 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-500 disabled:opacity-50"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Info */}
             <div className="p-4 bg-zinc-800/30 rounded-xl space-y-2">

@@ -1,6 +1,6 @@
 import { prisma } from '../prisma';
 import { publish } from '../realtime/events';
-import { chatWithFallback } from '../ai/chain';
+import { chatWithFallback, detectLanguage } from '../ai/chain';
 import { sendWhatsAppText } from '../whatsapp/meta';
 import { sendInstagramMessage } from '../instagram/graph';
 
@@ -11,6 +11,7 @@ export interface AutomationResult {
   tags: string[];
   assignedTo: string | null;
   sentiment: string;
+  detectedLanguage?: string;
 }
 
 export async function analyzeMessage(
@@ -20,6 +21,8 @@ export async function analyzeMessage(
   conversationHistory: { role: 'user' | 'assistant'; content: string }[]
 ): Promise<AutomationResult> {
   try {
+    const detectedLanguage = await detectLanguage(messageText);
+
     const historyText = conversationHistory.slice(-4).map(m =>
       `${m.role === 'user' ? 'Customer' : 'Agent'}: ${m.content}`
     ).join('\n');
@@ -55,7 +58,7 @@ Rules for suggestedReply:
 - Be warm and professional
 - Address the customer's specific concern
 - If you don't know something, say you'll check
-- Match the language the customer uses
+- Match the language the customer uses (detected: ${detectedLanguage})
 
 Customer name: ${contactName}
 Recent conversation:
@@ -66,7 +69,7 @@ New message: "${messageText}"
 Reply with ONLY the JSON object, no other text.`;
 
     const result = await chatWithFallback(workspaceId, [
-      { role: 'system', content: 'You are a message analysis AI. Output valid JSON only.' },
+      { role: 'system', content: `You are a message analysis AI. Output valid JSON only. The detected language is: ${detectedLanguage}` },
       { role: 'user', content: prompt },
     ]);
 
@@ -85,6 +88,7 @@ Reply with ONLY the JSON object, no other text.`;
       tags: analysis.tags || [],
       assignedTo: null,
       sentiment: analysis.sentiment || 'neutral',
+      detectedLanguage,
     };
   } catch (error) {
     console.error('AI analysis error:', error);
@@ -267,6 +271,13 @@ export async function processAutomation(params: {
     }));
 
     const analysis = await analyzeMessage(workspaceId, messageText, contactName, history);
+
+    if (analysis.detectedLanguage) {
+      await prisma.conversation.updateMany({
+        where: { id: conversationId },
+        data: { lastKnownLanguage: analysis.detectedLanguage },
+      }).catch(() => {});
+    }
 
     const existingContact = await prisma.contact.findUnique({ where: { id: contactId } });
     if (existingContact) {

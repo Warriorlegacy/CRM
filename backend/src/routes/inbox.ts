@@ -1,6 +1,9 @@
 import { Router } from 'express';
 import { prisma } from '../prisma';
 import { AuthedRequest } from '../middleware/auth';
+import { lockConversation, unlockConversation } from '../middleware/agentCollision';
+import { trackActivity } from '../services/activityTracker';
+import { publish } from '../realtime/events';
 
 export const inboxRouter = Router();
 
@@ -58,6 +61,8 @@ inboxRouter.get('/conversations', async (req, res) => {
       name: a.tag?.name,
       color: a.tag?.color,
     })),
+    lockedByUserId: conversation.lockedByUserId,
+    lockedAt: conversation.lockedAt,
   }));
 
   return res.json({
@@ -80,6 +85,8 @@ inboxRouter.get('/conversations/:id/messages', async (req, res) => {
   if (!conversation) {
     return res.status(404).json({ error: 'Conversation not found' });
   }
+
+  await trackActivity(workspaceId, userId, 'viewing', conversationId);
 
   const where: Record<string, unknown> = { conversationId, workspaceId };
   if (cursor) {
@@ -139,7 +146,40 @@ inboxRouter.get('/conversations/:id/messages', async (req, res) => {
   });
 });
 
-inboxRouter.patch('/conversations/:id/assign', async (req, res) => {
+inboxRouter.get('/conversations/:id/notes', async (req, res) => {
+  const { workspaceId } = req as unknown as AuthedRequest;
+  const { id: conversationId } = req.params;
+
+  const conversation = await prisma.conversation.findFirst({
+    where: { id: conversationId, workspaceId },
+  });
+
+  if (!conversation) {
+    return res.status(404).json({ error: 'Conversation not found' });
+  }
+
+  const notes = await prisma.conversationNote.findMany({
+    where: { conversationId, workspaceId },
+    orderBy: { createdAt: 'desc' },
+    include: { user: { select: { id: true, name: true, email: true } } },
+  });
+
+  return res.json({
+    notes: notes.map((n) => ({
+      id: n.id,
+      conversationId: n.conversationId,
+      userId: n.userId,
+      userName: n.user?.name || null,
+      content: n.content,
+      priority: n.priority,
+      mentions: n.mentions,
+      createdAt: n.createdAt,
+      updatedAt: n.updatedAt,
+    })),
+  });
+});
+
+inboxRouter.patch('/conversations/:id/assign', lockConversation, async (req, res) => {
   const { workspaceId } = req as unknown as AuthedRequest;
   const conversationId = req.params.id;
   const { assignedToId } = req.body;
@@ -161,7 +201,7 @@ inboxRouter.patch('/conversations/:id/assign', async (req, res) => {
   return res.json({ success: true });
 });
 
-inboxRouter.patch('/conversations/:id/stage', async (req, res) => {
+inboxRouter.patch('/conversations/:id/stage', lockConversation, async (req, res) => {
   const { workspaceId } = req as unknown as AuthedRequest;
   const conversationId = req.params.id;
   const { stage } = req.body;

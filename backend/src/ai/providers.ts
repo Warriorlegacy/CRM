@@ -138,6 +138,8 @@ export const providers: Record<string, AiProviderAdapter> = {
   cohere: cohereAdapter,
 };
 
+export const LANGUAGE_DETECTION_PROMPT = 'Detect the language of this message. Respond with ONLY the ISO 639-1 language code (e.g., "en", "hi", "es", "pt"). Do NOT explain.';
+
 export const FREE_MODELS: Record<string, { model: string; name: string }[]> = {
   freellmapi: [
     { model: 'meta-llama/llama-3.2-3b-instruct:free', name: 'Llama 3.2 3B (Free)' },

@@ -138,7 +138,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-zinc-900/30 border border-zinc-800 rounded-2xl p-5">
           <div className="flex items-center justify-between mb-3">
             <div className="p-2 bg-blue-500/20 rounded-lg">

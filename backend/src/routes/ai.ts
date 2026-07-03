@@ -2,9 +2,26 @@ import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../prisma';
 import { providers, FREE_MODELS } from '../ai/providers';
-import { chatWithFallback, generateAutoReply, generateSmartReplies, generateConversationSummary, analyzeLeadScore } from '../ai/chain';
+import { chatWithFallback, generateAutoReply, generateSmartReplies, generateConversationSummary, analyzeLeadScore, detectLanguage, getLanguageName } from '../ai/chain';
 
 export const aiRouter = Router();
+
+// ── Language Detection ────────────────────────────────────────────────
+
+const DetectLanguageSchema = z.object({ message: z.string().min(1) });
+
+aiRouter.post('/detect-language', async (req, res) => {
+  const { message } = req.body;
+  const parsed = DetectLanguageSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Validation Error', details: parsed.error.flatten() });
+
+  try {
+    const code = await detectLanguage(parsed.data.message);
+    return res.json({ language: code, name: getLanguageName(code) });
+  } catch (err: any) {
+    return res.status(502).json({ error: err.message });
+  }
+});
 
 // ── Provider CRUD ──────────────────────────────────────────────────────
 

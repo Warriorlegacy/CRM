@@ -7,8 +7,8 @@ import { useTypingIndicator } from '@/hooks/useTypingIndicator';
 import { useNotificationSound } from '@/hooks/useNotificationSound';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotification } from '@/contexts/NotificationContext';
-import { Send, Check, CheckCheck, Phone, Loader2, MessageSquare, Search, Filter, X, FileText, ChevronDown, UserPlus, Clock, Instagram, Paperclip, Image as ImageIcon, Tag } from 'lucide-react';
-import { ConversationTag, ConversationTagAssignment } from '@/lib/types';
+import { Send, Check, CheckCheck, Phone, Loader2, MessageSquare, Search, Filter, X, FileText, ChevronDown, UserPlus, Clock, Instagram, Paperclip, Image as ImageIcon, Tag, Lock } from 'lucide-react';
+import { ConversationTag, ConversationTagAssignment, ConversationNote } from '@/lib/types';
 import ChannelBadge, { ChannelDot } from '@/components/ChannelBadge';
 import { RealtimeMessage } from '@/hooks/useRealtime';
 
@@ -26,6 +26,8 @@ interface Conversation {
   lastMessageAt: string | null;
   status: string;
   tags: ConversationTag[];
+  lockedByUserId: string | null;
+  lockedAt: string | null;
 }
 
 interface Message {
@@ -84,6 +86,12 @@ export default function InboxPage() {
   const [allTags, setAllTags] = useState<ConversationTag[]>([]);
   const [tagFilter, setTagFilter] = useState<string>('all');
   const [showTagMenu, setShowTagMenu] = useState(false);
+  const [lockedByName, setLockedByName] = useState<string | null>(null);
+  const [isLockedByMe, setIsLockedByMe] = useState(false);
+  const [activeTab, setActiveTab] = useState<'messages' | 'notes'>('messages');
+  const [conversationNotes, setConversationNotes] = useState<ConversationNote[]>([]);
+  const [newNote, setNewNote] = useState('');
+  const [notePriority, setNotePriority] = useState<'low' | 'normal' | 'high'>('normal');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const templateMenuRef = useRef<HTMLDivElement>(null);
@@ -92,6 +100,7 @@ export default function InboxPage() {
   const tagMenuRef = useRef<HTMLDivElement>(null);
   const { playNotificationSound: playNotification } = useNotificationSound();
   const { typingUsers, sendTyping } = useTypingIndicator(selectedConversation?.id || '', WORKSPACE_ID, USER_ID);
+  const lockIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const headers = {
     'x-user-id': USER_ID,
@@ -134,10 +143,73 @@ export default function InboxPage() {
     }
   };
 
+  async function acquireLock(conversationId: string): Promise<boolean> {
+    try {
+      await api.post(`/inbox/conversations/${conversationId}/lock`, {}, { headers });
+      setIsLockedByMe(true);
+      setLockedByName(null);
+      return true;
+    } catch (error: any) {
+      const data = error.data || error;
+      const message = typeof data === 'object' && data ? (data.message || data.error) : 'Lock failed';
+      setLockedByName(data?.lockedByName || null);
+      setIsLockedByMe(false);
+      addNotification({ type: 'error', title: message as string });
+      return false;
+    }
+  }
+
+  async function releaseLock(conversationId: string): Promise<void> {
+    try {
+      await api.delete(`/inbox/conversations/${conversationId}/lock`, { headers });
+    } catch {
+      // best-effort
+    } finally {
+      setIsLockedByMe(false);
+      setLockedByName(null);
+    }
+  }
+
+  function refreshLockStatus(conversationId: string) {
+    api.get<{ ok: boolean; locked: boolean; lockedByUserId: string | null; lockedByName: string | null; lockedAt: string | null }>(
+      `/inbox/conversations/${conversationId}/lock`,
+      { headers }
+    ).then((data) => {
+      const holder = data.lockedByName || null;
+      const me = !!USER_ID && data.lockedByUserId === USER_ID;
+      setLockedByName(holder && !me ? holder : null);
+      setIsLockedByMe(me as boolean);
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === conversationId
+            ? { ...c, lockedByUserId: data.lockedByUserId, lockedAt: data.lockedAt ? (data as any).lockedAt : c.lockedAt }
+            : c
+        )
+      );
+    }).catch(() => {});
+  }
+
   useEffect(() => {
     if (selectedConversation) {
       loadMessages(selectedConversation.id);
     }
+  }, [selectedConversation?.id]);
+
+  useEffect(() => {
+    if (selectedConversation && activeTab === 'notes') {
+      loadConversationNotes(selectedConversation.id);
+    }
+  }, [selectedConversation?.id, activeTab]);
+
+  useEffect(() => {
+    return () => {
+      if (lockIntervalRef.current) {
+        clearInterval(lockIntervalRef.current);
+      }
+      if (selectedConversation?.id) {
+        void releaseLock(selectedConversation.id);
+      }
+    };
   }, [selectedConversation?.id]);
 
   useEffect(() => {
@@ -188,6 +260,17 @@ export default function InboxPage() {
 
       if (eventType === 'inbound_message' && event.unreadCount !== undefined) {
         // unreadCount already handled above via increment, but if backend sends full count we can use it
+      }
+    }
+
+    if (eventType === 'new_conversation_note' && event.conversationId) {
+      const mention = (event as any).note;
+      if (!mention) return;
+      if (activeTab === 'notes' && selectedConversation?.id === event.conversationId) {
+        setConversationNotes((prev) => {
+          if (prev.some((n) => n.id === mention.id)) return prev;
+          return [{ ...mention, createdAt: new Date(mention.createdAt).toISOString() } as ConversationNote, ...prev];
+        });
       }
     }
   });
@@ -320,6 +403,33 @@ export default function InboxPage() {
     }
   };
 
+  const loadConversationNotes = async (conversationId: string) => {
+    try {
+      const data = await api.get<{ notes: ConversationNote[] }>(`/inbox/conversations/${conversationId}/notes`, { headers });
+      setConversationNotes(data.notes || []);
+    } catch (error) {
+      console.error('Failed to load notes:', error);
+    }
+  };
+
+  const addNote = async () => {
+    if (!selectedConversation || !newNote.trim()) return;
+    try {
+      await api.post('/notes', {
+        conversationId: selectedConversation.id,
+        content: newNote.trim(),
+        priority: notePriority,
+        mentions: [],
+      }, { headers });
+      setNewNote('');
+      setNotePriority('normal');
+      await loadConversationNotes(selectedConversation.id);
+    } catch (error) {
+      console.error('Failed to add note:', error);
+      addNotification({ type: 'error', title: 'Failed to add note' });
+    }
+  };
+
   const assignConversationTag = async (tagId: string) => {
     if (!selectedConversation) return;
     try {
@@ -399,6 +509,14 @@ export default function InboxPage() {
     const hasText = newMessage.trim().length > 0;
     const hasMedia = !!selectedMedia;
     if (!hasText && !hasMedia) return;
+
+    if (selectedConversation.lockedByUserId && selectedConversation.lockedByUserId !== USER_ID) {
+      addNotification({ type: 'error', title: 'Conversation is locked by another agent' });
+      return;
+    }
+
+    const hasLock = await acquireLock(selectedConversation.id);
+    if (!hasLock) return;
 
     setSending(true);
     try {
@@ -530,6 +648,20 @@ export default function InboxPage() {
     return matchesSearch && matchesStage && matchesChannel && matchesTag;
   });
 
+  const handleSelectConversation = async (conversation: Conversation) => {
+    if (selectedConversation?.id && selectedConversation.id !== conversation.id) {
+      void releaseLock(selectedConversation.id);
+    }
+    setSelectedConversation(conversation);
+    if (lockIntervalRef.current) {
+      clearInterval(lockIntervalRef.current);
+    }
+    if (conversation.id) {
+      await acquireLock(conversation.id);
+      lockIntervalRef.current = setInterval(() => refreshLockStatus(conversation.id), 5000);
+    }
+  };
+
   // Count unread per channel
   const waUnread = conversations.filter(c => c.channel === 'whatsapp').reduce((sum, c) => sum + c.unreadCount, 0);
   const igUnread = conversations.filter(c => c.channel === 'instagram').reduce((sum, c) => sum + c.unreadCount, 0);
@@ -553,7 +685,7 @@ export default function InboxPage() {
   return (
     <div className="flex h-[calc(100vh-80px)] gap-4">
       {/* Conversations List */}
-      <div className="w-80 border-r border-zinc-800 bg-zinc-900/30 rounded-2xl overflow-hidden flex flex-col">
+      <div className={`w-80 border-r border-zinc-800 bg-zinc-900/30 rounded-2xl overflow-hidden flex flex-col ${selectedConversation ? 'hidden md:flex' : 'flex'}`}>
         <div className="p-4 border-b border-zinc-800 space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-white">Inbox</h2>
@@ -690,7 +822,7 @@ export default function InboxPage() {
               {filteredConversations.map((conversation) => (
                 <button
                   key={conversation.id}
-                  onClick={() => setSelectedConversation(conversation)}
+                  onClick={() => handleSelectConversation(conversation)}
                   className={`w-full p-4 text-left border-b border-zinc-800/50 transition-colors ${
                     selectedConversation?.id === conversation.id
                       ? 'bg-zinc-800'
@@ -729,6 +861,12 @@ export default function InboxPage() {
                         {conversation.assignedTo.name}
                       </span>
                     )}
+                    {conversation.lockedByUserId && conversation.lockedByUserId !== USER_ID && (
+                      <span className="text-xs text-amber-400 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                        Locked
+                      </span>
+                    )}
                     {conversation.tags.length > 0 && (
                       <div className="flex items-center gap-1 ml-auto">
                         {conversation.tags.slice(0, 3).map((t) => (
@@ -758,6 +896,12 @@ export default function InboxPage() {
           {/* Header */}
           <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
             <div className="flex items-center gap-3">
+              <button
+                onClick={() => setSelectedConversation(null)}
+                className="md:hidden p-1 -ml-2 text-zinc-400 hover:text-white"
+              >
+                ←
+              </button>
               <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                 selectedConversation.channel === 'instagram'
                   ? 'bg-pink-500/20'
@@ -778,6 +922,12 @@ export default function InboxPage() {
                   <Phone className="w-3 h-3" />
                   {selectedConversation.phone}
                 </div>
+                {lockedByName && (
+                  <div className="flex items-center gap-1.5 text-xs text-amber-400">
+                    <Lock className="w-3 h-3" />
+                    {lockedByName} is replying
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -853,200 +1003,312 @@ export default function InboxPage() {
             </div>
           </div>
 
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {messages.map((message) => {
-              const isOutbound = message.direction === 'outbound';
-              const isIg = message.channel === 'instagram' || selectedConversation.channel === 'instagram';
-              const hasMedia = !!message.mediaUrl;
+          {/* Tab Switcher */}
+          <div className="flex border-b border-zinc-800">
+            <button
+              onClick={() => setActiveTab('messages')}
+              className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
+                activeTab === 'messages' ? 'text-white border-b-2 border-white' : 'text-zinc-500 hover:text-white'
+              }`}
+            >
+              Messages
+            </button>
+            <button
+              onClick={() => { setActiveTab('notes'); loadConversationNotes(selectedConversation.id); }}
+              className={`flex-1 py-2.5 text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${
+                activeTab === 'notes' ? 'text-white border-b-2 border-white' : 'text-zinc-500 hover:text-white'
+              }`}
+            >
+              <FileText className="w-4 h-4" />
+              Notes
+            </button>
+          </div>
 
-              return (
-                <div
-                  key={message.id}
-                  className={`flex ${isOutbound ? 'justify-end' : 'justify-start'}`}
-                >
+          {activeTab === 'messages' && (
+            /* Messages */
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {messages.map((message) => {
+                const isOutbound = message.direction === 'outbound';
+                const isIg = message.channel === 'instagram' || selectedConversation.channel === 'instagram';
+                const hasMedia = !!message.mediaUrl;
+
+                return (
                   <div
-                    className={`max-w-[70%] rounded-2xl ${
-                      isOutbound
-                        ? isIg
-                          ? 'bg-pink-500 text-white rounded-br-md'
-                          : 'bg-emerald-600 text-white rounded-br-md'
-                        : 'bg-zinc-800 text-white rounded-bl-md'
-                    }`}
+                    key={message.id}
+                    className={`flex ${isOutbound ? 'justify-end' : 'justify-start'}`}
                   >
-                    {hasMedia && message.mediaType === 'image' && message.mediaUrl && (
-                      <img
-                        src={message.mediaUrl}
-                        alt="attachment"
-                        className="max-w-full rounded-t-2xl cursor-pointer"
-                        style={{ maxHeight: 240 }}
-                        onClick={() => window.open(message.mediaUrl!, '_blank')}
-                      />
-                    )}
-                    {hasMedia && message.mediaType === 'document' && message.mediaUrl && (
-                      <a
-                        href={message.mediaUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 px-3 py-2 hover:opacity-80 transition-opacity"
-                      >
-                        <FileText className="w-5 h-5 flex-shrink-0" />
-                        <span className="text-sm underline truncate">
-                          {message.mediaMimeType?.split('/').pop() || 'Document'}
-                        </span>
-                      </a>
-                    )}
-                    {message.bodyText && (
-                      <p className="text-sm px-4 py-2.5">{message.bodyText}</p>
-                    )}
-                    {!hasMedia && !message.bodyText && (
-                      <p className="text-sm px-4 py-2.5 opacity-60">Media</p>
-                    )}
-                    <div className="flex items-center justify-end gap-1 mt-1 px-4 pb-1">
-                      <span className="text-xs opacity-60">
-                        {formatTime(message.createdAt)}
-                      </span>
-                      {isOutbound && (
-                        message.readReceipts.length > 0 ? (
-                          <CheckCheck className="w-3 h-3 opacity-60" />
-                        ) : (
-                          <Check className="w-3 h-3 opacity-60" />
-                        )
+                    <div
+                      className={`max-w-[70%] rounded-2xl ${
+                        isOutbound
+                          ? isIg
+                            ? 'bg-pink-500 text-white rounded-br-md'
+                            : 'bg-emerald-600 text-white rounded-br-md'
+                          : 'bg-zinc-800 text-white rounded-bl-md'
+                      }`}
+                    >
+                      {hasMedia && message.mediaType === 'image' && message.mediaUrl && (
+                        <img
+                          src={message.mediaUrl}
+                          alt="attachment"
+                          className="max-w-full rounded-t-2xl cursor-pointer"
+                          style={{ maxHeight: 240 }}
+                          onClick={() => window.open(message.mediaUrl!, '_blank')}
+                        />
                       )}
+                      {hasMedia && message.mediaType === 'document' && message.mediaUrl && (
+                        <a
+                          href={message.mediaUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 px-3 py-2 hover:opacity-80 transition-opacity"
+                        >
+                          <FileText className="w-5 h-5 flex-shrink-0" />
+                          <span className="text-sm underline truncate">
+                            {message.mediaMimeType?.split('/').pop() || 'Document'}
+                          </span>
+                        </a>
+                      )}
+                      {message.bodyText && (
+                        <p className="text-sm px-4 py-2.5">{message.bodyText}</p>
+                      )}
+                      {!hasMedia && !message.bodyText && (
+                        <p className="text-sm px-4 py-2.5 opacity-60">Media</p>
+                      )}
+                      <div className="flex items-center justify-end gap-1 mt-1 px-4 pb-1">
+                        <span className="text-xs opacity-60">
+                          {formatTime(message.createdAt)}
+                        </span>
+                        {isOutbound && (
+                          message.readReceipts.length > 0 ? (
+                            <CheckCheck className="w-3 h-3 opacity-60" />
+                          ) : (
+                            <Check className="w-3 h-3 opacity-60" />
+                          )
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {typingUsers.length > 0 && (
+                <div className="flex justify-start">
+                  <div className="bg-zinc-800 px-4 py-3 rounded-2xl rounded-bl-md">
+                    <div className="flex gap-1">
+                      <span className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <span className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <span className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                     </div>
                   </div>
                 </div>
-              );
-            })}
+              )}
 
-            {typingUsers.length > 0 && (
-              <div className="flex justify-start">
-                <div className="bg-zinc-800 px-4 py-3 rounded-2xl rounded-bl-md">
-                  <div className="flex gap-1">
-                    <span className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <span className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <span className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              <div ref={messagesEndRef} />
+            </div>
+          )}
+
+          {activeTab === 'notes' && (
+            /* Notes */
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {conversationNotes.map((note) => (
+                <div
+                  key={note.id}
+                  className={`p-3 rounded-xl border ${
+                    note.priority === 'high'
+                      ? 'bg-amber-500/10 border-amber-500/30'
+                      : note.priority === 'low'
+                        ? 'bg-zinc-800/50 border-zinc-700'
+                        : 'bg-blue-500/10 border-blue-500/30'
+                  }`}
+                >
+                  <p className="text-sm text-white whitespace-pre-wrap">{note.content}</p>
+                  <div className="flex items-center justify-between mt-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-zinc-400">
+                        {note.userName || 'Unknown'}
+                      </span>
+                      <span className="text-xs text-zinc-600">
+                        {formatDate(note.createdAt)}
+                      </span>
+                    </div>
+                    <span
+                      className={`text-[10px] px-1.5 py-0.5 rounded-full uppercase font-medium ${
+                        note.priority === 'high'
+                          ? 'bg-amber-500/20 text-amber-400'
+                          : note.priority === 'low'
+                            ? 'bg-zinc-700 text-zinc-400'
+                            : 'bg-blue-500/20 text-blue-400'
+                      }`}
+                    >
+                      {note.priority}
+                    </span>
                   </div>
+                  {note.mentions && note.mentions.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {note.mentions.map((mention, i) => (
+                        <span key={i} className="text-[10px] bg-zinc-700 text-zinc-300 px-1.5 py-0.5 rounded-full">
+                          @{mention}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
-
-            <div ref={messagesEndRef} />
-          </div>
+              ))}
+              {conversationNotes.length === 0 && (
+                <div className="text-center py-8">
+                  <FileText className="w-8 h-8 text-zinc-600 mx-auto mb-2" />
+                  <p className="text-sm text-zinc-500">No internal notes yet</p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Input */}
           <div className="p-4 border-t border-zinc-800">
-            {mediaPreviewUrl && selectedMedia && (
-              <div className="relative inline-block mb-2 ml-4">
-                <img
-                  src={mediaPreviewUrl}
-                  alt="preview"
-                  className="max-h-24 rounded-lg border border-zinc-700"
-                />
-                <button
-                  onClick={clearMedia}
-                  className="absolute -top-2 -right-2 p-1 bg-zinc-800 text-zinc-400 hover:text-white rounded-full border border-zinc-700"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
-            )}
-            {smartReplies.length > 0 && (
-              <div className="flex gap-2 px-4 py-2">
-                {smartReplies.map((reply, i) => (
-                  <button
-                    key={i}
-                    onClick={() => applySmartReply(reply)}
-                    className="px-3 py-1.5 bg-purple-900/30 border border-purple-800/50 text-purple-300 rounded-full text-xs hover:bg-purple-900/50 transition-colors"
-                  >
-                    {reply}
-                  </button>
-                ))}
-              </div>
-            )}
-            <div className="flex items-center gap-2 bg-zinc-800/50 rounded-2xl px-4 py-3">
-              <div className="relative" ref={templateMenuRef}>
-                <button
-                  onClick={() => setShowTemplateMenu(!showTemplateMenu)}
-                  className="p-2 text-zinc-400 hover:text-white transition-colors"
-                  title="Use template"
-                >
-                  <FileText className="w-5 h-5" />
-                </button>
-                {showTemplateMenu && templates.length > 0 && (
-                  <div className="absolute bottom-full left-0 mb-2 w-64 bg-zinc-900 border border-zinc-800 rounded-xl shadow-lg z-50 py-1 max-h-64 overflow-y-auto">
-                    <div className="px-3 py-2 text-xs text-zinc-500 border-b border-zinc-800">
-                      Quick Templates
-                    </div>
-                    {templates.map((template) => (
+            {activeTab === 'messages' && (
+              <>
+                {mediaPreviewUrl && selectedMedia && (
+                  <div className="relative inline-block mb-2 ml-4">
+                    <img
+                      src={mediaPreviewUrl}
+                      alt="preview"
+                      className="max-h-24 rounded-lg border border-zinc-700"
+                    />
+                    <button
+                      onClick={clearMedia}
+                      className="absolute -top-2 -right-2 p-1 bg-zinc-800 text-zinc-400 hover:text-white rounded-full border border-zinc-700"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+                {smartReplies.length > 0 && (
+                  <div className="flex gap-2 px-4 py-2">
+                    {smartReplies.map((reply, i) => (
                       <button
-                        key={template.id}
-                        onClick={() => insertTemplate(template)}
-                        className="w-full px-4 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800 transition-colors"
+                        key={i}
+                        onClick={() => applySmartReply(reply)}
+                        className="px-3 py-1.5 bg-purple-900/30 border border-purple-800/50 text-purple-300 rounded-full text-xs hover:bg-purple-900/50 transition-colors"
                       >
-                        <div className="font-medium">{template.title}</div>
-                        <div className="text-xs text-zinc-500 truncate">{template.body.slice(0, 50)}...</div>
+                        {reply}
                       </button>
                     ))}
                   </div>
                 )}
+                <div className="flex items-center gap-2 bg-zinc-800/50 rounded-2xl px-4 py-3">
+                  <div className="relative" ref={templateMenuRef}>
+                    <button
+                      onClick={() => setShowTemplateMenu(!showTemplateMenu)}
+                      className="p-2 text-zinc-400 hover:text-white transition-colors"
+                      title="Use template"
+                    >
+                      <FileText className="w-5 h-5" />
+                    </button>
+                    {showTemplateMenu && templates.length > 0 && (
+                      <div className="absolute bottom-full left-0 mb-2 w-64 bg-zinc-900 border border-zinc-800 rounded-xl shadow-lg z-50 py-1 max-h-64 overflow-y-auto">
+                        <div className="px-3 py-2 text-xs text-zinc-500 border-b border-zinc-800">
+                          Quick Templates
+                        </div>
+                        {templates.map((template) => (
+                          <button
+                            key={template.id}
+                            onClick={() => insertTemplate(template)}
+                            className="w-full px-4 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800 transition-colors"
+                          >
+                            <div className="font-medium">{template.title}</div>
+                            <div className="text-xs text-zinc-500 truncate">{template.body.slice(0, 50)}...</div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                  <button
+                    onClick={handleAttach}
+                    className="p-2 text-zinc-400 hover:text-white transition-colors"
+                    title="Attach media"
+                  >
+                    <Paperclip className="w-5 h-5" />
+                  </button>
+
+                  <input
+                    type="text"
+                    value={newMessage}
+                    onChange={(e) => {
+                      setNewMessage(e.target.value);
+                      sendTyping();
+                    }}
+                    onKeyPress={handleKeyPress}
+                    onPaste={handlePaste}
+                    placeholder={`Message via ${selectedConversation.channel === 'instagram' ? 'Instagram' : 'WhatsApp'}...`}
+                    className="flex-1 bg-transparent text-white placeholder-zinc-500 outline-none text-sm"
+                  />
+                  <button
+                    onClick={fetchSmartReplies}
+                    disabled={loadingSmartReplies || messages.length === 0}
+                    className="p-2 text-purple-400 hover:text-purple-300 transition-colors disabled:opacity-50"
+                    title="AI Smart Replies"
+                  >
+                    {loadingSmartReplies ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <span className="text-lg">✨</span>
+                    )}
+                  </button>
+                  <button
+                    onClick={sendMessage}
+                    disabled={sending || (!newMessage.trim() && !selectedMedia)}
+                    className={`p-2 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                      selectedConversation.channel === 'instagram'
+                        ? 'bg-pink-500 text-white hover:bg-pink-600'
+                        : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                    }`}
+                  >
+                    {sending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Send className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+              </>
+            )}
+
+            {activeTab === 'notes' && (
+              <div className="flex items-center gap-2 bg-zinc-800/50 rounded-2xl px-4 py-3">
+                <select
+                  value={notePriority}
+                  onChange={(e) => setNotePriority(e.target.value as 'low' | 'normal' | 'high')}
+                  className="bg-zinc-700 text-white text-xs rounded-lg px-2 py-1.5 outline-none border border-zinc-600"
+                >
+                  <option value="low">Low</option>
+                  <option value="normal">Normal</option>
+                  <option value="high">High</option>
+                </select>
+                <input
+                  type="text"
+                  value={newNote}
+                  onChange={(e) => setNewNote(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), addNote())}
+                  placeholder="Add internal note... (use @name to mention)"
+                  className="flex-1 bg-transparent text-white placeholder-zinc-500 outline-none text-sm"
+                />
+                <button
+                  onClick={addNote}
+                  disabled={!newNote.trim()}
+                  className="px-4 py-1.5 bg-indigo-600 text-white text-sm rounded-xl hover:bg-indigo-500 disabled:opacity-50 transition-colors"
+                >
+                  Add Note
+                </button>
               </div>
-
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt"
-                onChange={handleFileChange}
-                className="hidden"
-              />
-              <button
-                onClick={handleAttach}
-                className="p-2 text-zinc-400 hover:text-white transition-colors"
-                title="Attach media"
-              >
-                <Paperclip className="w-5 h-5" />
-              </button>
-
-              <input
-                type="text"
-                value={newMessage}
-                onChange={(e) => {
-                  setNewMessage(e.target.value);
-                  sendTyping();
-                }}
-                onKeyPress={handleKeyPress}
-                onPaste={handlePaste}
-                placeholder={`Message via ${selectedConversation.channel === 'instagram' ? 'Instagram' : 'WhatsApp'}...`}
-                className="flex-1 bg-transparent text-white placeholder-zinc-500 outline-none text-sm"
-              />
-              <button
-                onClick={fetchSmartReplies}
-                disabled={loadingSmartReplies || messages.length === 0}
-                className="p-2 text-purple-400 hover:text-purple-300 transition-colors disabled:opacity-50"
-                title="AI Smart Replies"
-              >
-                {loadingSmartReplies ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <span className="text-lg">✨</span>
-                )}
-              </button>
-              <button
-                onClick={sendMessage}
-                disabled={sending || (!newMessage.trim() && !selectedMedia)}
-                className={`p-2 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                  selectedConversation.channel === 'instagram'
-                    ? 'bg-pink-500 text-white hover:bg-pink-600'
-                    : 'bg-emerald-600 text-white hover:bg-emerald-700'
-                }`}
-              >
-                {sending ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Send className="w-4 h-4" />
-                )}
-              </button>
-            </div>
+            )}
           </div>
         </div>
       ) : (

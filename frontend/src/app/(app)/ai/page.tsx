@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
-import { Bot, Plus, Trash2, Zap, AlertTriangle, CheckCircle, XCircle, Loader2, TestTube, Brain, Sparkles } from 'lucide-react';
+import { Bot, Plus, Trash2, Zap, AlertTriangle, CheckCircle, XCircle, Loader2, TestTube, Brain, Sparkles, Globe } from 'lucide-react';
 
 interface AiProvider {
   id: string;
@@ -42,6 +42,34 @@ interface AiStatus {
   }[];
 }
 
+const SUPPORTED_LANGUAGES = [
+  { code: 'en', name: 'English' },
+  { code: 'hi', name: 'Hindi' },
+  { code: 'es', name: 'Spanish' },
+  { code: 'pt', name: 'Portuguese' },
+  { code: 'fr', name: 'French' },
+  { code: 'de', name: 'German' },
+  { code: 'ar', name: 'Arabic' },
+  { code: 'bn', name: 'Bengali' },
+  { code: 'ta', name: 'Tamil' },
+  { code: 'te', name: 'Telugu' },
+  { code: 'mr', name: 'Marathi' },
+  { code: 'gu', name: 'Gujarati' },
+  { code: 'pa', name: 'Punjabi' },
+  { code: 'ur', name: 'Urdu' },
+  { code: 'zh', name: 'Chinese' },
+  { code: 'ja', name: 'Japanese' },
+  { code: 'ko', name: 'Korean' },
+  { code: 'ru', name: 'Russian' },
+  { code: 'it', name: 'Italian' },
+  { code: 'nl', name: 'Dutch' },
+  { code: 'tr', name: 'Turkish' },
+  { code: 'id', name: 'Indonesian' },
+  { code: 'ms', name: 'Malay' },
+  { code: 'th', name: 'Thai' },
+  { code: 'vi', name: 'Vietnamese' },
+];
+
 const PROVIDER_ICONS: Record<string, string> = {
   freellmapi: '🔌',
   openrouter: '🌐',
@@ -74,6 +102,12 @@ export default function AiSettingsPage() {
     priority: 0,
     maxTokens: 1024,
     temperature: 0.7,
+  });
+
+  const [languageSettings, setLanguageSettings] = useState({
+    autoDetect: true,
+    defaultLanguage: 'en',
+    perChannel: { whatsapp: 'en', instagram: 'en' },
   });
 
   useEffect(() => {
@@ -496,6 +530,52 @@ export default function AiSettingsPage() {
           </div>
         </div>
       )}
+
+      {/* Language Settings */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-4">
+        <h3 className="text-sm font-medium text-zinc-300 flex items-center gap-2">
+          <Globe className="w-4 h-4 text-blue-400" />
+          Language Preferences
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <label className="flex items-center gap-3 p-3 bg-zinc-800/50 rounded-xl cursor-pointer">
+            <input
+              type="checkbox"
+              checked={languageSettings.autoDetect}
+              onChange={(e) => setLanguageSettings({ ...languageSettings, autoDetect: e.target.checked })}
+              className="w-4 h-4 rounded"
+            />
+            <div>
+              <div className="text-sm text-white">Auto-detect language</div>
+              <div className="text-xs text-zinc-500">Use AI to detect customer language</div>
+            </div>
+          </label>
+          <div>
+            <label className="block text-xs text-zinc-500 mb-1">Default Language</label>
+            <select
+              value={languageSettings.defaultLanguage}
+              onChange={(e) => setLanguageSettings({ ...languageSettings, defaultLanguage: e.target.value })}
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm"
+            >
+              {SUPPORTED_LANGUAGES.map((lang) => (
+                <option key={lang.code} value={lang.code}>{lang.name} ({lang.code})</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-zinc-500 mb-1">WhatsApp Language Override</label>
+            <select
+              value={languageSettings.perChannel.whatsapp}
+              onChange={(e) => setLanguageSettings({ ...languageSettings, perChannel: { ...languageSettings.perChannel, whatsapp: e.target.value } })}
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm"
+            >
+              {SUPPORTED_LANGUAGES.map((lang) => (
+                <option key={lang.code} value={lang.code}>{lang.name} ({lang.code})</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
 
       {/* Recent Activity */}
       {status && status.recentLogs.length > 0 && (
