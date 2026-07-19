@@ -1,7 +1,7 @@
 'use client';
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
@@ -19,10 +19,43 @@ import {
   Zap,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import HeroScene from "@/components/three/HeroScene";
+import { useScrollReveal } from "@/hooks/useScrollReveal";
+
+function RevealSection({ children, delay = 0, className = "" }: { children: React.ReactNode; delay?: number; className?: string }) {
+  const { ref, isVisible } = useScrollReveal();
+  return (
+    <div
+      ref={ref}
+      className={`reveal ${isVisible ? "visible" : ""} ${delay ? `reveal-delay-${delay}` : ""} ${className}`}
+    >
+      {children}
+    </div>
+  );
+}
+
+function RevealCard({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
+  const { ref, isVisible } = useScrollReveal();
+  return (
+    <div
+      ref={ref}
+      className={`reveal ${isVisible ? "visible" : ""} ${delay ? `reveal-delay-${delay}` : ""}`}
+    >
+      {children}
+    </div>
+  );
+}
 
 export default function HomePage() {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
+  const [scrollY, setScrollY] = useState(0);
+
+  useEffect(() => {
+    const onScroll = () => setScrollY(window.scrollY);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
@@ -156,7 +189,8 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen overflow-hidden">
-      <div className="hero-grid pointer-events-none absolute inset-0 opacity-30" />
+      <HeroScene scrollY={scrollY} />
+      <div className="hero-grid pointer-events-none fixed inset-0 opacity-30" />
 
       <nav className="sticky top-0 z-20 border-b border-white/8 bg-[rgba(4,10,20,0.72)] backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
@@ -186,8 +220,9 @@ export default function HomePage() {
         </div>
       </nav>
 
-      <main className="relative">
+      <main className="relative z-10">
         <section className="mx-auto max-w-7xl px-6 pb-14 pt-20 lg:pt-28">
+          <RevealSection>
           <div className="grid gap-12 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
             <div className="space-y-8">
               <div className="inline-flex items-center gap-2 rounded-full border border-sky-200/12 bg-white/6 px-4 py-2 text-sm text-sky-100/80">
@@ -263,9 +298,11 @@ export default function HomePage() {
               </div>
             </div>
           </div>
+        </RevealSection>
         </section>
 
         <section className="mx-auto max-w-7xl px-6 py-10">
+          <RevealSection>
           <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
             <div className="glass-panel rounded-[30px] p-7">
               <p className="text-sm uppercase tracking-[0.24em] text-amber-200/65">Client-Facing Pitch</p>
@@ -290,37 +327,47 @@ export default function HomePage() {
               ))}
             </div>
           </div>
+          </RevealSection>
         </section>
 
         <section id="features" className="mx-auto max-w-7xl px-6 py-10">
+          <RevealSection>
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-            {features.map((feature) => (
-              <div key={feature.title} className="glass-panel rounded-[28px] p-6">
-                <div className="mb-5 inline-flex rounded-2xl border border-white/10 bg-white/6 p-3 text-sky-200">
-                  <feature.icon className="h-6 w-6" />
+            {features.map((feature, i) => (
+              <RevealCard key={feature.title} delay={i + 1}>
+                <div className="glass-panel rounded-[28px] p-6">
+                  <div className="mb-5 inline-flex rounded-2xl border border-white/10 bg-white/6 p-3 text-sky-200">
+                    <feature.icon className="h-6 w-6" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-white">{feature.title}</h3>
+                  <p className="mt-3 text-sm leading-7 text-slate-300">{feature.body}</p>
                 </div>
-                <h3 className="text-xl font-semibold text-white">{feature.title}</h3>
-                <p className="mt-3 text-sm leading-7 text-slate-300">{feature.body}</p>
-              </div>
+              </RevealCard>
             ))}
           </div>
+          </RevealSection>
         </section>
 
         <section className="mx-auto max-w-7xl px-6 py-10">
+          <RevealSection>
           <div className="grid gap-5 lg:grid-cols-3">
-            {customerFits.map((fit) => (
-              <div key={fit.title} className="glass-panel rounded-[28px] p-6">
-                <div className="mb-5 inline-flex rounded-2xl border border-white/10 bg-white/6 p-3 text-amber-200">
-                  <fit.icon className="h-6 w-6" />
+            {customerFits.map((fit, i) => (
+              <RevealCard key={fit.title} delay={i + 1}>
+                <div className="glass-panel rounded-[28px] p-6">
+                  <div className="mb-5 inline-flex rounded-2xl border border-white/10 bg-white/6 p-3 text-amber-200">
+                    <fit.icon className="h-6 w-6" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-white">{fit.title}</h3>
+                  <p className="mt-3 text-sm leading-7 text-slate-300">{fit.body}</p>
                 </div>
-                <h3 className="text-xl font-semibold text-white">{fit.title}</h3>
-                <p className="mt-3 text-sm leading-7 text-slate-300">{fit.body}</p>
-              </div>
+              </RevealCard>
             ))}
           </div>
+          </RevealSection>
         </section>
 
         <section id="pricing" className="mx-auto max-w-7xl px-6 py-16">
+          <RevealSection>
           <div className="mb-10 max-w-3xl">
             <p className="text-sm uppercase tracking-[0.24em] text-sky-100/45">Pricing</p>
             <h2 className="mt-3 text-3xl font-semibold text-white sm:text-4xl">
@@ -330,9 +377,11 @@ export default function HomePage() {
               Try WhatsApp CRM free with no commitment. Upgrade when you&apos;re ready to unlock more users, contacts, and powerful automation features.
             </p>
           </div>
+          </RevealSection>
 
           <div className="grid gap-5 xl:grid-cols-3">
-            {pricingPlans.map((plan) => (
+            {pricingPlans.map((plan, i) => (
+              <RevealCard key={plan.name} delay={i + 1}>
               <div
                 key={plan.name}
                 className={`glass-panel rounded-[32px] p-7 ${plan.featured ? "border-emerald-300/30 bg-emerald-400/10" : ""}`}
@@ -376,11 +425,13 @@ export default function HomePage() {
                   {plan.cta}
                 </Link>
               </div>
+              </RevealCard>
             ))}
           </div>
         </section>
 
         <section className="mx-auto max-w-7xl px-6 py-16">
+          <RevealSection>
           <div className="glass-panel rounded-[36px] p-8 sm:p-10 lg:p-12">
             <div className="grid gap-8 lg:grid-cols-[1fr_auto] lg:items-center">
               <div>
@@ -401,6 +452,7 @@ export default function HomePage() {
               </Link>
             </div>
           </div>
+          </RevealSection>
         </section>
         <footer className="border-t border-white/8 bg-[rgba(4,10,20,0.6)]">
           <div className="mx-auto max-w-7xl px-6 py-12">
