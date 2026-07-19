@@ -22,6 +22,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: (payload: { email: string; name?: string; picture?: string; credential?: string }) => Promise<void>;
   register: (email: string, password: string, name: string, workspaceName?: string) => Promise<{ message: string; verificationUrl?: string; autoVerified?: boolean }>;
   logout: () => void;
   refreshToken: () => Promise<void>;
@@ -194,6 +195,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           const data = await response.json();
           setToken(data.data.token);
+          setUser(data.data.user);
+          setWorkspace(data.data.workspace);
+        } finally {
+          setIsLoading(false);
+        }
+      },
+      loginWithGoogle: async (payload: { email: string; name?: string; picture?: string; credential?: string }) => {
+        setIsLoading(true);
+        try {
+          const response = await fetch(`${API_BASE}/auth/google`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Google login failed');
+          }
+
+          const data = await response.json();
+          setToken(data.token);
           setUser(data.data.user);
           setWorkspace(data.data.workspace);
         } finally {

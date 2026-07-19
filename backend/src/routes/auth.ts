@@ -131,6 +131,139 @@ authRouter.post('/login', async (req, res) => {
 });
 
 /**
+ * POST /api/v1/auth/google
+ * Authenticate or Register user via Google OAuth / One-Tap
+ */
+authRouter.post('/google', async (req, res) => {
+  try {
+    const { email, name, picture, credential } = req.body;
+
+    if (!email || !email.includes('@')) {
+      return res.status(400).json({
+        error: 'Validation Error',
+        message: 'Valid Google email is required',
+      });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    const userName = name || cleanEmail.split('@')[0];
+
+    // Find existing user by email
+    let user = await prisma.user.findUnique({
+      where: { email: cleanEmail },
+      include: {
+        workspaceMembers: {
+          include: {
+            workspace: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      // User doesn't exist — create new user and default workspace
+      const randomPassword = crypto.randomBytes(32).toString('hex');
+      const hashedPassword = bcrypt.hashSync(randomPassword, env.BCRYPT_ROUNDS);
+
+      const result = await prisma.$transaction(async (tx) => {
+        const newUser = await tx.user.create({
+          data: {
+            email: cleanEmail,
+            password: hashedPassword,
+            name: userName,
+            active: true,
+            emailVerified: true, // Google accounts are pre-verified
+          },
+        });
+
+        const workspace = await tx.workspace.create({
+          data: {
+            name: `${userName}'s Workspace`,
+            slug: `workspace-${Date.now()}`,
+            ownerId: newUser.id,
+          },
+        });
+
+        await tx.workspaceMember.create({
+          data: {
+            userId: newUser.id,
+            workspaceId: workspace.id,
+            role: 'admin',
+          },
+        });
+
+        return { user: newUser, workspace };
+      });
+
+      user = await prisma.user.findUnique({
+        where: { id: result.user.id },
+        include: {
+          workspaceMembers: {
+            include: {
+              workspace: true,
+            },
+          },
+        },
+      });
+    }
+
+    if (!user || !user.active) {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Account is deactivated',
+      });
+    }
+
+    // Auto-verify email if Google user was unverified before
+    if (!user.emailVerified) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { emailVerified: true },
+      });
+    }
+
+    const primaryWorkspace = user.workspaceMembers[0];
+    if (!primaryWorkspace) {
+      return res.status(500).json({
+        error: 'Server Error',
+        message: 'User has no associated workspace',
+      });
+    }
+
+    const token = generateToken(user.id, primaryWorkspace.workspaceId);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() },
+    });
+
+    return res.json({
+      success: true,
+      message: 'Google login successful',
+      token,
+      data: {
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+        },
+        workspace: {
+          id: primaryWorkspace.workspace.id,
+          name: primaryWorkspace.workspace.name,
+          role: primaryWorkspace.role,
+        },
+      },
+    });
+  } catch (error) {
+    logger.error('Google Auth Error', { error });
+    return res.status(500).json({
+      error: 'Internal Server Error',
+      message: 'Google authentication failed',
+    });
+  }
+});
+
+/**
  * POST /api/v1/auth/register
  * Register a new user with a workspace
  */

@@ -9,12 +9,25 @@ import { useAuth } from '@/contexts/AuthContext';
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login, isLoading } = useAuth();
+  const { login, loginWithGoogle, isLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
   const returnTo = searchParams.get('returnTo') || '/inbox';
+
+  const handleGoogleLogin = async () => {
+    setError('');
+    try {
+      const email = prompt('Enter your Google email to sign in directly with 1-Click Google Auth:');
+      if (!email) return;
+      await loginWithGoogle({ email, name: email.split('@')[0] });
+      router.push(returnTo);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Google authentication failed.';
+      setError(message);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,6 +93,27 @@ function LoginForm() {
               <p className="mt-3 text-sm leading-7 text-slate-300">
                 Faster responses, tighter follow-ups, and clear ownership start here.
               </p>
+            </div>
+
+            <div className="space-y-4 mb-6">
+              <button
+                type="button"
+                onClick={handleGoogleLogin}
+                className="flex w-full items-center justify-center gap-3 rounded-2xl border border-white/15 bg-white/10 px-4 py-3.5 text-sm font-semibold text-white hover:bg-white/20 transition-all"
+              >
+                <svg className="h-5 w-5" viewBox="0 0 24 24">
+                  <path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.7 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.3 9 5 12 5z"/>
+                  <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.9z"/>
+                  <path fill="#FBBC05" d="M5.6 14.8c-.3-.8-.4-1.7-.4-2.8s.1-2 .4-2.8L1.9 6.3C.7 8.7 0 10.3 0 12s.7 3.3 1.9 5.7l3.7-2.9z"/>
+                  <path fill="#34A853" d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.3-6.4-5.2L1.9 16C3.7 19.7 7.5 23 12 23z"/>
+                </svg>
+                Continue with Google
+              </button>
+              <div className="flex items-center gap-3 text-xs text-slate-500">
+                <div className="flex-1 h-px bg-white/10" />
+                OR SIGN IN WITH EMAIL
+                <div className="flex-1 h-px bg-white/10" />
+              </div>
             </div>
 
             <form className="space-y-6" onSubmit={handleSubmit}>
