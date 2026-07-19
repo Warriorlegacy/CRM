@@ -6,12 +6,12 @@ import { NotificationProvider } from "@/contexts/NotificationContext";
 export const metadata: Metadata = {
   metadataBase: new URL('https://whatsapp-crm-frontend-three.vercel.app'),
   title: {
-    default: 'WhatsApp CRM & Automation | Multi-Agent Inbox & AI Sales Pipeline',
-    template: '%s | WhatsApp CRM',
+    default: 'Signhify CRM & Automation | Multi-Agent Inbox & AI Sales Pipeline',
+    template: '%s | Signhify CRM',
   },
   description: 'A sales and support workspace that turns WhatsApp & Instagram conversations into organized pipeline, team ownership, AI follow-ups, and repeatable revenue.',
   keywords: [
-    'WhatsApp CRM',
+    'Signhify CRM',
     'WhatsApp Business Automation',
     'Instagram Inbox CRM',
     'WhatsApp AI Auto Responder',
@@ -19,18 +19,18 @@ export const metadata: Metadata = {
     'WhatsApp Lead Management',
     'WhatsApp Sales Pipeline',
   ],
-  authors: [{ name: 'WhatsApp CRM Team' }],
+  authors: [{ name: 'Signhify CRM Team' }],
   openGraph: {
     type: 'website',
     locale: 'en_US',
     url: 'https://whatsapp-crm-frontend-three.vercel.app',
-    siteName: 'WhatsApp CRM',
-    title: 'WhatsApp CRM & Automation | Multi-Agent Inbox & AI Sales Pipeline',
+    siteName: 'Signhify CRM',
+    title: 'Signhify CRM & Automation | Multi-Agent Inbox & AI Sales Pipeline',
     description: 'Turn WhatsApp conversations into organized revenue, auto-replies, and multi-agent ownership.',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'WhatsApp CRM & Automation',
+    title: 'Signhify CRM & Automation',
     description: 'Turn WhatsApp conversations into organized revenue, auto-replies, and multi-agent ownership.',
   },
   robots: {
@@ -54,7 +54,7 @@ export default function RootLayout({
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'SoftwareApplication',
-    name: 'WhatsApp CRM',
+    name: 'Signhify CRM',
     applicationCategory: 'BusinessApplication',
     operatingSystem: 'Web',
     url: 'https://whatsapp-crm-frontend-three.vercel.app',

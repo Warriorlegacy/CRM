@@ -40,7 +40,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void } = {}) {
   return (
     <aside className="border-r border-zinc-800 bg-zinc-950 p-4 flex flex-col h-screen">
       <div className="mb-6">
-        <div className="text-lg font-semibold text-white">WhatsApp CRM</div>
+        <div className="text-lg font-semibold text-white">Signhify CRM</div>
         <div className="text-xs text-zinc-500">Revenue Workspace</div>
       </div>
 

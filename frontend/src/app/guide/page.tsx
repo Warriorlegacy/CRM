@@ -6,22 +6,23 @@ import {
 } from 'lucide-react';
 
 export const metadata: Metadata = {
-  title: 'User Guide & 1-Click Setup Manual | WhatsApp CRM & Automation',
-  description: 'Complete non-technical step-by-step guide for setting up WhatsApp CRM, Instagram DMs, AI Auto-responders, and multi-agent sales pipelines in 1 click.',
+  title: 'User Guide & 1-Click Setup Manual | Signhify CRM & Automation',
+  description: 'Complete non-technical step-by-step guide for setting up Signhify CRM, WhatsApp, Instagram DMs, AI Auto-responders, and multi-agent sales pipelines in 1 click.',
   keywords: [
+    'Signhify CRM',
     'WhatsApp CRM',
     'WhatsApp Automation',
     'Instagram Inbox CRM',
     'WhatsApp AI Auto Responder',
     'Multi Agent WhatsApp Inbox',
     'WhatsApp Sales Pipeline',
-    'WhatsApp CRM Setup Guide',
+    'Signhify CRM Setup Guide',
   ],
   openGraph: {
-    title: 'WhatsApp CRM User Guide & 1-Click Setup Manual',
+    title: 'Signhify CRM User Guide & 1-Click Setup Manual',
     description: 'Learn how to turn WhatsApp chats into organized revenue with zero coding required.',
     url: 'https://whatsapp-crm-frontend-three.vercel.app/guide',
-    siteName: 'WhatsApp CRM',
+    siteName: 'Signhify CRM',
     type: 'article',
   },
 };
@@ -73,7 +74,7 @@ export default function UserGuidePage() {
             <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 font-bold">
               <Zap className="w-5 h-5" />
             </div>
-            <span className="font-bold text-lg text-white">WhatsApp CRM <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-normal ml-2">Guide</span></span>
+            <span className="font-bold text-lg text-white">Signhify CRM <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-normal ml-2 font-mono">by Piyush Raj Singh</span></span>
           </Link>
           <div className="flex items-center gap-4">
             <Link href="/login" className="text-sm text-zinc-400 hover:text-white transition-colors">Sign In</Link>
