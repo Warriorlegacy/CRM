@@ -368,11 +368,15 @@ export default function SetupPage() {
       <div className="space-y-4">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-sm font-bold">1</div>
-          <h2 className="text-xl font-bold text-white">Connect Your Channels</h2>
+          <div>
+            <h2 className="text-xl font-bold text-white">Connect WhatsApp & Instagram (1-Click Zero Config)</h2>
+            <p className="text-emerald-400/90 text-sm font-medium">✨ No manual webhook or Meta app setup required. Just click connect to authorize.</p>
+          </div>
         </div>
-        <p className="text-zinc-500 text-sm ml-11">
-          Sign in with your WhatsApp Business or Instagram account. One click, no tokens to copy.
-        </p>
+        <div className="ml-11 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 flex items-center gap-3 text-xs text-emerald-300">
+          <Zap className="w-5 h-5 text-emerald-400 shrink-0" />
+          <span><strong>Zero Setup Needed:</strong> Signing in with your Meta account automatically connects your Phone Numbers, Instagram Accounts, and Webhooks in seconds.</span>
+        </div>
 
         <div className="grid grid-cols-2 gap-4 ml-11">
           {/* WhatsApp Card */}

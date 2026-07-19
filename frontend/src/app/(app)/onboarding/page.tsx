@@ -39,8 +39,11 @@ export default function OnboardingPage() {
           <Zap className="h-8 w-8 text-emerald-400" />
         </div>
         <h1 className="text-3xl font-semibold text-white">Welcome to WhatsApp CRM</h1>
-        <p className="mt-2 text-zinc-400">
-          {doneCount}/3 steps done
+        <p className="mt-2 text-emerald-400 text-sm font-medium">
+          ⚡ 1-Click Zero Config Setup — No technical knowledge required
+        </p>
+        <p className="mt-1 text-xs text-zinc-500">
+          {doneCount}/3 channels connected
         </p>
       </div>
 
