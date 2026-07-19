@@ -40,8 +40,8 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<'general' | 'whatsapp' | 'instagram' | 'notifications' | 'autoresponders' | 'businessHours' | 'languages'>('general');
   const [autoresponders, setAutoresponders] = useState<Autoresponder[]>([]);
   const [oauthStatus, setOauthStatus] = useState<{
-    whatsapp: { connected: boolean; phoneNumberId: string | null };
-    instagram: { connected: boolean; igUserId: string | null };
+    whatsapp: { connected: boolean; phoneNumberId: string | null; webhookUrl: string | null; webhookVerifyToken: string | null };
+    instagram: { connected: boolean; igUserId: string | null; webhookUrl: string | null; webhookVerifyToken: string | null };
   } | null>(null);
   const [connectingChannel, setConnectingChannel] = useState<string | null>(null);
   
@@ -164,8 +164,8 @@ export default function SettingsPage() {
   const loadOauthStatus = async () => {
     try {
       const status = await api.get<{
-        whatsapp: { connected: boolean; phoneNumberId: string | null };
-        instagram: { connected: boolean; igUserId: string | null };
+        whatsapp: { connected: boolean; phoneNumberId: string | null; webhookUrl: string | null; webhookVerifyToken: string | null };
+        instagram: { connected: boolean; igUserId: string | null; webhookUrl: string | null; webhookVerifyToken: string | null };
       }>('/oauth/status');
       setOauthStatus(status);
     } catch (error) {
@@ -485,6 +485,30 @@ export default function SettingsPage() {
                 </div>
               )}
 
+              {/* Webhook setup guidance */}
+              {oauthStatus?.whatsapp.connected && (
+                <div className="p-4 bg-zinc-800/30 border border-zinc-700 rounded-xl">
+                  <h3 className="text-sm font-medium text-zinc-300 mb-3">Webhook Configuration</h3>
+                  <p className="text-xs text-zinc-500 mb-3">
+                    Enter these values in your Meta Developer App &rarr; WhatsApp &rarr; Configuration.
+                  </p>
+                  <div className="space-y-2">
+                    <div>
+                      <label className="block text-xs text-zinc-500 mb-1">Callback URL</label>
+                      <code className="block w-full truncate rounded-lg bg-zinc-950 px-3 py-2 text-xs text-emerald-300 select-all">
+                        {oauthStatus?.whatsapp.webhookUrl || `${window.location.origin}/webhook`}
+                      </code>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-zinc-500 mb-1">Verify Token</label>
+                      <code className="block w-full truncate rounded-lg bg-zinc-950 px-3 py-2 text-xs text-emerald-300 select-all">
+                        {oauthStatus?.whatsapp.webhookVerifyToken || '...'}
+                      </code>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Manual credentials (advanced) */}
               <details className="bg-zinc-800/30 rounded-xl">
                 <summary className="px-4 py-3 text-sm text-zinc-400 cursor-pointer hover:text-white transition-colors">
@@ -588,6 +612,30 @@ export default function SettingsPage() {
                         <><Instagram className="w-4 h-4" /> Connect Instagram</>
                       )}
                     </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Webhook setup guidance */}
+              {oauthStatus?.instagram.connected && (
+                <div className="p-4 bg-zinc-800/30 border border-zinc-700 rounded-xl">
+                  <h3 className="text-sm font-medium text-zinc-300 mb-3">Webhook Configuration</h3>
+                  <p className="text-xs text-zinc-500 mb-3">
+                    Enter these values in your Meta Developer App &rarr; Instagram &rarr; Webhooks.
+                  </p>
+                  <div className="space-y-2">
+                    <div>
+                      <label className="block text-xs text-zinc-500 mb-1">Callback URL</label>
+                      <code className="block w-full truncate rounded-lg bg-zinc-950 px-3 py-2 text-xs text-pink-300 select-all">
+                        {oauthStatus?.instagram.webhookUrl || `${window.location.origin}/webhook/instagram`}
+                      </code>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-zinc-500 mb-1">Verify Token</label>
+                      <code className="block w-full truncate rounded-lg bg-zinc-950 px-3 py-2 text-xs text-pink-300 select-all">
+                        {oauthStatus?.instagram.webhookVerifyToken || '...'}
+                      </code>
+                    </div>
                   </div>
                 </div>
               )}

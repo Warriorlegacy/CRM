@@ -48,16 +48,26 @@ contactsRouter.post('/conversations/tags', async (req, res) => {
   const { name, color, description } = parsed.data;
   const safeColor = color || '#6366f1';
 
-  const tag = await (prisma as any).conversationTag.create({
-    data: {
-      workspaceId,
-      name: name.trim(),
-      color: safeColor,
-      description: description?.trim() || null,
-    },
-  });
+  try {
+    const tag = await (prisma as any).conversationTag.create({
+      data: {
+        workspaceId,
+        name: name.trim(),
+        color: safeColor,
+        description: description?.trim() || null,
+      },
+    });
 
-  return res.status(201).json({ tag });
+    return res.status(201).json({ tag });
+  } catch (error: any) {
+    if (error.code === 'P2002') {
+      return res.status(400).json({
+        error: 'Conflict Error',
+        message: 'Tag with this name already exists in the workspace',
+      });
+    }
+    throw error;
+  }
 });
 
 contactsRouter.delete('/conversations/tags/:tagId', async (req, res) => {

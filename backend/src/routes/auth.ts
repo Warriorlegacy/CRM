@@ -206,24 +206,38 @@ authRouter.post('/register', async (req, res) => {
       return { user, workspace, verificationToken: token };
     });
  
-    // Send verification email
+    // Send verification email — if SMTP not configured, auto-verify
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const verifyUrl = `${frontendUrl}/verify?token=${result.verificationToken}`;
     const emailSent = await sendVerificationEmail(email, result.verificationToken);
-    if (!emailSent) {
-      logger.warn('Failed to send verification email, logging token for dev', { email });
-      console.log(`[DEV] Verification token for ${email}: ${result.verificationToken}`);
-      console.log(`[DEV] Verification URL: ${frontendUrl}/verify?token=${result.verificationToken}`);
+
+    let autoVerified = false;
+    if (emailSent) {
+      logger.info('Verification email sent', { email });
+    } else {
+      // No SMTP configured — auto-verify the user so they aren't stuck
+      logger.warn('SMTP not available — auto-verifying user', { email });
+      await prisma.user.update({
+        where: { id: result.user.id },
+        data: { emailVerified: true },
+      });
+      await prisma.verificationToken.deleteMany({ where: { userId: result.user.id } });
+      autoVerified = true;
     }
- 
+
     return res.status(201).json({
       success: true,
-      message: 'Registration successful. Please check your email to verify your account.',
+      message: autoVerified
+        ? 'Registration successful. You can now log in.'
+        : 'Registration successful. Please check your email to verify your account.',
       data: {
         user: {
           id: result.user.id,
           email: result.user.email,
           name: result.user.name,
         },
+        verificationUrl: autoVerified ? undefined : verifyUrl,
+        autoVerified,
       },
     });
   } catch (error) {

@@ -10,6 +10,8 @@ export default function RegisterPage() {
   const router = useRouter();
   const { register, isLoading } = useAuth();
   const [success, setSuccess] = useState('');
+  const [verificationUrl, setVerificationUrl] = useState('');
+  const [autoVerified, setAutoVerified] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -35,14 +37,18 @@ export default function RegisterPage() {
     }
 
     try {
-      const message = await register(
+      const result = await register(
         formData.email,
         formData.password,
         formData.name,
         formData.workspaceName || undefined
       );
-      setSuccess(message);
-      setTimeout(() => router.push('/login?registered=1'), 1200);
+      setSuccess(result.message);
+      setAutoVerified(result.autoVerified || false);
+      setVerificationUrl(result.verificationUrl || '');
+      if (result.autoVerified) {
+        setTimeout(() => router.push('/login?registered=1'), 1200);
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Registration failed. Please try again.';
       setError(message);
@@ -123,7 +129,13 @@ export default function RegisterPage() {
               )}
               {success && (
                 <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
-                  {success}
+                  <p>{success}</p>
+                  {verificationUrl && (
+                    <p className="mt-2 break-all">
+                      Verify link:{' '}
+                      <a href={verificationUrl} className="underline">{verificationUrl}</a>
+                    </p>
+                  )}
                 </div>
               )}
 

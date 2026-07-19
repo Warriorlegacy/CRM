@@ -1,19 +1,17 @@
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import mongoSanitize from 'express-mongo-sanitize';
-import hpp from 'hpp';
 import cors from 'cors';
 import { Express, Request, Response } from 'express';
+import { env } from '../env';
 import { logger } from './logger';
 
 export function setupSecurity(app: Express) {
-  // Trust proxy (needed for rate limiting behind reverse proxy)
   app.set('trust proxy', 1);
 
-  // CORS configuration
-  const origin = process.env.CORS_ORIGIN === '*'
+  const rawOrigin = env.CORS_ORIGIN || 'http://localhost:3000';
+  const origin = rawOrigin === '*'
     ? '*'
-    : process.env.CORS_ORIGIN?.split(',').map(o => o.trim()) || ['http://localhost:3000'];
+    : rawOrigin.split(',').map(o => o.trim());
 
   logger.info('CORS Configured with origin:', { origin });
 
@@ -33,7 +31,13 @@ export function setupSecurity(app: Express) {
   };
   app.use(cors(corsOptions));
 
-  // Helmet for security headers
+  const cspConnectSrc = ["'self'"];
+  if (rawOrigin !== '*') {
+    rawOrigin.split(',').forEach(o => {
+      const v = o.trim();
+      if (v) cspConnectSrc.push(v);
+    });
+  }
   app.use(helmet({
     contentSecurityPolicy: {
       directives: {
@@ -41,16 +45,15 @@ export function setupSecurity(app: Express) {
         styleSrc: ["'self'", "'unsafe-inline'"],
         scriptSrc: ["'self'"],
         imgSrc: ["'self'", "data:", "https:"],
-        connectSrc: ["'self'", process.env.CORS_ORIGIN || "http://localhost:3000"],
+        connectSrc: cspConnectSrc,
       },
     },
     crossOriginEmbedderPolicy: false,
   }));
 
-  // Rate limiting
   const limiter = rateLimit({
-    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'), // 15 minutes
-    max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'), // limit each IP to 100 requests per windowMs
+    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'),
+    max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'),
     message: 'Too many requests from this IP, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
@@ -64,38 +67,20 @@ export function setupSecurity(app: Express) {
   });
   app.use('/api/', limiter);
 
-  // Stricter rate limiting for auth endpoints
   const authLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: process.env.NODE_ENV === 'test' ? 1000 : 5, // 5 attempts in production, more in test
+    windowMs: 15 * 60 * 1000,
+    max: process.env.NODE_ENV === 'test' ? 1000 : 5,
     message: 'Too many authentication attempts, please try again later.',
     skipSuccessfulRequests: true,
   });
   app.use('/api/v1/auth', authLimiter);
 
-  // Data sanitization against NoSQL query injection
-  app.use(mongoSanitize());
-
-  // Prevent parameter pollution
-  app.use(hpp());
-
-  // Security headers middleware
   app.use((req: Request, res: Response, next) => {
-    // Prevent clickjacking
     res.setHeader('X-Frame-Options', 'DENY');
-
-    // Prevent MIME type sniffing
     res.setHeader('X-Content-Type-Options', 'nosniff');
-
-    // XSS Protection
     res.setHeader('X-XSS-Protection', '1; mode=block');
-
-    // Referrer Policy
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-
-    // Permissions Policy
     res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
-
     next();
   });
 }

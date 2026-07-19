@@ -191,7 +191,32 @@ function verifyStateToken(token: string): { workspaceId: string; userId: string;
 // WHATSAPP OAUTH
 // ══════════════════════════════════════════════════════════════════════════
 
-oauthRouter.get('/whatsapp', requireAuth, (req: Request, res: Response) => {
+oauthRouter.get('/whatsapp', async (req: Request, res: Response) => {
+  const token =
+    (req as any).cookies?.oauth_context ||
+    (req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.substring(7) : null) ||
+    (typeof req.query.token === 'string' ? req.query.token : null);
+
+  if (!token) {
+    return res.redirect(`${env.FRONTEND_URL}/login?returnTo=/setup`);
+  }
+
+  let payload: { userId: string; workspaceId: string } | null = null;
+  try { payload = jwt.verify(token, env.JWT_SECRET) as any; } catch {}
+  if (!payload) {
+    return res.redirect(`${env.FRONTEND_URL}/login?returnTo=/setup`);
+  }
+
+  const member = await prisma.workspaceMember.findFirst({
+    where: { userId: payload.userId, workspaceId: payload.workspaceId },
+  });
+  if (!member) {
+    return res.redirect(`${env.FRONTEND_URL}/login?returnTo=/setup`);
+  }
+
+  (req as any).workspaceId = payload.workspaceId;
+  (req as any).userId = payload.userId;
+  (req as any).token = token;
   const workspaceId = (req as any).workspaceId as string;
   const userId = (req as any).userId as string;
   const redirectUri = getOAuthRedirectUri(req, 'whatsapp');
@@ -294,7 +319,32 @@ oauthRouter.get('/whatsapp/callback', async (req: Request, res: Response) => {
 // INSTAGRAM OAUTH
 // ══════════════════════════════════════════════════════════════════════════
 
-oauthRouter.get('/instagram', requireAuth, (req: Request, res: Response) => {
+oauthRouter.get('/instagram', async (req: Request, res: Response) => {
+  const token =
+    (req as any).cookies?.oauth_context ||
+    (req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.substring(7) : null) ||
+    (typeof req.query.token === 'string' ? req.query.token : null);
+
+  if (!token) {
+    return res.redirect(`${env.FRONTEND_URL}/login?returnTo=/setup`);
+  }
+
+  let payload: { userId: string; workspaceId: string } | null = null;
+  try { payload = jwt.verify(token, env.JWT_SECRET) as any; } catch {}
+  if (!payload) {
+    return res.redirect(`${env.FRONTEND_URL}/login?returnTo=/setup`);
+  }
+
+  const member = await prisma.workspaceMember.findFirst({
+    where: { userId: payload.userId, workspaceId: payload.workspaceId },
+  });
+  if (!member) {
+    return res.redirect(`${env.FRONTEND_URL}/login?returnTo=/setup`);
+  }
+
+  (req as any).workspaceId = payload.workspaceId;
+  (req as any).userId = payload.userId;
+  (req as any).token = token;
   const workspaceId = (req as any).workspaceId as string;
   const userId = (req as any).userId as string;
   const redirectUri = getOAuthRedirectUri(req, 'instagram');
@@ -438,24 +488,32 @@ oauthRouter.get('/status', requireAuth, async (req: Request, res: Response) => {
   const [wa, ig] = await Promise.all([
     prisma.waAccount.findUnique({
       where: { workspaceId },
-      select: { phoneNumberId: true, businessAccountId: true, createdAt: true },
+      select: { phoneNumberId: true, businessAccountId: true, webhookVerifyToken: true, createdAt: true },
     }),
     prisma.igAccount.findUnique({
       where: { workspaceId },
-      select: { igUserId: true, createdAt: true },
+      select: { igUserId: true, webhookVerifyToken: true, createdAt: true },
     }),
   ]);
+
+  const host = req.get('host') || '';
+  const protocol = req.protocol || 'https';
+  const backendUrl = process.env.BACKEND_URL || `${protocol}://${host}`;
 
   return res.json({
     whatsapp: {
       connected: !!wa,
       phoneNumberId: wa?.phoneNumberId || null,
       businessAccountId: wa?.businessAccountId || null,
+      webhookUrl: wa ? `${backendUrl}/webhook` : null,
+      webhookVerifyToken: wa?.webhookVerifyToken || null,
       connectedAt: wa?.createdAt || null,
     },
     instagram: {
       connected: !!ig,
       igUserId: ig?.igUserId || null,
+      webhookUrl: ig ? `${backendUrl}/webhook/instagram` : null,
+      webhookVerifyToken: ig?.webhookVerifyToken || null,
       connectedAt: ig?.createdAt || null,
     },
   });

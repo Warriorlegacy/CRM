@@ -170,7 +170,11 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 const server = http.createServer(app);
-initWebSocketServer(server);
+try {
+  initWebSocketServer(server);
+} catch (e) {
+  logger.warn('WebSocket init skipped (serverless env)', e);
+}
 
 const isVercelRuntime = Boolean(process.env.VERCEL);
 
@@ -195,3 +199,4 @@ if (process.env.NODE_ENV !== 'test' && !isVercelRuntime) {
 }
 
 export default app;
+module.exports = app;

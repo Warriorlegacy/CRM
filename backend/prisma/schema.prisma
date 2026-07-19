@@ -3,9 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -136,7 +135,7 @@ model Conversation {
   lockedAt           DateTime?
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
-  tags               String[]           @default([])
+  tags               String           @default("[]")
   lastKnownLanguage  String?            @default("en")
   workspace           Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   contact            Contact           @relation(fields: [contactId], references: [id], onDelete: Cascade)
@@ -269,12 +268,12 @@ model ConversationNote {
   userId         String
   content        String
   priority       String   @default("normal")
-  mentions       String[] @default([])
+  mentions       String @default("[]")
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   conversation   Conversation @relation("ConversationNotes", fields: [conversationId], references: [id], onDelete: Cascade)
-  user           User         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user           User         @relation(fields: [userId], references: [id])
 
   @@index([workspaceId, conversationId, createdAt])
 }

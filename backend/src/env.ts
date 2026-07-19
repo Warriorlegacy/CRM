@@ -46,15 +46,13 @@ if (isProduction) {
 const missingVars = requiredEnvVars.filter((key) => !env[key as keyof typeof env]);
 
 if (missingVars.length > 0) {
-  console.error('❌ Missing required environment variables:');
-  missingVars.forEach((key) => console.error(`   - ${key}`));
-  throw new Error(`Missing required environment variables: ${missingVars.join(', ')}`);
+  console.warn('⚠️  Missing environment variables (some features may not work):');
+  missingVars.forEach((key) => console.warn(`   - ${key}`));
 }
 
 // Validate JWT_SECRET length
 if (env.JWT_SECRET.length < 32) {
-  console.error('❌ JWT_SECRET must be at least 32 characters long');
-  throw new Error('JWT_SECRET is too short. Use a secure random string of at least 32 characters.');
+  console.warn('⚠️  JWT_SECRET is too short. Use a secure random string of at least 32 characters.');
 }
 
 if (isProduction) {

@@ -67,6 +67,8 @@ export default function DashboardPage() {
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<'24h' | '7d' | '30d' | '90d'>('7d');
+  const [setup, setSetup] = useState<{ wa: boolean; ig: boolean } | null>(null);
+  const [dismissed, setDismissed] = useState(false);
 
   const headers = {
     'x-user-id': USER_ID,
@@ -76,6 +78,9 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!USER_ID || !WORKSPACE_ID || authLoading) return;
     loadAnalytics();
+    api.get<{ whatsapp: { connected: boolean }; instagram: { connected: boolean } }>('/oauth/status')
+      .then(d => setSetup({ wa: d.whatsapp.connected, ig: d.instagram.connected }))
+      .catch(() => {});
   }, [USER_ID, WORKSPACE_ID, authLoading, period]);
 
   const loadAnalytics = async () => {
@@ -113,8 +118,23 @@ export default function DashboardPage() {
 
   const maxDailyMsg = Math.max(...(analytics?.dailyMessagesByChannel || []).map(d => d.whatsapp + d.instagram), 1);
 
+  const missingSteps: string[] = [];
+  if (setup && !setup.wa) missingSteps.push('Connect WhatsApp');
+  if (setup && !setup.ig) missingSteps.push('Connect Instagram');
+
   return (
     <div className="space-y-6">
+      {setup && missingSteps.length > 0 && !dismissed && (
+        <div className="flex items-center justify-between rounded-2xl border border-amber-500/20 bg-amber-500/5 px-5 py-3">
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-amber-200">
+              Setup incomplete:{' '}
+              <a href="/setup" className="underline font-medium">{missingSteps.join(', ')}</a>
+            </span>
+          </div>
+          <button onClick={() => setDismissed(true)} className="text-xs text-zinc-500 hover:text-white">Dismiss</button>
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

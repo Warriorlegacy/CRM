@@ -1,0 +1,6 @@
+{
+  "buildCommand": "node scripts/prepare-prisma-schema.js && npx prisma generate && npx prisma migrate deploy && npm run build",
+  "installCommand": "npm install --include=dev",
+  "framework": null,
+  "outputDirectory": "dist"
+}

@@ -22,7 +22,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string, workspaceName?: string) => Promise<string>;
+  register: (email: string, password: string, name: string, workspaceName?: string) => Promise<{ message: string; verificationUrl?: string; autoVerified?: boolean }>;
   logout: () => void;
   refreshToken: () => Promise<void>;
 }
@@ -215,7 +215,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
 
           const data = await response.json();
-          return data.message || data.data?.message || 'Registration successful. Please verify your email before signing in.';
+          return {
+            message: data.message || 'Registration successful',
+            verificationUrl: data.data?.verificationUrl,
+            autoVerified: data.data?.autoVerified,
+          };
         } finally {
           setIsLoading(false);
         }
