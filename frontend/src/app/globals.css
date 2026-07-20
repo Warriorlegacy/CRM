@@ -407,6 +407,22 @@ a:active {
 .stage-glow-won { box-shadow: 0 0 20px rgba(34, 197, 94, 0.2); }
 .stage-glow-lost { box-shadow: 0 0 20px rgba(239, 68, 68, 0.15); }
 
+/* ─── Dropdown animation ─── */
+@keyframes dropdownIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.dropdown-in {
+  animation: dropdownIn 0.15s ease-out;
+}
+
 /* ─── Loading Spinner ─── */
 .spinner-premium {
   width: 24px;
