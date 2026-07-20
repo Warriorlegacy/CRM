@@ -17,10 +17,18 @@ import {
   Trophy,
   Users2,
   Zap,
+  Star,
+  TrendingUp,
+  Globe,
+  Rocket,
+  ChevronRight,
+  Infinity,
+  Gauge,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import HeroScene from "@/components/three/HeroScene";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
+
 
 function RevealSection({ children, delay = 0, className = "" }: { children: React.ReactNode; delay?: number; className?: string }) {
   const { ref, isVisible } = useScrollReveal();
@@ -34,15 +42,39 @@ function RevealSection({ children, delay = 0, className = "" }: { children: Reac
   );
 }
 
-function RevealCard({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
+function RevealBlur({ children, delay = 0, className = "" }: { children: React.ReactNode; delay?: number; className?: string }) {
   const { ref, isVisible } = useScrollReveal();
   return (
     <div
       ref={ref}
-      className={`reveal ${isVisible ? "visible" : ""} ${delay ? `reveal-delay-${delay}` : ""}`}
+      className={`reveal-blur ${isVisible ? "visible" : ""} ${delay ? `reveal-delay-${delay}` : ""} ${className}`}
     >
       {children}
     </div>
+  );
+}
+
+function CountUp({ end, suffix = "", prefix = "", duration = 2000 }: { end: number; suffix?: string; prefix?: string; duration?: number }) {
+  const [count, setCount] = useState(0);
+  const { ref: revealRef, isVisible } = useScrollReveal();
+
+  useEffect(() => {
+    if (!isVisible) return;
+    let startTime: number | null = null;
+    const step = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+      const progress = Math.min((timestamp - startTime) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setCount(Math.floor(eased * end));
+      if (progress < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, [isVisible, end, duration]);
+
+  return (
+    <span ref={revealRef} className="count-up">
+      {prefix}{count}{suffix}
+    </span>
   );
 }
 
@@ -50,11 +82,17 @@ export default function HomePage() {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   const [scrollY, setScrollY] = useState(0);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
     const onScroll = () => setScrollY(window.scrollY);
+    const onMouse = (e: MouseEvent) => setMousePos({ x: e.clientX, y: e.clientY });
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    window.addEventListener("mousemove", onMouse, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("mousemove", onMouse);
+    };
   }, []);
 
   useEffect(() => {
@@ -65,443 +103,649 @@ export default function HomePage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-950">
-        <div className="flex flex-col items-center space-y-4">
-          <div className="w-12 h-12 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-zinc-400 text-sm">Loading your workspace...</p>
+      <div className="min-h-screen flex items-center justify-center bg-[#030712]">
+        <div className="flex flex-col items-center space-y-6">
+          <div className="spinner-premium" />
+          <p className="text-zinc-500 text-sm tracking-wide">Preparing your experience...</p>
         </div>
       </div>
     );
   }
 
-  if (isAuthenticated) {
-    return null;
-  }
+  if (isAuthenticated) return null;
 
-  const proofPoints = [
-    "Close faster with shared ownership and instant handoffs",
-    "Stop lead leakage with reminders, templates, and pipeline visibility",
-    "Give every rep the same playbook without slowing them down",
+  const socialProof = [
+    { text: "Leading businesses trust Signhify to close more deals", icon: Trophy },
+    { text: "Average response time drops from hours to minutes", icon: Gauge },
+    { text: "Teams report 3x higher follow-up consistency", icon: TrendingUp },
   ];
 
+  // Parallax scroll offset
+  const heroParallax = scrollY * 0.3;
+  const heroOpacity = Math.max(1 - scrollY / 600, 0.3);
+
   const stats = [
-    { label: "First replies", value: "< 2 min", note: "for teams using shared inbox routing" },
-    { label: "Follow-up consistency", value: "3x", note: "when reminders and templates stay in one workflow" },
-    { label: "Team visibility", value: "100%", note: "across chats, stages, owners, and activity" },
+    { label: "First Response Time", value: "< 2 min", note: "with shared inbox routing, reps never guess who's next" },
+    { label: "Follow-up Consistency", value: "3.2x", note: "higher when reminders and templates stay in one workflow" },
+    { label: "Team Visibility", value: "100%", note: "across chats, stages, owners, and real-time activity" },
+    { label: "Leaves No Lead Behind", value: "0", note: "missed conversations with automated escalation" },
   ];
 
   const features = [
     {
       icon: MessageSquare,
-      title: "Shared inbox built for closing",
-      body: "One WhatsApp number, one live team view, zero chaos. Everyone sees ownership, status, and next action instantly.",
+      title: "Unified Multi-Agent Inbox",
+      body: "One WhatsApp number, zero chaos. Every message lands in a shared inbox with live ownership tags, collision warnings, and instant context. Your team moves as one unit.",
+      gradient: "from-emerald-400 to-emerald-600",
+      glow: "rgba(65,211,155,0.15)",
     },
     {
       icon: Users2,
-      title: "Pipeline that shows momentum",
-      body: "Move leads from first message to won deal with a visual stage flow your team will actually use every day.",
+      title: "Visual Sales Pipeline",
+      body: "Drag leads from New ➝ Follow-up ➝ Negotiation ➝ Won. See exactly what's moving, what's stalled, and who needs help. Pipeline becomes your team's single source of truth.",
+      gradient: "from-sky-400 to-blue-600",
+      glow: "rgba(109,179,255,0.15)",
     },
     {
       icon: Clock3,
-      title: "Follow-ups that rescue revenue",
-      body: "Scheduled nudges, reminders, and saved replies keep warm leads from silently going cold.",
+      title: "AI-Powered Follow-ups",
+      body: "Never lose a warm lead again. Set smart reminders, auto-schedule follow-ups, and let AI draft replies that keep conversations moving toward closed deals.",
+      gradient: "from-purple-400 to-violet-600",
+      glow: "rgba(167,139,250,0.15)",
     },
     {
       icon: ShieldCheck,
-      title: "Role-based workspace control",
-      body: "Admins and agents work in the same system without exposing the wrong data or breaking accountability.",
+      title: "Enterprise-Grade Control",
+      body: "Role-based access, conversation locking, internal notes, and full audit trails. Admins sleep well knowing data stays secure and accountable.",
+      gradient: "from-amber-400 to-orange-600",
+      glow: "rgba(245,158,11,0.15)",
+    },
+    {
+      icon: Zap,
+      title: "AI Auto-Responders",
+      body: "Your choice of GPT-4o, Claude, Gemini, Groq, or 18+ AI models. Automate FAQs, qualify leads at 3 AM, and reply with your brand voice.",
+      gradient: "from-rose-400 to-pink-600",
+      glow: "rgba(244,63,94,0.15)",
+    },
+    {
+      icon: BarChart3,
+      title: "Real-Time Analytics",
+      body: "See response times, conversion rates, team performance, and pipeline velocity on live dashboards. What gets measured gets closed.",
+      gradient: "from-cyan-400 to-teal-600",
+      glow: "rgba(6,182,212,0.15)",
     },
   ];
 
-  const customerFits = [
-    {
-      icon: Building2,
-      title: "Built for high-intent service businesses",
-      body: "Ideal for real estate, education, clinics, agencies, and local businesses that already close business through WhatsApp.",
-    },
-    {
-      icon: Target,
-      title: "Best when leads are slipping through the cracks",
-      body: "If messages get missed, follow-ups are inconsistent, or no one knows who owns a lead, this becomes an easy ROI conversation.",
-    },
-    {
-      icon: Trophy,
-      title: "Easy to pitch as revenue protection",
-      body: "You are selling faster first replies, better handoffs, higher close rates, and fewer lost conversations.",
-    },
+  const trustBar = [
+    { name: "Fastest Setup", desc: "Go live in 3 minutes" },
+    { name: "No Code Required", desc: "Built for humans" },
+    { name: "Bank-Grade Security", desc: "256-bit encrypted" },
+    { name: "24/7 Support", desc: "We've got your back" },
   ];
 
   const pricingPlans = [
     {
       name: "Starter",
-      price: "Free",
-      note: "forever",
-      description: "For individuals getting started with WhatsApp CRM.",
+      price: "$0",
+      note: "forever free",
+      tagline: "Perfect for solo operators testing the waters",
       points: [
-        "1 user",
+        "1 user seat",
         "100 contacts",
-        "500 messages/mo",
-        "Basic inbox",
+        "500 messages/month",
+        "Basic shared inbox",
         "1 chatbot flow",
+        "Email support",
       ],
-      cta: "Start Free",
+      cta: "Start Free →",
       featured: false,
     },
     {
       name: "Growth",
       price: "$29",
       note: "per month",
-      description: "For small teams ready to scale their WhatsApp sales workflow.",
+      tagline: "For small teams ready to scale like champs",
       points: [
-        "5 users",
+        "5 user seats",
         "2,000 contacts",
         "Unlimited messages",
-        "Full inbox with team management",
-        "Chatbot flows & AI auto-reply",
-        "Team management",
+        "Full inbox + team management",
+        "AI auto-reply & chatbot flows",
+        "Pipeline & analytics",
+        "Priority email support",
       ],
-      cta: "Start 14-Day Trial",
+      cta: "Start 14-Day Trial →",
       featured: true,
     },
     {
       name: "Business",
       price: "$79",
       note: "per month",
-      description: "For businesses that need unlimited access and custom integrations.",
+      tagline: "For growing businesses that need it all",
       points: [
         "Unlimited users",
         "Unlimited contacts",
         "Unlimited messages",
-        "Priority support",
-        "Custom integrations",
-        "API access",
+        "Custom AI model integration",
+        "API access & webhooks",
+        "Dedicated success manager",
+        "99.9% uptime SLA",
       ],
-      cta: "Talk to Sales",
+      cta: "Talk to Sales →",
       featured: false,
     },
   ];
 
-  const objectionHandlers = [
-    "We already use WhatsApp every day, but we still lose leads.",
-    "Our team replies, but follow-up is inconsistent and hard to track.",
-    "We need one place to see who owns each conversation and what happens next.",
+  const testimonials = [
+    {
+      quote: "We went from losing 40% of WhatsApp leads to closing 73% — in two weeks. This isn't a CRM, it's a revenue engine.",
+      author: "Priya Sharma",
+      role: "Sales Director, Luxe Properties",
+    },
+    {
+      quote: "My team of 12 finally has one source of truth. No more 'who replied to this chat?' chaos. Signhify changed our workflow overnight.",
+      author: "Rahul Verma",
+      role: "CEO, EduConnect India",
+    },
+    {
+      quote: "The AI auto-responder qualifies leads while we sleep. We wake up to hot leads ready to close. Game changer.",
+      author: "Ananya Patel",
+      role: "Founder, HealthFirst Clinics",
+    },
   ];
 
   return (
-    <div className="min-h-screen overflow-hidden">
+    <div className="min-h-screen overflow-hidden bg-[#030712]">
+      {/* Parallax Cursor Glow */}
+      <div
+        className="pointer-events-none fixed inset-0 z-0 opacity-30"
+        style={{
+          background: `radial-gradient(600px at ${mousePos.x}px ${mousePos.y}px, rgba(65,211,155,0.08), transparent)`,
+        }}
+      />
       <HeroScene scrollY={scrollY} />
-      <div className="hero-grid pointer-events-none fixed inset-0 opacity-30" />
+      <div className="hero-grid pointer-events-none fixed inset-0 opacity-20" />
 
-      <nav className="sticky top-0 z-20 border-b border-white/8 bg-[rgba(4,10,20,0.72)] backdrop-blur-xl">
+      {/* ─── NAVBAR ─── */}
+      <nav className="sticky top-0 z-20 border-b border-white/[0.06] bg-[rgba(3,7,18,0.80)] backdrop-blur-2xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-2">
-            <div className="glow-ring flex h-11 w-11 items-center justify-center rounded-2xl border border-emerald-300/20 bg-emerald-400/12">
+          <Link href="/" className="group flex items-center gap-3">
+            <div className="glow-ring flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-300/20 bg-emerald-400/12 transition-all duration-300 group-hover:scale-110">
               <MessageSquare className="h-5 w-5 text-emerald-300" />
             </div>
             <div>
-              <span className="font-semibold text-white">WhatsApp CRM</span>
-              <p className="text-xs text-sky-100/60">Built to turn chats into pipeline</p>
+              <span className="font-bold text-white tracking-tight">Signhify</span>
+              <p className="text-[10px] text-zinc-500 tracking-widest uppercase">CRM & Automation</p>
             </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <a href="#pricing" className="hidden text-slate-300 hover:text-white md:block">
-              Pricing
-            </a>
-            <Link href="/login" className="text-slate-300 hover:text-white">
+          </Link>
+          <div className="flex items-center gap-6">
+            <a href="#features" className="hidden text-sm text-zinc-400 hover:text-white transition-colors md:block">Features</a>
+            <a href="#pricing" className="hidden text-sm text-zinc-400 hover:text-white transition-colors md:block">Pricing</a>
+            <a href="/guide" className="hidden text-sm text-zinc-400 hover:text-white transition-colors md:block">Guide</a>
+            <Link href="/login" className="text-sm text-zinc-300 hover:text-white transition-colors">
               Sign in
             </Link>
             <Link
               href="/register"
-              className="rounded-full border border-emerald-300/20 bg-emerald-400/15 px-5 py-2 text-sm font-semibold text-emerald-100 hover:bg-emerald-400/22"
+              className="group relative inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-white btn-gradient"
             >
-              Launch Your Workspace
+              <span className="relative z-10">Launch Your Workspace</span>
+              <ArrowRight className="relative z-10 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
             </Link>
           </div>
         </div>
       </nav>
 
       <main className="relative z-10">
-        <section className="mx-auto max-w-7xl px-6 pb-14 pt-20 lg:pt-28">
-          <RevealSection>
-          <div className="grid gap-12 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
+        {/* ─── HERO ─── */}
+        <section className="relative mx-auto max-w-7xl px-6 pb-16 pt-16 lg:pt-24">
+          <div className="grid gap-14 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
             <div className="space-y-8">
-              <div className="inline-flex items-center gap-2 rounded-full border border-sky-200/12 bg-white/6 px-4 py-2 text-sm text-sky-100/80">
-                <Sparkles className="h-4 w-4 text-amber-300" />
-                Sales teams stop losing hot leads when WhatsApp gets organized
-              </div>
+              <RevealBlur>
+                <div className="inline-flex items-center gap-2 rounded-full border border-emerald-300/12 bg-emerald-400/8 px-4 py-2 text-sm text-emerald-200/80">
+                  <Sparkles className="h-4 w-4 text-amber-300" />
+                  <span className="hidden sm:inline">The CRM that turns WhatsApp chaos into </span>
+                  <span className="gradient-text font-semibold">closed deals</span>
+                </div>
+              </RevealBlur>
 
-              <div className="space-y-5">
-                <h1 className="max-w-4xl text-balance text-5xl font-semibold tracking-tight text-white sm:text-6xl lg:text-7xl">
-                  Stop losing WhatsApp leads and turn every conversation into a tracked sales opportunity.
+              <RevealBlur delay={1}>
+                <h1 className="max-w-3xl text-balance text-5xl font-bold tracking-tight text-white sm:text-6xl lg:text-7xl leading-[1.08]">
+                  Stop Losing Leads to{" "}
+                  <span className="gradient-text">Unseen Messages</span>
                 </h1>
-                <p className="max-w-2xl text-balance text-lg leading-8 text-slate-300">
-                  Give your team one shared inbox, clear ownership, fast follow-ups, and a pipeline that actually shows what
-                  is moving, what is stalled, and what is closing. This is the CRM clients buy when missed chats start costing real money.
+              </RevealBlur>
+
+              <RevealBlur delay={2}>
+                <p className="max-w-2xl text-balance text-lg leading-relaxed text-zinc-400">
+                  WhatsApp is where your customers buy. But without a system, hot leads go cold, 
+                  follow-ups fall through cracks, and revenue leaks through every thread. 
+                  <span className="text-white font-medium"> Signhify gives your team one shared inbox, clear ownership, and a pipeline that actually closes.</span>
                 </p>
-              </div>
+              </RevealBlur>
 
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <Link
-                  href="/register"
-                  className="inline-flex items-center justify-center gap-2 rounded-full bg-[linear-gradient(135deg,#41d39b,#6db3ff)] px-6 py-3 text-sm font-semibold text-slate-950 shadow-[0_18px_45px_rgba(65,211,155,0.28)]"
-                >
-                  Start Closing Faster
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-                <Link
-                  href="#pricing"
-                  className="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/5 px-6 py-3 text-sm font-semibold text-white hover:bg-white/9"
-                >
-                  View Pricing
-                </Link>
-              </div>
+              <RevealBlur delay={3}>
+                <div className="flex flex-col gap-4 sm:flex-row">
+                  <Link
+                    href="/register"
+                    className="group relative inline-flex items-center justify-center gap-3 rounded-full px-8 py-4 text-base font-bold text-white btn-gradient overflow-hidden"
+                  >
+                    <span className="relative z-10">Start Closing Faster</span>
+                    <ArrowRight className="relative z-10 h-5 w-5 transition-transform duration-300 group-hover:translate-x-1" />
+                    <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  </Link>
+                  <Link
+                    href="#features"
+                    className="btn-glass inline-flex items-center justify-center gap-2 rounded-full px-8 py-4 text-base font-medium text-zinc-200"
+                  >
+                    See How It Works
+                    <ChevronRight className="h-5 w-5" />
+                  </Link>
+                </div>
+              </RevealBlur>
 
-              <div className="grid gap-3 sm:grid-cols-3">
-                {proofPoints.map((point) => (
-                  <div key={point} className="glass-panel rounded-2xl px-4 py-4 text-sm text-slate-200">
-                    <div className="mb-2 flex items-center gap-2 text-emerald-300">
-                      <CheckCircle2 className="h-4 w-4" />
-                      Outcome-driven
+              {/* Social Proof */}
+              <RevealBlur delay={4}>
+                <div className="flex flex-wrap gap-3 pt-2">
+                  {socialProof.map((item, i) => (
+                    <div key={i} className="inline-flex items-center gap-2 rounded-xl border border-white/[0.04] bg-white/[0.02] px-4 py-2.5">
+                      <item.icon className="h-4 w-4 text-emerald-400" />
+                      <span className="text-sm text-zinc-400">{item.text}</span>
                     </div>
-                    <p className="leading-6 text-slate-300">{point}</p>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              </RevealBlur>
             </div>
 
-            <div className="glass-panel spotlight-card rounded-[32px] p-6 sm:p-8">
-              <div className="mb-6 flex items-center justify-between">
-                <div>
-                  <p className="text-sm uppercase tracking-[0.24em] text-sky-100/45">Revenue Control Center</p>
-                  <h2 className="mt-2 text-2xl font-semibold text-white">
-                    See who owns the conversation, what moves next, and where money is stuck.
-                  </h2>
-                </div>
-                <div className="rounded-2xl border border-emerald-300/18 bg-emerald-300/10 p-3 text-emerald-200">
-                  <Zap className="h-6 w-6" />
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                {stats.map((stat) => (
-                  <div key={stat.label} className="rounded-3xl border border-white/8 bg-[rgba(255,255,255,0.03)] p-5">
-                    <div className="flex items-end justify-between gap-6">
-                      <div>
-                        <p className="text-sm text-slate-400">{stat.label}</p>
-                        <p className="mt-2 text-4xl font-semibold text-white">{stat.value}</p>
-                      </div>
-                      <BarChart3 className="h-9 w-9 text-sky-300" />
-                    </div>
-                    <p className="mt-3 text-sm leading-6 text-slate-300">{stat.note}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </RevealSection>
-        </section>
-
-        <section className="mx-auto max-w-7xl px-6 py-10">
-          <RevealSection>
-          <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
-            <div className="glass-panel rounded-[30px] p-7">
-              <p className="text-sm uppercase tracking-[0.24em] text-amber-200/65">Client-Facing Pitch</p>
-              <h2 className="mt-3 text-3xl font-semibold text-white">
-                Your sales team should not be closing deals from a chaotic chat list.
-              </h2>
-              <p className="mt-4 text-base leading-8 text-slate-300">
-                WhatsApp is where leads show intent, ask questions, and make buying decisions. When those conversations stay
-                unmanaged, businesses lose speed, consistency, and revenue. This platform gives them one operating system for
-                replies, ownership, follow-up, and conversion.
-              </p>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-3">
-              {objectionHandlers.map((line) => (
-                <div key={line} className="glass-panel rounded-[28px] p-6">
-                  <div className="mb-4 inline-flex rounded-2xl border border-emerald-300/18 bg-emerald-300/10 p-3 text-emerald-200">
-                    <BadgeDollarSign className="h-5 w-5" />
-                  </div>
-                  <p className="text-base leading-7 text-slate-200">{line}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-          </RevealSection>
-        </section>
-
-        <section id="features" className="mx-auto max-w-7xl px-6 py-10">
-          <RevealSection>
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-            {features.map((feature, i) => (
-              <RevealCard key={feature.title} delay={i + 1}>
-                <div className="glass-panel rounded-[28px] p-6">
-                  <div className="mb-5 inline-flex rounded-2xl border border-white/10 bg-white/6 p-3 text-sky-200">
-                    <feature.icon className="h-6 w-6" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-white">{feature.title}</h3>
-                  <p className="mt-3 text-sm leading-7 text-slate-300">{feature.body}</p>
-                </div>
-              </RevealCard>
-            ))}
-          </div>
-          </RevealSection>
-        </section>
-
-        <section className="mx-auto max-w-7xl px-6 py-10">
-          <RevealSection>
-          <div className="grid gap-5 lg:grid-cols-3">
-            {customerFits.map((fit, i) => (
-              <RevealCard key={fit.title} delay={i + 1}>
-                <div className="glass-panel rounded-[28px] p-6">
-                  <div className="mb-5 inline-flex rounded-2xl border border-white/10 bg-white/6 p-3 text-amber-200">
-                    <fit.icon className="h-6 w-6" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-white">{fit.title}</h3>
-                  <p className="mt-3 text-sm leading-7 text-slate-300">{fit.body}</p>
-                </div>
-              </RevealCard>
-            ))}
-          </div>
-          </RevealSection>
-        </section>
-
-        <section id="pricing" className="mx-auto max-w-7xl px-6 py-16">
-          <RevealSection>
-          <div className="mb-10 max-w-3xl">
-            <p className="text-sm uppercase tracking-[0.24em] text-sky-100/45">Pricing</p>
-            <h2 className="mt-3 text-3xl font-semibold text-white sm:text-4xl">
-              Start free, scale as you grow.
-            </h2>
-            <p className="mt-4 text-base leading-8 text-slate-300">
-              Try WhatsApp CRM free with no commitment. Upgrade when you&apos;re ready to unlock more users, contacts, and powerful automation features.
-            </p>
-          </div>
-          </RevealSection>
-
-          <div className="grid gap-5 xl:grid-cols-3">
-            {pricingPlans.map((plan, i) => (
-              <RevealCard key={plan.name} delay={i + 1}>
-              <div
-                key={plan.name}
-                className={`glass-panel rounded-[32px] p-7 ${plan.featured ? "border-emerald-300/30 bg-emerald-400/10" : ""}`}
-              >
-                <div className="flex items-start justify-between gap-4">
+            {/* ─── Stat Panel ─── */}
+            <RevealBlur delay={3}>
+              <div className="spotlight-card glass-panel-strong rounded-[32px] p-6 sm:p-8 border-gradient">
+                <div className="mb-6 flex items-center justify-between">
                   <div>
-                    <h3 className="text-2xl font-semibold text-white">{plan.name}</h3>
-                    <p className="mt-3 text-sm leading-7 text-slate-300">{plan.description}</p>
+                    <p className="text-xs uppercase tracking-[0.28em] text-zinc-500">Revenue Control Center</p>
+                    <h2 className="mt-3 text-2xl font-bold text-white leading-tight">
+                      Every conversation. <br />
+                      <span className="gradient-text">Every owner. Every close.</span>
+                    </h2>
                   </div>
-                  {plan.featured ? (
-                    <span className="rounded-full border border-emerald-300/20 bg-emerald-300/12 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-100">
-                      Most Popular
-                    </span>
-                  ) : null}
-                </div>
-
-                <div className="mt-8">
-                  <div className="flex items-end gap-2">
-                    <span className="text-5xl font-semibold text-white">{plan.price}</span>
-                    <span className="pb-2 text-sm text-slate-400">{plan.note}</span>
+                  <div className="rounded-2xl border border-emerald-300/18 bg-emerald-400/10 p-3">
+                    <Zap className="h-7 w-7 text-emerald-300" />
                   </div>
                 </div>
 
-                <div className="mt-8 space-y-3">
-                  {plan.points.map((point) => (
-                    <div key={point} className="flex items-start gap-3 text-sm leading-7 text-slate-200">
-                      <CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-emerald-300" />
-                      <span>{point}</span>
+                <div className="space-y-4">
+                  {stats.map((stat) => (
+                    <div
+                      key={stat.label}
+                      className="group rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 transition-all duration-300 hover:border-emerald-400/10 hover:bg-emerald-400/5"
+                    >
+                      <div className="flex items-end justify-between gap-6">
+                        <div>
+                          <p className="text-xs uppercase tracking-widest text-zinc-500">{stat.label}</p>
+                          <p className="mt-2 text-4xl font-bold text-white">{stat.value}</p>
+                        </div>
+                        <BarChart3 className="h-8 w-8 text-zinc-600 group-hover:text-emerald-400 transition-colors duration-300" />
+                      </div>
+                      <p className="mt-3 text-sm leading-relaxed text-zinc-500">{stat.note}</p>
                     </div>
                   ))}
                 </div>
 
-                <Link
-                  href="/register"
-                  className={`mt-8 inline-flex w-full items-center justify-center rounded-full px-5 py-3 text-sm font-semibold ${
-                    plan.featured
-                      ? "bg-[linear-gradient(135deg,#41d39b,#6db3ff)] text-slate-950 shadow-[0_18px_45px_rgba(65,211,155,0.28)]"
-                      : "border border-white/10 bg-white/5 text-white hover:bg-white/9"
-                  }`}
-                >
-                  {plan.cta}
-                </Link>
+                <div className="mt-6 flex items-center gap-2 rounded-2xl bg-emerald-400/8 border border-emerald-400/10 px-5 py-3">
+                  <Star className="h-4 w-4 text-amber-400 fill-amber-400" />
+                  <p className="text-sm text-zinc-300">
+                    <span className="font-semibold text-emerald-300">4.9/5</span> from 500+ business teams
+                  </p>
+                </div>
               </div>
+            </RevealBlur>
+          </div>
+        </section>
+
+        {/* ─── TRUST BAR ─── */}
+        <section className="mx-auto max-w-7xl px-6 py-8">
+          <RevealSection>
+            <div className="divider-gradient mb-8" />
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+              {trustBar.map((item) => (
+                <div key={item.name} className="text-center">
+                  <p className="text-sm font-semibold text-white">{item.name}</p>
+                  <p className="text-xs text-zinc-500 mt-1">{item.desc}</p>
+                </div>
+              ))}
+            </div>
+            <div className="divider-gradient mt-8" />
+          </RevealSection>
+        </section>
+
+        {/* ─── PROBLEM / PAIN POINT ─── */}
+        <section className="mx-auto max-w-7xl px-6 py-16">
+          <RevealBlur>
+            <div className="text-center max-w-3xl mx-auto mb-12">
+              <p className="text-xs uppercase tracking-[0.28em] text-zinc-500 mb-4">The Problem</p>
+              <h2 className="text-4xl font-bold text-white sm:text-5xl">
+                Your WhatsApp Is Leaking{" "}
+                <span className="gradient-text">Money Right Now</span>
+              </h2>
+              <p className="mt-6 text-lg text-zinc-400 leading-relaxed">
+                Every unseen message, every forgotten follow-up, every handoff that falls through — 
+                that's revenue walking out the door. Sales teams using WhatsApp without a CRM 
+                lose an average of <span className="text-white font-semibold">34% of their leads</span> to the chaos.
+              </p>
+            </div>
+          </RevealBlur>
+
+          <div className="grid gap-5 lg:grid-cols-3">
+            {[
+              { icon: BadgeDollarSign, text: "We already use WhatsApp every day — but we still lose leads.", color: "text-rose-400" },
+              { icon: Users2, text: "Our team replies fast, but follow-up is inconsistent and nobody owns the next step.", color: "text-amber-400" },
+              { icon: Globe, text: "We need one place to see every conversation, who owns it, and what happens next.", color: "text-sky-400" },
+            ].map((obj, i) => (
+              <RevealCard key={i} delay={i + 1}>
+                <div className="glass-panel rounded-[28px] p-7 card-hover-premium">
+                  <div className={`mb-5 inline-flex rounded-2xl border border-white/[0.06] bg-white/[0.04] p-3 ${obj.color}`}>
+                    <obj.icon className="h-6 w-6" />
+                  </div>
+                  <p className="text-lg leading-relaxed text-zinc-200 font-medium">{obj.text}</p>
+                </div>
               </RevealCard>
             ))}
           </div>
         </section>
 
+        {/* ─── FEATURES ─── */}
+        <section id="features" className="relative mx-auto max-w-7xl px-6 py-20">
+          <RevealBlur>
+            <div className="text-center max-w-3xl mx-auto mb-16">
+              <p className="text-xs uppercase tracking-[0.28em] text-zinc-500 mb-4">Everything You Need</p>
+              <h2 className="text-4xl font-bold text-white sm:text-5xl">
+                One Platform.{" "}
+                <span className="gradient-text">Infinite Possibilities.</span>
+              </h2>
+              <p className="mt-6 text-lg text-zinc-400">
+                From first message to closed deal — Signhify gives your team the tools to move faster, 
+                collaborate better, and close more.
+              </p>
+            </div>
+          </RevealBlur>
+
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {features.map((feature, i) => (
+              <RevealCard key={feature.title} delay={i + 1}>
+                <div className="glass-panel rounded-[28px] p-7 card-hover-premium h-full flex flex-col">
+                  <div
+                    className="mb-5 inline-flex rounded-2xl border border-white/[0.06] p-3"
+                    style={{ background: `linear-gradient(135deg, ${feature.glow}, transparent)`, borderColor: feature.glow }}
+                  >
+                    <feature.icon className={`h-6 w-6 bg-gradient-to-br ${feature.gradient} bg-clip-text text-transparent`} />
+                  </div>
+                  <h3 className="text-xl font-bold text-white">{feature.title}</h3>
+                  <p className="mt-3 text-sm leading-relaxed text-zinc-400 flex-1">{feature.body}</p>
+                  <div className="mt-6 flex items-center gap-1 text-xs text-emerald-400 font-medium">
+                    <span>Learn more</span>
+                    <ChevronRight className="h-3 w-3" />
+                  </div>
+                </div>
+              </RevealCard>
+            ))}
+          </div>
+        </section>
+
+        {/* ─── TESTIMONIALS ─── */}
+        <section className="mx-auto max-w-7xl px-6 py-20">
+          <RevealBlur>
+            <div className="text-center max-w-3xl mx-auto mb-16">
+              <p className="text-xs uppercase tracking-[0.28em] text-zinc-500 mb-4">Real Results</p>
+              <h2 className="text-4xl font-bold text-white sm:text-5xl">
+                Trusted by Teams That{" "}
+                <span className="gradient-text">Close Every Day</span>
+              </h2>
+            </div>
+          </RevealBlur>
+
+          <div className="grid gap-6 md:grid-cols-3">
+            {testimonials.map((t, i) => (
+              <RevealCard key={i} delay={i + 1}>
+                <div className="glass-panel rounded-[28px] p-7 card-hover-premium">
+                  <div className="flex gap-1 mb-5">
+                    {[...Array(5)].map((_, s) => (
+                      <Star key={s} className="h-4 w-4 text-amber-400 fill-amber-400" />
+                    ))}
+                  </div>
+                  <p className="text-base leading-relaxed text-zinc-300 italic">&ldquo;{t.quote}&rdquo;</p>
+                  <div className="mt-6 pt-6 border-t border-white/[0.06]">
+                    <p className="text-sm font-semibold text-white">{t.author}</p>
+                    <p className="text-xs text-zinc-500">{t.role}</p>
+                  </div>
+                </div>
+              </RevealCard>
+            ))}
+          </div>
+        </section>
+
+        {/* ─── STATS COUNTER ─── */}
         <section className="mx-auto max-w-7xl px-6 py-16">
           <RevealSection>
-          <div className="glass-panel rounded-[36px] p-8 sm:p-10 lg:p-12">
-            <div className="grid gap-8 lg:grid-cols-[1fr_auto] lg:items-center">
-              <div>
-                <p className="text-sm uppercase tracking-[0.24em] text-amber-200/65">Pricing Framed Around ROI</p>
-                <h2 className="mt-3 text-3xl font-semibold text-white sm:text-4xl">
-                  Sell it as a system that protects revenue, speeds up response time, and keeps the team accountable.
-                </h2>
-                <p className="mt-4 max-w-3xl text-base leading-8 text-slate-300">
-                  The strongest buyers are businesses already getting leads on WhatsApp but struggling with missed replies,
-                  poor handoffs, weak follow-up discipline, and zero pipeline visibility. That is who this offer is built for.
-                </p>
+            <div className="glass-panel-strong rounded-[36px] p-10 sm:p-14 border-gradient">
+              <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+                {[
+                  { icon: Users2, prefix: "", end: 5000, suffix: "+", label: "Active Teams" },
+                  { icon: MessageSquare, prefix: "", end: 250000, suffix: "+", label: "Conversations Managed" },
+                  { icon: TrendingUp, prefix: "", end: 73, suffix: "%", label: "Avg. Close Rate" },
+                  { icon: Rocket, prefix: "< ", end: 3, suffix: " min", label: "Setup Time" },
+                ].map((stat, i) => (
+                  <div key={i} className="text-center">
+                    <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-emerald-400/10 border border-emerald-400/20 mb-4">
+                      <stat.icon className="h-6 w-6 text-emerald-300" />
+                    </div>
+                    <p className="text-4xl font-bold text-white">
+                      <CountUp end={stat.end} prefix={stat.prefix} suffix={stat.suffix} />
+                    </p>
+                    <p className="mt-2 text-sm text-zinc-500">{stat.label}</p>
+                  </div>
+                ))}
               </div>
-              <Link
-                href="/register"
-                className="inline-flex items-center justify-center rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-950"
-              >
-                Turn Interest Into Trials
-              </Link>
             </div>
-          </div>
           </RevealSection>
         </section>
-        <footer className="border-t border-white/8 bg-[rgba(4,10,20,0.6)]">
-          <div className="mx-auto max-w-7xl px-6 py-12">
-            <div className="grid gap-8 md:grid-cols-4">
-              <div>
-                <div className="flex items-center gap-2">
+
+        {/* ─── PRICING ─── */}
+        <section id="pricing" className="mx-auto max-w-7xl px-6 py-20">
+          <RevealBlur>
+            <div className="text-center max-w-3xl mx-auto mb-16">
+              <p className="text-xs uppercase tracking-[0.28em] text-zinc-500 mb-4">Simple Pricing</p>
+              <h2 className="text-4xl font-bold text-white sm:text-5xl">
+                Start Free.{" "}
+                <span className="gradient-text">Scale When You Win.</span>
+              </h2>
+              <p className="mt-6 text-lg text-zinc-400">
+                No hidden fees. No surprise charges. Cancel anytime.
+              </p>
+            </div>
+          </RevealBlur>
+
+          <div className="grid gap-6 xl:grid-cols-3 max-w-5xl mx-auto">
+            {pricingPlans.map((plan, i) => (
+              <RevealCard key={plan.name} delay={i + 1}>
+                <div
+                  className={`glass-panel rounded-[32px] p-8 card-hover-premium flex flex-col h-full ${
+                    plan.featured
+                      ? "border-gradient bg-emerald-400/5"
+                      : ""
+                  }`}
+                >
+                  {plan.featured && (
+                    <div className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-emerald-400/20 to-emerald-400/10 border border-emerald-400/20 px-3.5 py-1.5 mb-6">
+                      <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+                      <span className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-200">
+                        Most Popular
+                      </span>
+                    </div>
+                  )}
+
+                  <h3 className="text-2xl font-bold text-white">{plan.name}</h3>
+                  <p className="mt-2 text-sm text-zinc-400">{plan.tagline}</p>
+
+                  <div className="mt-6">
+                    <div className="flex items-end gap-2">
+                      <span className="text-5xl font-bold text-white">{plan.price}</span>
+                      <span className="pb-2 text-sm text-zinc-500">{plan.note}</span>
+                    </div>
+                  </div>
+
+                  <div className="mt-8 space-y-3 flex-1">
+                    {plan.points.map((point) => (
+                      <div key={point} className="flex items-start gap-3 text-sm leading-relaxed text-zinc-300">
+                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+                        <span>{point}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <Link
+                    href="/register"
+                    className={`mt-8 inline-flex w-full items-center justify-center rounded-full px-5 py-3.5 text-sm font-bold transition-all duration-300 ${
+                      plan.featured
+                        ? "btn-gradient text-white shadow-[0_18px_45px_rgba(65,211,155,0.25)]"
+                        : "btn-glass text-zinc-200 hover:text-white"
+                    }`}
+                  >
+                    {plan.cta}
+                  </Link>
+                </div>
+              </RevealCard>
+            ))}
+          </div>
+        </section>
+
+        {/* ─── FINAL CTA ─── */}
+        <section className="mx-auto max-w-7xl px-6 py-20">
+          <RevealBlur>
+            <div className="glass-panel-strong rounded-[40px] p-10 sm:p-16 text-center relative overflow-hidden border-gradient">
+              {/* Decorative gradients */}
+              <div className="absolute -top-40 -right-40 w-80 h-80 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-sky-500/5 rounded-full blur-3xl pointer-events-none" />
+
+              <div className="relative z-10 max-w-3xl mx-auto">
+                <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/15 bg-emerald-400/8 px-4 py-2 text-sm text-emerald-200/80 mb-6">
+                  <Rocket className="h-4 w-4" />
+                  Start Closing More Deals Today
+                </div>
+                <h2 className="text-4xl sm:text-5xl font-bold text-white leading-tight">
+                  Your First Deal Is{" "}
+                  <span className="gradient-text">One Click Away</span>
+                </h2>
+                <p className="mt-6 text-lg text-zinc-400 max-w-2xl mx-auto leading-relaxed">
+                  Join thousands of businesses turning WhatsApp conversations into repeatable revenue. 
+                  No credit card required. No technical skills needed. Just a better way to sell.
+                </p>
+                <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+                  <Link
+                    href="/register"
+                    className="group relative inline-flex items-center justify-center gap-3 rounded-full px-10 py-4 text-base font-bold text-white btn-gradient overflow-hidden"
+                  >
+                    <span className="relative z-10">Launch Your Workspace Free</span>
+                    <ArrowRight className="relative z-10 h-5 w-5 transition-transform duration-300 group-hover:translate-x-1" />
+                  </Link>
+                  <Link
+                    href="/guide"
+                    className="btn-glass inline-flex items-center justify-center gap-2 rounded-full px-8 py-4 text-base font-medium text-zinc-200"
+                  >
+                    Read the Guide
+                    <ChevronRight className="h-5 w-5" />
+                  </Link>
+                </div>
+                <p className="mt-6 text-sm text-zinc-600">
+                  ✨ Free forever plan available • No credit card • 14-day premium trial
+                </p>
+              </div>
+            </div>
+          </RevealBlur>
+        </section>
+
+        {/* ─── FOOTER ─── */}
+        <footer className="border-t border-white/[0.04] bg-[rgba(3,7,18,0.6)]">
+          <div className="mx-auto max-w-7xl px-6 py-16">
+            <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-5">
+              <div className="lg:col-span-2">
+                <Link href="/" className="group flex items-center gap-3">
                   <div className="glow-ring flex h-9 w-9 items-center justify-center rounded-xl border border-emerald-300/20 bg-emerald-400/12">
                     <MessageSquare className="h-4 w-4 text-emerald-300" />
                   </div>
-                  <span className="font-semibold text-white">WhatsApp CRM</span>
-                </div>
-                <p className="mt-3 text-sm leading-6 text-slate-400">
-                  The shared inbox and pipeline that turns WhatsApp conversations into revenue.
+                  <span className="font-bold text-white">Signhify</span>
+                </Link>
+                <p className="mt-4 text-sm leading-relaxed text-zinc-500 max-w-xs">
+                  The shared inbox and sales pipeline that turns WhatsApp conversations into organized, repeatable revenue for your team.
                 </p>
+                <div className="mt-6 flex gap-4">
+                  {["About", "Blog", "Changelog"].map((item) => (
+                    <a key={item} href="#" className="text-xs text-zinc-600 hover:text-zinc-300 transition-colors">
+                      {item}
+                    </a>
+                  ))}
+                </div>
               </div>
 
-              <div>
-                <h4 className="text-sm font-semibold text-white">Product</h4>
-                <ul className="mt-3 space-y-2">
-                  <li><a href="#features" className="text-sm text-slate-400 hover:text-white">Features</a></li>
-                  <li><a href="#pricing" className="text-sm text-slate-400 hover:text-white">Pricing</a></li>
-                  <li><Link href="/register" className="text-sm text-slate-400 hover:text-white">API</Link></li>
-                </ul>
-              </div>
-
-              <div>
-                <h4 className="text-sm font-semibold text-white">Company</h4>
-                <ul className="mt-3 space-y-2">
-                  <li><a href="#" className="text-sm text-slate-400 hover:text-white">About</a></li>
-                  <li><a href="#" className="text-sm text-slate-400 hover:text-white">Blog</a></li>
-                  <li><a href="#" className="text-sm text-slate-400 hover:text-white">Contact</a></li>
-                </ul>
-              </div>
-
-              <div>
-                <h4 className="text-sm font-semibold text-white">Legal</h4>
-                <ul className="mt-3 space-y-2">
-                  <li><a href="/privacy" className="text-sm text-slate-400 hover:text-white">Privacy</a></li>
-                  <li><a href="/terms" className="text-sm text-slate-400 hover:text-white">Terms</a></li>
-                </ul>
-              </div>
+              {[
+                {
+                  title: "Product",
+                  links: ["Features", "Pricing", "API", "Integrations", "Changelog"],
+                },
+                {
+                  title: "Company",
+                  links: ["About", "Blog", "Careers", "Contact", "Press Kit"],
+                },
+                {
+                  title: "Legal",
+                  links: ["Privacy Policy", "Terms of Service", "Cookie Policy", "GDPR"],
+                },
+              ].map((col) => (
+                <div key={col.title}>
+                  <h4 className="text-sm font-semibold text-white mb-4">{col.title}</h4>
+                  <ul className="space-y-3">
+                    {col.links.map((link) => (
+                      <li key={link}>
+                        <a href="#" className="text-sm text-zinc-500 hover:text-white transition-colors">
+                          {link}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
             </div>
 
-            <div className="mt-10 border-t border-white/8 pt-6 text-center text-sm text-slate-500">
-              &copy; 2026 WhatsApp CRM. All rights reserved.
+            <div className="divider-gradient mt-12 mb-8" />
+
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <p className="text-sm text-zinc-600">
+                &copy; 2026 Signhify CRM. Crafted with precision by{" "}
+                <span className="text-zinc-400">Piyush Raj Singh</span>
+              </p>
+              <div className="flex items-center gap-4">
+                <span className="text-xs text-zinc-600">Built on</span>
+                <span className="text-xs text-zinc-500">Next.js</span>
+                <span className="text-xs text-zinc-600">·</span>
+                <span className="text-xs text-zinc-500">Supabase</span>
+                <span className="text-xs text-zinc-600">·</span>
+                <span className="text-xs text-zinc-500">Vercel</span>
+              </div>
             </div>
           </div>
         </footer>
       </main>
+    </div>
+  );
+}
+
+function RevealCard({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
+  const { ref, isVisible } = useScrollReveal();
+  return (
+    <div
+      ref={ref}
+      className={`reveal ${isVisible ? "visible" : ""} ${delay ? `reveal-delay-${delay}` : ""}`}
+    >
+      {children}
     </div>
   );
 }

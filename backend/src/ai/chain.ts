@@ -1,5 +1,5 @@
 import { prisma } from '../prisma';
-import { providers, AiMessage, AiResponse, AiProviderConfig, LANGUAGE_DETECTION_PROMPT } from './providers';
+import { AiMessage, AiResponse, AiProviderConfig, LANGUAGE_DETECTION_PROMPT, getProviderAdapter } from './providers';
 
 export interface FallbackResult extends AiResponse {
   attempts: { provider: string; model: string; error: string; latencyMs: number }[];
@@ -132,9 +132,10 @@ export async function chatWithFallback(
       continue;
     }
 
-    const adapter = providers[prov.provider];
+    // Use the provider adapter - supports built-in AND any custom OpenAI-compatible provider
+    const adapter = getProviderAdapter(prov.provider, prov.baseUrl || undefined);
     if (!adapter) {
-      attempts.push({ provider: prov.provider, model: prov.model, error: 'Unknown provider', latencyMs: 0 });
+      attempts.push({ provider: prov.provider, model: prov.model, error: 'Unknown provider (no adapter available)', latencyMs: 0 });
       continue;
     }
 

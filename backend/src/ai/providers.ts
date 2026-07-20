@@ -94,6 +94,7 @@ const geminiAdapter: AiProviderAdapter = {
   },
 };
 
+// ─── Cohere Adapter ───
 const cohereAdapter: AiProviderAdapter = {
   name: 'cohere',
   async chat(messages: AiMessage[], config: AiProviderConfig): Promise<AiResponse> {
@@ -185,6 +186,31 @@ export const providers: Record<string, AiProviderAdapter> = {
   freellmapi: openAiCompatibleAdapter('freellmapi', 'http://127.0.0.1:31415/v1'),
   custom: openAiCompatibleAdapter('custom', ''),
 };
+
+// ─── Universal Provider Factory ───
+// Any provider ID not explicitly registered above will automatically
+// use the OpenAI-compatible adapter. This enables true BYOK (Bring Your Own Key)
+// — users can add ANY OpenAI-compatible endpoint with any provider ID.
+export function getProviderAdapter(providerId: string, baseUrl?: string): AiProviderAdapter | null {
+  // First check if we have a built-in adapter
+  if (providers[providerId]) {
+    return providers[providerId];
+  }
+
+  // For any unknown provider, use the universal OpenAI-compatible adapter
+  // The baseUrl from the DB config will be used when the adapter calls the API
+  return openAiCompatibleAdapter(providerId, baseUrl || 'https://api.openai.com/v1');
+}
+
+export function isBuiltinProvider(providerId: string): boolean {
+  return providerId in providers;
+}
+
+export function registerCustomProvider(providerId: string, defaultBaseUrl?: string): void {
+  if (!providers[providerId]) {
+    providers[providerId] = openAiCompatibleAdapter(providerId, defaultBaseUrl || '');
+  }
+}
 
 export const LANGUAGE_DETECTION_PROMPT = 'Detect the language of this message. Respond with ONLY the ISO 639-1 language code (e.g., "en", "hi", "es", "pt"). Do NOT explain.';
 

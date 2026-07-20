@@ -50,6 +50,7 @@ model Workspace {
   templates           Template[]
   broadcasts          Broadcast[]
   awayMessages        AwayMessage[]
+  notifications       Notification[]
 
   @@index([ownerId])
 }
@@ -568,4 +569,100 @@ model AgentActivity {
 
   @@index([workspaceId, conversationId, createdAt])
   @@index([userId])
+}
+
+model EmailCampaign {
+  id              String    @id @default(uuid())
+  workspaceId     String
+  name            String
+  subject         String
+  bodyHtml        String
+  bodyText        String?
+  senderName      String?
+  senderEmail     String?
+  replyTo         String?
+  status          String    @default("draft")
+  recipientFilter String?
+  scheduledAt     DateTime?
+  sentAt          DateTime?
+  totalRecipients Int       @default(0)
+  sentCount       Int       @default(0)
+  failedCount     Int       @default(0)
+  openedCount     Int       @default(0)
+  clickedCount    Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  logs            EmailLog[]
+
+  @@index([workspaceId])
+  @@index([status])
+}
+
+model EmailLog {
+  id          String   @id @default(uuid())
+  campaignId  String
+  contactId   String
+  email       String
+  status      String   @default("pending")
+  error       String?
+  openedAt    DateTime?
+  clickedAt   DateTime?
+  sentAt      DateTime?
+  createdAt   DateTime @default(now())
+  campaign    EmailCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@index([contactId])
+  @@index([status])
+}
+
+model EmailAutomationRule {
+  id          String   @id @default(uuid())
+  workspaceId String
+  name        String
+  trigger     String
+  condition   String?
+  templateId  String?
+  subject     String
+  bodyHtml    String
+  senderName  String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([workspaceId])
+  @@index([isActive])
+}
+
+model Notification {
+  id          String   @id @default(uuid())
+  workspaceId String
+  type        String   // inbound_message | outbound_message | followup_due | team_invite | flow_execution | campaign_sent | system
+  title       String
+  message     String
+  channel     String?  // whatsapp | instagram | null for system
+  link        String?  // link to relevant page
+  read        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
+  @@index([workspaceId, read])
+}
+
+model SmtpConfig {
+  id          String   @id @default(uuid())
+  workspaceId String   @unique
+  host        String   @default("smtp.gmail.com")
+  port        Int      @default(587)
+  secure      Boolean  @default(false)
+  user        String
+  pass        String
+  fromName    String?
+  fromEmail   String?
+  isVerified  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

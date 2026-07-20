@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
-import { Bot, Plus, Trash2, Zap, AlertTriangle, CheckCircle, XCircle, Loader2, TestTube, Brain, Sparkles, Globe } from 'lucide-react';
+import { Bot, Plus, Trash2, Zap, AlertTriangle, CheckCircle, XCircle, Loader2, TestTube, Brain, Sparkles, Globe, Wrench } from 'lucide-react';
 
 interface AiProvider {
   id: string;
@@ -43,44 +43,22 @@ interface AiStatus {
 }
 
 const SUPPORTED_LANGUAGES = [
-  { code: 'en', name: 'English' },
-  { code: 'hi', name: 'Hindi' },
-  { code: 'es', name: 'Spanish' },
-  { code: 'pt', name: 'Portuguese' },
-  { code: 'fr', name: 'French' },
-  { code: 'de', name: 'German' },
-  { code: 'ar', name: 'Arabic' },
-  { code: 'bn', name: 'Bengali' },
-  { code: 'ta', name: 'Tamil' },
-  { code: 'te', name: 'Telugu' },
-  { code: 'mr', name: 'Marathi' },
-  { code: 'gu', name: 'Gujarati' },
-  { code: 'pa', name: 'Punjabi' },
-  { code: 'ur', name: 'Urdu' },
-  { code: 'zh', name: 'Chinese' },
-  { code: 'ja', name: 'Japanese' },
-  { code: 'ko', name: 'Korean' },
-  { code: 'ru', name: 'Russian' },
-  { code: 'it', name: 'Italian' },
-  { code: 'nl', name: 'Dutch' },
-  { code: 'tr', name: 'Turkish' },
-  { code: 'id', name: 'Indonesian' },
-  { code: 'ms', name: 'Malay' },
-  { code: 'th', name: 'Thai' },
-  { code: 'vi', name: 'Vietnamese' },
+  { code: 'en', name: 'English' }, { code: 'hi', name: 'Hindi' }, { code: 'es', name: 'Spanish' },
+  { code: 'pt', name: 'Portuguese' }, { code: 'fr', name: 'French' }, { code: 'de', name: 'German' },
+  { code: 'ar', name: 'Arabic' }, { code: 'bn', name: 'Bengali' }, { code: 'ta', name: 'Tamil' },
+  { code: 'te', name: 'Telugu' }, { code: 'mr', name: 'Marathi' }, { code: 'gu', name: 'Gujarati' },
+  { code: 'pa', name: 'Punjabi' }, { code: 'ur', name: 'Urdu' }, { code: 'zh', name: 'Chinese' },
+  { code: 'ja', name: 'Japanese' }, { code: 'ko', name: 'Korean' }, { code: 'ru', name: 'Russian' },
+  { code: 'it', name: 'Italian' }, { code: 'nl', name: 'Dutch' }, { code: 'tr', name: 'Turkish' },
+  { code: 'id', name: 'Indonesian' }, { code: 'ms', name: 'Malay' }, { code: 'th', name: 'Thai' }, { code: 'vi', name: 'Vietnamese' },
 ];
 
 const PROVIDER_ICONS: Record<string, string> = {
-  freellmapi: '🔌',
-  openrouter: '🌐',
-  groq: '⚡',
-  cerebras: '🧠',
-  mistral: '🌬️',
-  nvidia_nim: '💚',
-  xai: '✖️',
-  gemini: '✨',
-  cohere: '🔷',
+  freellmapi: '🔌', openrouter: '🌐', groq: '⚡', cerebras: '🧠',
+  mistral: '🌬️', nvidia_nim: '💚', xai: '✖️', gemini: '✨', cohere: '🔷',
 };
+
+const isCustomProvider = (provId: string) => provId === '__custom__' || provId === '';
 
 export default function AiSettingsPage() {
   const { user } = useAuth();
@@ -93,6 +71,7 @@ export default function AiSettingsPage() {
   const [testing, setTesting] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<Record<string, { ok: boolean; message: string }>>({});
   const [isCustomModel, setIsCustomModel] = useState(false);
+  const [isFullyCustom, setIsFullyCustom] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     provider: '',
@@ -110,9 +89,7 @@ export default function AiSettingsPage() {
     perChannel: { whatsapp: 'en', instagram: 'en' },
   });
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  useEffect(() => { loadData(); }, []);
 
   async function loadData() {
     try {
@@ -139,6 +116,7 @@ export default function AiSettingsPage() {
       setShowAdd(false);
       setFormData({ name: '', provider: '', apiKey: '', baseUrl: '', model: '', priority: 0, maxTokens: 1024, temperature: 0.7 });
       setIsCustomModel(false);
+      setIsFullyCustom(false);
       loadData();
     } catch (err) {
       console.error('Failed to add provider:', err);
@@ -216,9 +194,7 @@ export default function AiSettingsPage() {
         <div className="grid grid-cols-4 gap-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
             <div className="text-xs text-zinc-500 mb-1">Providers</div>
-            <div className="text-2xl font-mono font-bold text-white">
-              {status.activeProviders}<span className="text-zinc-600">/{status.totalProviders}</span>
-            </div>
+            <div className="text-2xl font-mono font-bold text-white">{status.activeProviders}<span className="text-zinc-600">/{status.totalProviders}</span></div>
             <div className="text-xs text-zinc-500">active</div>
           </div>
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
@@ -261,9 +237,7 @@ export default function AiSettingsPage() {
                     </span>
                   )}
                 </div>
-                {i < arr.length - 1 && (
-                  <span className="text-zinc-600 text-lg">→</span>
-                )}
+                {i < arr.length - 1 && <span className="text-zinc-600 text-lg">→</span>}
               </div>
             ))}
             {providers.filter((p) => p.isActive).length === 0 && (
@@ -284,8 +258,11 @@ export default function AiSettingsPage() {
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-white">{prov.name}</span>
                     <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400">{prov.provider}</span>
-                    {!prov.isActive && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-red-900/30 text-red-400">disabled</span>
+                    {!prov.isActive && <span className="text-xs px-2 py-0.5 rounded-full bg-red-900/30 text-red-400">disabled</span>}
+                    {prov.baseUrl && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-purple-900/20 text-purple-400 font-mono" title={prov.baseUrl}>
+                        🌐 custom endpoint
+                      </span>
                     )}
                   </div>
                   <div className="text-sm text-zinc-500 mt-0.5">
@@ -298,39 +275,20 @@ export default function AiSettingsPage() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handleTest(prov.id)}
-                  disabled={testing === prov.id}
-                  className="p-2 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors"
-                  title="Test connection"
-                >
-                  {testing === prov.id ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <TestTube className="w-4 h-4" />
-                  )}
+                <button onClick={() => handleTest(prov.id)} disabled={testing === prov.id}
+                  className="p-2 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors" title="Test connection">
+                  {testing === prov.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <TestTube className="w-4 h-4" />}
                 </button>
-                <button
-                  onClick={() => handlePriorityChange(prov.id, prov.priority + 1)}
-                  className="px-2 py-1 rounded-lg hover:bg-zinc-800 text-xs text-zinc-400 hover:text-white transition-colors"
-                  title="Increase priority"
-                >
+                <button onClick={() => handlePriorityChange(prov.id, prov.priority + 1)}
+                  className="px-2 py-1 rounded-lg hover:bg-zinc-800 text-xs text-zinc-400 hover:text-white transition-colors" title="Increase priority">
                   ↑ P{prov.priority}
                 </button>
-                <button
-                  onClick={() => handleToggle(prov.id, prov.isActive)}
-                  className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
-                    prov.isActive
-                      ? 'bg-emerald-900/30 text-emerald-400 hover:bg-emerald-900/50'
-                      : 'bg-zinc-800 text-zinc-500 hover:bg-zinc-700'
-                  }`}
-                >
+                <button onClick={() => handleToggle(prov.id, prov.isActive)}
+                  className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${prov.isActive ? 'bg-emerald-900/30 text-emerald-400 hover:bg-emerald-900/50' : 'bg-zinc-800 text-zinc-500 hover:bg-zinc-700'}`}>
                   {prov.isActive ? 'Active' : 'Disabled'}
                 </button>
-                <button
-                  onClick={() => handleDelete(prov.id)}
-                  className="p-2 rounded-lg hover:bg-red-900/30 text-zinc-400 hover:text-red-400 transition-colors"
-                >
+                <button onClick={() => handleDelete(prov.id)}
+                  className="p-2 rounded-lg hover:bg-red-900/30 text-zinc-400 hover:text-red-400 transition-colors">
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
@@ -348,35 +306,56 @@ export default function AiSettingsPage() {
             )}
           </div>
         ))}
+        {providers.length === 0 && (
+          <div className="text-center py-16 bg-zinc-900 border border-zinc-800 rounded-2xl">
+            <Brain className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
+            <p className="text-zinc-500">No AI providers configured</p>
+            <p className="text-sm text-zinc-600 mt-1">Add OpenAI, Anthropic, Groq, or any OpenAI-compatible provider</p>
+          </div>
+        )}
       </div>
 
       {/* Add Provider Modal */}
       {showAdd && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-lg p-6 space-y-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-xl p-6 space-y-4 overflow-y-auto max-h-[90vh]">
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-purple-400" />
-              Add AI Provider
+              {isFullyCustom ? 'Add Custom Provider' : 'Add AI Provider'}
             </h2>
 
+            {/* Provider Selection */}
             <div>
-              <label className="block text-xs text-zinc-500 mb-1">Provider</label>
+              <label className="block text-xs text-zinc-500 mb-1">Provider Type</label>
               <select
                 value={formData.provider}
                 onChange={(e) => {
                   const provId = e.target.value;
-                  const prov = available.find((p) => p.id === provId);
-                  if (provId === 'freellmapi') {
+                  setIsFullyCustom(isCustomProvider(provId));
+                  setIsCustomModel(false);
+                  
+                  if (provId === '__custom__') {
+                    setFormData({
+                      ...formData,
+                      provider: provId,
+                      name: '',
+                      apiKey: '',
+                      baseUrl: '',
+                      model: '',
+                    });
+                  } else if (provId === '') {
+                    setFormData({ ...formData, provider: '', name: '', apiKey: '', baseUrl: '', model: '' });
+                  } else if (provId === 'freellmapi') {
                     setFormData({
                       ...formData,
                       provider: provId,
                       name: 'FreeLLMAPI',
                       apiKey: '',
                       baseUrl: 'http://127.0.0.1:31415/v1',
-                      model: prov?.models[0]?.model || 'auto',
+                      model: available.find((p) => p.id === provId)?.models[0]?.model || 'auto',
                     });
-                    setIsCustomModel(false);
                   } else {
+                    const prov = available.find((p) => p.id === provId);
                     setFormData({
                       ...formData,
                       provider: provId,
@@ -385,7 +364,6 @@ export default function AiSettingsPage() {
                       baseUrl: '',
                       model: prov?.models[0]?.model || '',
                     });
-                    setIsCustomModel(false);
                   }
                 }}
                 className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm"
@@ -394,47 +372,81 @@ export default function AiSettingsPage() {
                 {available
                   .filter((p) => p.id !== 'freellmapi' || user?.email === 'piyushrajsingh092@gmail.com')
                   .map((p) => (
-                    <option key={p.id} value={p.id}>{PROVIDER_ICONS[p.id]} {p.name}</option>
+                    <option key={p.id} value={p.id}>
+                      {p.id === '__custom__' ? '✨ Custom Provider' : `${PROVIDER_ICONS[p.id] || ''} ${p.name}`}
+                    </option>
                   ))}
               </select>
+              {!isFullyCustom && formData.provider && formData.provider !== '__custom__' && (
+                <p className="text-xs text-zinc-600 mt-1">
+                  Base URL auto-detected. Override below if using a proxy/custom endpoint.
+                </p>
+              )}
             </div>
 
-            {selectedProvider && (
+            {formData.provider && (
               <>
+                {/* Name */}
                 <div>
-                  <label className="block text-xs text-zinc-500 mb-1">Name</label>
-                  <input
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  <label className="block text-xs text-zinc-500 mb-1">Display Name</label>
+                  <input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm"
-                    placeholder="e.g. Groq Free"
-                  />
+                    placeholder="e.g. My Groq Setup" />
                 </div>
 
+                {/* API Key */}
                 <div>
-                  <label className="block text-xs text-zinc-500 mb-1">API Key</label>
-                  <input
-                    value={formData.apiKey}
-                    onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
+                  <label className="block text-xs text-zinc-500 mb-1">
+                    API Key {isFullyCustom && <span className="text-red-400">*</span>}
+                  </label>
+                  <input value={formData.apiKey} onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
                     className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm font-mono"
-                    placeholder="Enter API key..."
-                  />
+                    placeholder={isFullyCustom ? "sk-your-api-key" : "Enter API key..."} />
                 </div>
 
+                {/* CUSTOM PROVIDER: Show raw Provider ID field */}
+                {isFullyCustom && (
+                  <div>
+                    <label className="block text-xs text-zinc-500 mb-1">
+                      Provider ID <span className="text-red-400">*</span>
+                      <span className="text-zinc-600 font-normal ml-1">(any name, e.g. myprovider)</span>
+                    </label>
+                    <input
+                      value={formData.provider === '__custom__' ? '' : formData.provider}
+                      onChange={(e) => {
+                        const pid = e.target.value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '') || '__custom__';
+                        setFormData({ ...formData, provider: pid });
+                      }}
+                      className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm font-mono"
+                      placeholder="e.g. my-custom-provider"
+                    />
+                    <p className="text-xs text-zinc-600 mt-1">
+                      This is stored as the provider type. Use a unique identifier.
+                    </p>
+                  </div>
+                )}
+
+                {/* Base URL — REQUIRED for custom, optional for known */}
                 <div>
-                  <label className="block text-xs text-zinc-500 mb-1">Base URL (Optional)</label>
-                  <input
-                    value={formData.baseUrl}
-                    onChange={(e) => setFormData({ ...formData, baseUrl: e.target.value })}
+                  <label className="block text-xs text-zinc-500 mb-1">
+                    Base URL {isFullyCustom ? <span className="text-red-400">* (required)</span> : '(Optional)'}
+                  </label>
+                  <input value={formData.baseUrl} onChange={(e) => setFormData({ ...formData, baseUrl: e.target.value })}
                     className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm font-mono"
-                    placeholder="e.g. https://api.openai.com/v1"
-                  />
-                  <div className="text-xs text-zinc-600 mt-1">Override default API endpoint if using custom or local proxies.</div>
+                    placeholder={isFullyCustom ? "https://api.myprovider.com/v1" : "e.g. https://api.openai.com/v1"} />
+                  <div className="text-xs text-zinc-600 mt-1">
+                    {isFullyCustom
+                      ? 'Required for custom providers. Must be an OpenAI-compatible chat completions endpoint.'
+                      : 'Override default API endpoint if using a proxy or custom deployment.'}
+                  </div>
                 </div>
 
+                {/* Model */}
                 <div>
-                  <label className="block text-xs text-zinc-500 mb-1">Model</label>
-                  {!isCustomModel ? (
+                  <label className="block text-xs text-zinc-500 mb-1">
+                    Model {isFullyCustom && <span className="text-red-400">*</span>}
+                  </label>
+                  {!isFullyCustom && selectedProvider && selectedProvider.models.length > 0 && !isCustomModel ? (
                     <div className="flex gap-2">
                       <select
                         value={formData.model}
@@ -456,74 +468,66 @@ export default function AiSettingsPage() {
                     </div>
                   ) : (
                     <div className="flex gap-2">
-                      <input
-                        value={formData.model}
-                        onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+                      <input value={formData.model} onChange={(e) => setFormData({ ...formData, model: e.target.value })}
                         className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm font-mono"
-                        placeholder="e.g. meta-llama/llama-3.2-3b-instruct"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsCustomModel(false);
-                          setFormData({ ...formData, model: selectedProvider.models[0]?.model || '' });
-                        }}
-                        className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white rounded-xl text-xs transition-colors"
-                      >
-                        Select List
-                      </button>
+                        placeholder={isFullyCustom ? "gpt-4o-mini" : "e.g. meta-llama/llama-3.2-3b-instruct"} />
+                      {!isFullyCustom && selectedProvider && selectedProvider.models.length > 0 && (
+                        <button type="button" onClick={() => { setIsCustomModel(false); setFormData({ ...formData, model: selectedProvider.models[0]?.model || '' }); }}
+                          className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white rounded-xl text-xs transition-colors">
+                          Select List
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
 
+                {/* Settings Grid */}
                 <div className="grid grid-cols-3 gap-3">
                   <div>
                     <label className="block text-xs text-zinc-500 mb-1">Priority</label>
-                    <input
-                      type="number"
-                      value={formData.priority}
+                    <input type="number" value={formData.priority}
                       onChange={(e) => setFormData({ ...formData, priority: parseInt(e.target.value) || 0 })}
-                      className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm"
-                    />
+                      className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm" />
                     <div className="text-xs text-zinc-600 mt-1">Higher = tried first</div>
                   </div>
                   <div>
                     <label className="block text-xs text-zinc-500 mb-1">Max Tokens</label>
-                    <input
-                      type="number"
-                      value={formData.maxTokens}
+                    <input type="number" value={formData.maxTokens}
                       onChange={(e) => setFormData({ ...formData, maxTokens: parseInt(e.target.value) || 1024 })}
-                      className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm"
-                    />
+                      className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm" />
                   </div>
                   <div>
                     <label className="block text-xs text-zinc-500 mb-1">Temperature</label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      min="0"
-                      max="2"
-                      value={formData.temperature}
+                    <input type="number" step="0.1" min="0" max="2" value={formData.temperature}
                       onChange={(e) => setFormData({ ...formData, temperature: parseFloat(e.target.value) || 0.7 })}
-                      className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm"
-                    />
+                      className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm" />
                   </div>
                 </div>
+
+                {/* Custom provider help info */}
+                {isFullyCustom && (
+                  <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-xl text-xs text-purple-300">
+                    <p className="font-medium mb-1">🔧 Custom Provider Requirements:</p>
+                    <ul className="space-y-0.5 text-purple-200/70">
+                      <li>• Must be an <strong>OpenAI-compatible chat completions</strong> endpoint</li>
+                      <li>• Endpoint format: <code className="text-emerald-300">POST {'{baseUrl}'}/chat/completions</code></li>
+                      <li>• Accepts <code className="text-emerald-300">Authorization: Bearer {'{apiKey}'}</code> header</li>
+                      <li>• Response format: <code className="text-emerald-300">{'{ choices: [{ message: { content } }] }'}</code></li>
+                      <li>• Examples: Local LLM servers, custom proxies, any OpenAI API-compatible service</li>
+                    </ul>
+                  </div>
+                )}
               </>
             )}
 
-            <div className="flex justify-end gap-3 pt-2">
-              <button
-                onClick={() => { setShowAdd(false); setIsCustomModel(false); }}
-                className="px-4 py-2 text-sm text-zinc-400 hover:text-white transition-colors"
-              >
+            <div className="flex justify-end gap-3 pt-2 border-t border-zinc-800">
+              <button onClick={() => { setShowAdd(false); setIsCustomModel(false); setIsFullyCustom(false); }}
+                className="px-4 py-2 text-sm text-zinc-400 hover:text-white transition-colors">
                 Cancel
               </button>
-              <button
-                onClick={handleAdd}
-                disabled={!formData.provider || !formData.apiKey || !formData.model}
-                className="px-4 py-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-sm font-medium transition-colors"
-              >
+              <button onClick={handleAdd}
+                disabled={!formData.provider || !formData.apiKey || !formData.model || (isFullyCustom && !formData.baseUrl)}
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-sm font-medium transition-colors">
                 Add Provider
               </button>
             </div>
@@ -539,12 +543,8 @@ export default function AiSettingsPage() {
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <label className="flex items-center gap-3 p-3 bg-zinc-800/50 rounded-xl cursor-pointer">
-            <input
-              type="checkbox"
-              checked={languageSettings.autoDetect}
-              onChange={(e) => setLanguageSettings({ ...languageSettings, autoDetect: e.target.checked })}
-              className="w-4 h-4 rounded"
-            />
+            <input type="checkbox" checked={languageSettings.autoDetect}
+              onChange={(e) => setLanguageSettings({ ...languageSettings, autoDetect: e.target.checked })} className="w-4 h-4 rounded" />
             <div>
               <div className="text-sm text-white">Auto-detect language</div>
               <div className="text-xs text-zinc-500">Use AI to detect customer language</div>
@@ -552,11 +552,9 @@ export default function AiSettingsPage() {
           </label>
           <div>
             <label className="block text-xs text-zinc-500 mb-1">Default Language</label>
-            <select
-              value={languageSettings.defaultLanguage}
+            <select value={languageSettings.defaultLanguage}
               onChange={(e) => setLanguageSettings({ ...languageSettings, defaultLanguage: e.target.value })}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm"
-            >
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm">
               {SUPPORTED_LANGUAGES.map((lang) => (
                 <option key={lang.code} value={lang.code}>{lang.name} ({lang.code})</option>
               ))}
@@ -564,11 +562,9 @@ export default function AiSettingsPage() {
           </div>
           <div>
             <label className="block text-xs text-zinc-500 mb-1">WhatsApp Language Override</label>
-            <select
-              value={languageSettings.perChannel.whatsapp}
+            <select value={languageSettings.perChannel.whatsapp}
               onChange={(e) => setLanguageSettings({ ...languageSettings, perChannel: { ...languageSettings.perChannel, whatsapp: e.target.value } })}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm"
-            >
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm">
               {SUPPORTED_LANGUAGES.map((lang) => (
                 <option key={lang.code} value={lang.code}>{lang.name} ({lang.code})</option>
               ))}
@@ -590,11 +586,7 @@ export default function AiSettingsPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="font-mono text-zinc-500">{log.latencyMs}ms</span>
-                  {log.wasSent ? (
-                    <CheckCircle className="w-4 h-4 text-emerald-400" />
-                  ) : (
-                    <XCircle className="w-4 h-4 text-zinc-600" />
-                  )}
+                  {log.wasSent ? <CheckCircle className="w-4 h-4 text-emerald-400" /> : <XCircle className="w-4 h-4 text-zinc-600" />}
                   <span className="text-xs text-zinc-600">{new Date(log.createdAt).toLocaleTimeString()}</span>
                 </div>
               </div>

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { MessageSquare, Users, Kanban, Bell, FileText, Settings, UserPlus, LayoutDashboard, ChevronDown, LogOut, Building2, Webhook, Bot, Brain, Plug } from "lucide-react";
+import { MessageSquare, Users, Kanban, Bell, FileText, Settings, UserPlus, LayoutDashboard, ChevronDown, LogOut, Building2, Webhook, Bot, Brain, Plug, Mail, BarChart3, BookOpen, Database, Clock, Zap } from "lucide-react";
 import { useUnreadCounts } from "@/hooks/useUnreadCounts";
 import { useAuth } from "@/contexts/AuthContext";
 import NotificationBadge from "./NotificationBadge";
@@ -13,12 +13,17 @@ const nav = [
   { label: "Inbox", href: "/inbox", icon: MessageSquare },
   { label: "Contacts", href: "/contacts", icon: Users },
   { label: "Pipeline", href: "/pipeline", icon: Kanban },
-  { label: "Follow-ups", href: "/followups", icon: Bell },
+  { label: "Reports", href: "/reports", icon: BarChart3 },
+  { label: "Notifications", href: "/notifications", icon: Bell },
+  { label: "Follow-ups", href: "/followups", icon: Clock },
   { label: "Chatbot", href: "/chatbot", icon: Bot },
   { label: "AI", href: "/ai", icon: Brain },
-  { label: "Automation", href: "/automation", icon: Bot },
+  { label: "Automation", href: "/automation", icon: Zap },
+  { label: "Email", href: "/email-automation", icon: Mail },
   { label: "Templates", href: "/templates", icon: FileText },
   { label: "Team", href: "/team", icon: UserPlus },
+  { label: "Import/Export", href: "/import-export", icon: Database },
+  { label: "Help", href: "/help", icon: BookOpen },
   { label: "Setup", href: "/setup", icon: Plug },
   { label: "Settings", href: "/settings", icon: Settings },
   { label: "Webhooks", href: "/webhooks", icon: Webhook },

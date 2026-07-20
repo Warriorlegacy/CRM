@@ -4,7 +4,7 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
-type ModalSize = 'sm' | 'md' | 'lg' | 'xl';
+type ModalSize = 'sm' | 'md' | 'lg' | 'xl' | '2xl';
 
 interface ModalProps {
   open: boolean;
@@ -23,6 +23,7 @@ const sizeStyles: Record<ModalSize, string> = {
   md: 'max-w-md',
   lg: 'max-w-lg',
   xl: 'max-w-xl',
+  '2xl': 'max-w-2xl',
 };
 
 export default function Modal({
@@ -37,6 +38,7 @@ export default function Modal({
   closeOnEscape = true,
 }: ModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -64,11 +66,12 @@ export default function Modal({
     <div
       ref={overlayRef}
       onClick={handleBackdropClick}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
     >
       <div
+        ref={contentRef}
         className={[
-          'w-full rounded-xl border border-zinc-800 bg-zinc-900 shadow-2xl shadow-black/40',
+          'w-full rounded-2xl border border-white/[0.08] bg-[rgba(3,7,18,0.92)] backdrop-blur-2xl shadow-[0_32px_80px_rgba(0,0,0,0.6)]',
           'animate-in zoom-in-95 fade-in duration-200',
           sizeStyles[size],
         ].join(' ')}
@@ -77,7 +80,7 @@ export default function Modal({
           <div className="flex items-start justify-between px-6 pt-6 pb-0">
             <div className="flex-1 min-w-0">
               {title && (
-                <h2 className="text-lg font-semibold text-zinc-100">{title}</h2>
+                <h2 className="text-lg font-bold text-zinc-100">{title}</h2>
               )}
               {description && (
                 <p className="mt-1 text-sm text-zinc-400">{description}</p>
@@ -95,7 +98,7 @@ export default function Modal({
         <div className="px-6 py-4">{children}</div>
 
         {footer && (
-          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-zinc-800">
+          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-white/[0.06]">
             {footer}
           </div>
         )}

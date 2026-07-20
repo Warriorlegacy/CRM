@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../prisma';
-import { providers, FREE_MODELS } from '../ai/providers';
+import { providers, FREE_MODELS, isBuiltinProvider } from '../ai/providers';
 import { chatWithFallback, generateAutoReply, generateSmartReplies, generateConversationSummary, analyzeLeadScore, detectLanguage, getLanguageName } from '../ai/chain';
 
 export const aiRouter = Router();
@@ -43,13 +43,24 @@ aiRouter.get('/providers/models', async (req, res) => {
   return res.json({ models: FREE_MODELS });
 });
 
-aiRouter.get('/providers/available', async (req, res) => {
-  const availableProviders = Object.keys(providers)
+aiRouter.get('/providers/available', async (_req, res) => {
+  const builtinProviders = Object.keys(providers)
+    .filter((k) => k !== 'custom')
     .map((k) => ({
       id: k,
       name: k.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
       models: FREE_MODELS[k] || [],
     }));
+
+  // Universal custom provider option at top — works with ANY OpenAI-compatible endpoint
+  const availableProviders = [
+    {
+      id: '__custom__',
+      name: '✨ Custom (OpenAI-compatible)',
+      models: [{ model: '', name: 'Type any model name below' }],
+    },
+    ...builtinProviders,
+  ];
 
   return res.json({ providers: availableProviders });
 });
@@ -63,7 +74,16 @@ const ProviderSchema = z.object({
   priority: z.number().default(0),
   maxTokens: z.number().default(1024),
   temperature: z.number().min(0).max(2).default(0.7),
-});
+}).refine(
+  (data) => {
+    // If it's a custom provider (not a built-in one), require baseUrl
+    if (!isBuiltinProvider(data.provider) && data.provider !== '__custom__') {
+      return !!data.baseUrl;
+    }
+    return true;
+  },
+  { message: 'Base URL is required for custom providers', path: ['baseUrl'] }
+);
 
 aiRouter.post('/providers', async (req, res) => {
   const workspaceId = (req as any).workspaceId;

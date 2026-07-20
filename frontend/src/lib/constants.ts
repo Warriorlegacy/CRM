@@ -33,6 +33,7 @@ export const MESSAGE_TYPES = ['text', 'image', 'document', 'audio', 'video', 'lo
 export const TEMPLATE_CATEGORIES = ['marketing', 'utility', 'authentication'] as const;
 
 export const AI_PROVIDERS = [
+  '__custom__',
   'openai',
   'openrouter',
   'groq',

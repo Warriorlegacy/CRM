@@ -9,6 +9,7 @@ import { requireAuth } from './middleware/auth';
 import { initWebSocketServer } from './realtime/websocket';
 import { startTokenRefreshCron } from './cron/tokenRefresh';
 import { startAutoresponseCron } from './cron/autoresponse';
+import { startEmailCampaignCron } from './cron/emailCampaign';
 
 // Routes
 import { webhooksRouter } from './routes/webhooks';
@@ -41,6 +42,10 @@ import automationRouter from './routes/automation';
 import { oauthRouter } from './routes/oauth';
 import notesRouter from './routes/notes';
 import conversationLocksRouter from './routes/conversationLocks';
+import { emailCampaignsRouter } from './routes/emailCampaigns';
+import { emailAutomationRouter } from './routes/emailAutomation';
+import importRouter from './routes/import';
+import notificationsRouter from './routes/notifications';
 
 const app = express();
 
@@ -108,6 +113,16 @@ app.use('/api/v1/webhooks-log', requireAuth, webhooksLogRouter);
 app.use('/api/v1/chatbot-flows', requireAuth, chatbotFlowsRouter);
 app.use('/api/v1/ai', requireAuth, aiRouter);
 app.use('/api/v1/automation', requireAuth, automationRouter);
+
+// Email Campaigns & Automation - protected
+app.use('/api/v1/email-campaigns', requireAuth, emailCampaignsRouter);
+app.use('/api/v1/email-automation', requireAuth, emailAutomationRouter);
+
+// Import/Export
+app.use('/api/v1/import', requireAuth, importRouter);
+
+// Notifications
+app.use('/api/v1/notifications', requireAuth, notificationsRouter);
 
 // Real-time SSE - protected
 app.use('/realtime', requireAuth, realtimeRouter);
@@ -195,6 +210,8 @@ if (process.env.NODE_ENV !== 'test' && !isVercelRuntime) {
     logger.info(`🔄 Token Refresh Cron: scheduled`);
     startAutoresponseCron();
     logger.info(`⏰ Autoresponse Cron: scheduled`);
+    startEmailCampaignCron();
+    logger.info(`📧 Email Campaign Cron: scheduled`);
   });
 }
 

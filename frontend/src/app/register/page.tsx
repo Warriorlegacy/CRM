@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, MessageSquare, Rocket, Sparkles } from 'lucide-react';
+import { ArrowRight, MessageSquare, Rocket, Sparkles, Star, ChevronRight, Zap, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function RegisterPage() {
@@ -69,71 +69,85 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen px-4 py-10">
-      <div className="mx-auto grid min-h-[calc(100vh-5rem)] max-w-6xl gap-8 lg:grid-cols-[1fr_1fr]">
-        <div className="glass-panel hidden rounded-[32px] p-10 lg:flex lg:flex-col lg:justify-between">
+    <div className="min-h-screen px-4 py-10 bg-[#030712]">
+      {/* Background gradients */}
+      <div className="pointer-events-none fixed inset-0 z-0">
+        <div className="absolute -top-40 -right-40 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl" />
+      </div>
+
+      <div className="relative z-10 mx-auto grid min-h-[calc(100vh-5rem)] max-w-6xl gap-8 lg:grid-cols-[1fr_1fr]">
+        {/* Left Panel - Brand Side */}
+        <div className="glass-panel-strong hidden rounded-[32px] p-10 lg:flex lg:flex-col lg:justify-between relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-64 h-64 bg-gradient-to-br from-purple-400/5 to-transparent rounded-full blur-2xl pointer-events-none" />
+          
           <div>
-            <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/6 px-4 py-2 text-sm text-sky-100/80">
+            <div className="inline-flex items-center gap-2 rounded-full border border-purple-300/12 bg-purple-400/8 px-4 py-2 text-sm text-purple-200/80">
               <Sparkles className="h-4 w-4 text-amber-300" />
-              Build the WhatsApp engine your team can scale on
+              Build the revenue engine your team deserves
             </div>
-            <h1 className="mt-8 max-w-md text-5xl font-semibold leading-tight text-white">
-              Launch a workspace that makes every incoming chat easier to win.
+            <h1 className="mt-8 max-w-md text-5xl font-bold leading-tight text-white">
+              Launch a workspace. <span className="gradient-text">Win more deals.</span>
             </h1>
-            <p className="mt-5 max-w-lg text-base leading-8 text-slate-300">
-              Create your account, invite your team, and turn message volume into structured pipeline, accountability, and action.
+            <p className="mt-5 max-w-lg text-base leading-relaxed text-zinc-400">
+              Create your account, invite your team, and turn every WhatsApp conversation 
+              into a structured pipeline with clear ownership and zero chaos.
             </p>
+
+            <div className="mt-10 space-y-4">
+              <div className="flex items-center gap-3 text-sm text-zinc-300">
+                <Zap className="h-4 w-4 text-emerald-400" />
+                <span>Go live in under 3 minutes — no technical skills needed</span>
+              </div>
+              <div className="flex items-center gap-3 text-sm text-zinc-300">
+                <Rocket className="h-4 w-4 text-sky-400" />
+                <span>14-day free trial on Growth plan — no credit card required</span>
+              </div>
+              <div className="flex items-center gap-3 text-sm text-zinc-300">
+                <ShieldCheck className="h-4 w-4 text-purple-400" />
+                <span>Enterprise-grade security with role-based access control</span>
+              </div>
+            </div>
           </div>
 
-          <div className="grid gap-4">
-            <div className="rounded-3xl border border-white/8 bg-white/5 p-5">
-              <div className="flex items-center gap-3 text-emerald-300">
-                <Rocket className="h-5 w-5" />
-                Production-minded setup
-              </div>
-              <p className="mt-3 text-sm leading-7 text-slate-300">
-                JWT auth, role-aware workspaces, and a cleaner deployment path make onboarding look professional from day one.
-              </p>
-            </div>
-            <div className="rounded-3xl border border-white/8 bg-white/5 p-5">
-              <div className="flex items-center gap-3 text-sky-300">
-                <MessageSquare className="h-5 w-5" />
-                Conversations with structure
-              </div>
-              <p className="mt-3 text-sm leading-7 text-slate-300">
-                The app turns WhatsApp from a chat stream into an organized revenue workflow your client can trust.
-              </p>
-            </div>
+          <div className="flex items-center gap-2 rounded-2xl bg-emerald-400/8 border border-emerald-400/10 px-5 py-3">
+            <Star className="h-4 w-4 text-amber-400 fill-amber-400" />
+            <p className="text-sm text-zinc-300">
+              <span className="font-semibold text-emerald-300">4.9/5</span> from 500+ businesses that doubled their close rates
+            </p>
           </div>
         </div>
 
-        <div className="glass-panel flex items-center rounded-[32px] p-8 sm:p-10">
-          <div className="w-full">
+        {/* Right Panel - Register Form */}
+        <div className="glass-panel-strong flex items-center rounded-[32px] p-8 sm:p-10 relative overflow-hidden">
+          <div className="absolute -top-20 -right-20 w-40 h-40 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none" />
+          
+          <div className="w-full relative z-10">
             <div className="mb-8 text-center lg:text-left">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-emerald-300/18 bg-emerald-400/12 lg:mx-0">
-                <MessageSquare className="h-6 w-6 text-emerald-300" />
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-emerald-300/18 bg-emerald-400/12 lg:mx-0 pulse-glow">
+                <Rocket className="h-6 w-6 text-emerald-300" />
               </div>
-              <h2 className="mt-6 text-3xl font-semibold text-white">
-                Create a workspace your client will feel confident paying for.
+              <h2 className="mt-6 text-3xl font-bold text-white leading-tight">
+                Start closing faster. <span className="gradient-text">Free.</span>
               </h2>
-              <p className="mt-3 text-sm leading-7 text-slate-300">
-                Set up the team hub for faster replies, cleaner handoffs, and a more visible sales pipeline.
+              <p className="mt-3 text-sm leading-relaxed text-zinc-400">
+                Create your workspace and turn message volume into structured pipeline, accountability, and closed deals.
               </p>
             </div>
 
             <form className="space-y-6" onSubmit={handleSubmit}>
               {error && (
-                <div className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                <div className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3.5 text-sm text-red-200">
                   {error}
                 </div>
               )}
               {success && (
-                <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
-                  <p>{success}</p>
+                <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3.5 text-sm text-emerald-200">
+                  <p className="font-medium">{success}</p>
                   {verificationUrl && (
                     <p className="mt-2 break-all">
                       Verify link:{' '}
-                      <a href={verificationUrl} className="underline">{verificationUrl}</a>
+                      <a href={verificationUrl} className="underline hover:text-emerald-300">{verificationUrl}</a>
                     </p>
                   )}
                 </div>
@@ -141,7 +155,7 @@ export default function RegisterPage() {
 
               <div className="space-y-4">
                 <div>
-                  <label htmlFor="name" className="mb-2 block text-sm font-medium text-slate-200">
+                  <label htmlFor="name" className="mb-2 block text-sm font-medium text-zinc-200">
                     Full name
                   </label>
                   <input
@@ -152,13 +166,13 @@ export default function RegisterPage() {
                     required
                     value={formData.name}
                     onChange={handleChange}
-                    className="w-full rounded-2xl border border-white/10 bg-[rgba(255,255,255,0.04)] px-4 py-3.5 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+                    className="input-premium w-full rounded-2xl border border-white/[0.08] bg-white/[0.03] px-4 py-3.5 text-white placeholder:text-zinc-600 focus:outline-none"
                     placeholder="John Doe"
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="email" className="mb-2 block text-sm font-medium text-slate-200">
+                  <label htmlFor="email" className="mb-2 block text-sm font-medium text-zinc-200">
                     Work email
                   </label>
                   <input
@@ -169,13 +183,13 @@ export default function RegisterPage() {
                     required
                     value={formData.email}
                     onChange={handleChange}
-                    className="w-full rounded-2xl border border-white/10 bg-[rgba(255,255,255,0.04)] px-4 py-3.5 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+                    className="input-premium w-full rounded-2xl border border-white/[0.08] bg-white/[0.03] px-4 py-3.5 text-white placeholder:text-zinc-600 focus:outline-none"
                     placeholder="you@company.com"
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="workspaceName" className="mb-2 block text-sm font-medium text-slate-200">
+                  <label htmlFor="workspaceName" className="mb-2 block text-sm font-medium text-zinc-200">
                     Workspace name
                   </label>
                   <input
@@ -184,14 +198,14 @@ export default function RegisterPage() {
                     type="text"
                     value={formData.workspaceName}
                     onChange={handleChange}
-                    className="w-full rounded-2xl border border-white/10 bg-[rgba(255,255,255,0.04)] px-4 py-3.5 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+                    className="input-premium w-full rounded-2xl border border-white/[0.08] bg-white/[0.03] px-4 py-3.5 text-white placeholder:text-zinc-600 focus:outline-none"
                     placeholder="Acme Growth Team"
                   />
-                  <p className="mt-1.5 text-xs text-slate-500">Leave blank and we&apos;ll create one for you.</p>
+                  <p className="mt-1.5 text-xs text-zinc-600">Leave blank and we&apos;ll create one for you.</p>
                 </div>
 
                 <div>
-                  <label htmlFor="password" className="mb-2 block text-sm font-medium text-slate-200">
+                  <label htmlFor="password" className="mb-2 block text-sm font-medium text-zinc-200">
                     Password
                   </label>
                   <input
@@ -202,7 +216,7 @@ export default function RegisterPage() {
                     required
                     value={formData.password}
                     onChange={handleChange}
-                    className="w-full rounded-2xl border border-white/10 bg-[rgba(255,255,255,0.04)] px-4 py-3.5 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+                    className="input-premium w-full rounded-2xl border border-white/[0.08] bg-white/[0.03] px-4 py-3.5 text-white placeholder:text-zinc-600 focus:outline-none"
                     placeholder="At least 8 characters"
                   />
                   {formData.password.length > 0 && (
@@ -220,7 +234,7 @@ export default function RegisterPage() {
                 </div>
 
                 <div>
-                  <label htmlFor="confirmPassword" className="mb-2 block text-sm font-medium text-slate-200">
+                  <label htmlFor="confirmPassword" className="mb-2 block text-sm font-medium text-zinc-200">
                     Confirm password
                   </label>
                   <input
@@ -231,7 +245,7 @@ export default function RegisterPage() {
                     required
                     value={formData.confirmPassword}
                     onChange={handleChange}
-                    className="w-full rounded-2xl border border-white/10 bg-[rgba(255,255,255,0.04)] px-4 py-3.5 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+                    className="input-premium w-full rounded-2xl border border-white/[0.08] bg-white/[0.03] px-4 py-3.5 text-white placeholder:text-zinc-600 focus:outline-none"
                     placeholder="Repeat your password"
                   />
                 </div>
@@ -240,32 +254,32 @@ export default function RegisterPage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[linear-gradient(135deg,#41d39b,#6db3ff)] px-5 py-3.5 text-sm font-semibold text-slate-950 disabled:cursor-not-allowed disabled:opacity-60"
+                className="group relative inline-flex w-full items-center justify-center gap-2 rounded-full px-5 py-3.5 text-sm font-bold text-white btn-gradient overflow-hidden"
               >
                 {isLoading ? (
-                  <>
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-950 border-t-transparent" />
-                    Creating your workspace...
-                  </>
+                  <div className="flex items-center gap-2">
+                    <div className="spinner-premium" />
+                    <span>Creating your workspace...</span>
+                  </div>
                 ) : (
                   <>
-                    Create My Workspace
-                    <ArrowRight className="h-4 w-4" />
+                    <span className="relative z-10">Launch My Workspace</span>
+                    <ArrowRight className="relative z-10 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
                   </>
                 )}
               </button>
 
-              <p className="text-center text-xs text-slate-500">
+              <p className="text-center text-xs text-zinc-600">
                 By creating an account, you agree to our{' '}
-                <a href="#" className="text-emerald-300 hover:text-white">Terms of Service</a>
+                <a href="/terms" className="text-emerald-400 hover:text-emerald-300 transition-colors">Terms of Service</a>
                 {' '}and{' '}
-                <a href="#" className="text-emerald-300 hover:text-white">Privacy Policy</a>.
+                <a href="/privacy" className="text-emerald-400 hover:text-emerald-300 transition-colors">Privacy Policy</a>.
               </p>
 
-              <div className="text-center text-sm text-slate-300">
+              <div className="text-center text-sm text-zinc-400">
                 Already have an account?{' '}
-                <Link href="/login" className="font-semibold text-emerald-300 hover:text-white">
-                  Sign in
+                <Link href="/login" className="font-semibold text-emerald-400 hover:text-emerald-300 transition-colors">
+                  Sign in →
                 </Link>
               </div>
             </form>
