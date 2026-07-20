@@ -1,5 +1,8 @@
 function normalizeApiBase(rawUrl?: string): string {
-  const baseUrl = (rawUrl || 'http://localhost:3001').replace(/\/+$/, '');
+  const defaultUrl = process.env.NODE_ENV === 'production'
+    ? 'https://whatsapp-crm-backend-one.vercel.app/api/v1'
+    : 'http://localhost:3001/api/v1';
+  const baseUrl = (rawUrl || defaultUrl).replace(/\/+$/, '');
   return /\/api\/v1$/.test(baseUrl) ? baseUrl : `${baseUrl}/api/v1`;
 }
 
