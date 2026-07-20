@@ -1,36 +1,76 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Signhify CRM — Frontend
+
+A full-featured, multi-channel Sales & Support CRM frontend built with **Next.js 16** (App Router), **TypeScript**, and **Tailwind CSS v4**.
+
+## Tech Stack
+
+| Technology | Purpose |
+|---|---|
+| Next.js 16 (App Router) | React framework with Turbopack |
+| TypeScript | Type safety |
+| Tailwind CSS v4 | Utility-first styling |
+| Lucide React | Icon library |
+| React Three Fiber | 3D hero scene |
+| Framer Motion | Page transitions & animations |
+| WebSocket | Real-time messaging & notifications |
+
+## Pages
+
+| Route | Page |
+|---|---|
+| `/` | Cinematic landing page with 3D hero |
+| `/login` | Login with Google OAuth |
+| `/register` | Register with Google OAuth |
+| `/guide` | Non-technical user guide |
+| `/dashboard` | Analytics dashboard with KPIs |
+| `/inbox` | Multi-channel shared inbox |
+| `/contacts` | Contact management with lead scoring |
+| `/pipeline` | Drag-and-drop Kanban sales pipeline |
+| `/followups` | Follow-up reminders |
+| `/templates` | Message templates with variables |
+| `/chatbot` | Visual chatbot flow builder |
+| `/ai` | Multi-provider AI management (BYOK) |
+| `/automation` | Automation rules |
+| `/email-automation` | Email campaigns & automation |
+| `/settings` | Workspace settings (7 tabs) |
+| `/team` | Team member management |
+| `/webhooks` | Webhook log viewer |
+| `/notifications` | Real-time notification center |
+| `/reports` | Deep-dive analytics & export |
+| `/help` | Knowledge base & help center |
+| `/import-export` | CSV import/export |
+| `/setup` | Quick onboarding wizard |
+| `/onboarding` | Full setup guide |
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# Opens at http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Requires the backend API running at `http://localhost:3001`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment Variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```env
+NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1
+```
 
-## Learn More
+## Build
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run build    # Production build
+npm run lint     # ESLint
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Deployment
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+vercel --prod    # Deploy to Vercel
+```
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+**Built with ❤️ by Piyush Raj Singh**

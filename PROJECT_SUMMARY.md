@@ -1,264 +1,151 @@
-# 🚀 WhatsApp CRM Wrapper - MVP Complete!
+# 🚀 Signhify CRM — Project Summary
 
-## ✅ What's Been Built
+> A production-ready, multi-channel WhatsApp & Instagram CRM with AI automation, built and deployed on Vercel.
 
-### Backend (Node.js + Express + TypeScript)
+## Live URLs
 
-**Core Features:**
-- ✅ Prisma ORM with PostgreSQL schema
-- ✅ WhatsApp Cloud API integration (Meta)
-- ✅ Webhook handlers for receiving messages
-- ✅ Real-time SSE (Server-Sent Events) for live updates
-- ✅ Complete REST API endpoints
+- **Frontend:** [https://whatsapp-crm-frontend-three.vercel.app](https://whatsapp-crm-frontend-three.vercel.app)
+- **Backend API:** [https://whatsapp-crm-backend-one.vercel.app](https://whatsapp-crm-backend-one.vercel.app)
+- **Database:** Supabase PostgreSQL
 
-**Database Models:**
-- Users, Workspaces, Workspace Members
-- Contacts (leads) with pipeline stages
-- Conversations & Messages
-- Follow-ups (reminders)
-- Templates (quick replies)
-- WhatsApp Account connections
+## ✅ What's Built
 
-**API Routes:**
-- `POST /webhook` - Receive WhatsApp messages
-- `GET /realtime/events` - SSE for live updates
-- `GET/POST/PATCH /api/v1/inbox/*` - Inbox management
-- `POST /api/v1/messages/send` - Send WhatsApp messages
-- `GET/POST/PATCH /api/v1/contacts/*` - Contact CRUD
-- `GET/POST/PATCH /api/v1/followups/*` - Follow-up management
-- `GET/POST/PATCH/DELETE /api/v1/templates/*` - Template management
-- `GET/POST /api/v1/workspaces/*` - Workspace management
+### Infrastructure
+- ✅ Next.js 16 (App Router) + TypeScript frontend on Vercel
+- ✅ Express + Prisma ORM backend on Vercel (serverless)
+- ✅ PostgreSQL via Supabase (production) / SQLite (dev)
+- ✅ WebSocket real-time messaging
+- ✅ CI/CD via GitHub Actions
 
-### Frontend (Next.js 14 + TypeScript + Tailwind)
+### Authentication & Users
+- ✅ JWT-based auth with access + refresh tokens
+- ✅ Google 1-Click OAuth login
+- ✅ Email/password registration with verification
+- ✅ Multi-workspace support
+- ✅ Role-based access (Admin / Agent)
 
-**Pages:**
-- `/` - Landing page with features & pricing
-- `/inbox` - Team inbox with real-time chat
-- `/contacts` - Lead management & search
-- `/pipeline` - Kanban board for sales stages
-- `/followups` - Follow-up reminders
-- `/templates` - Quick reply templates
-- `/team` - Team member management
-- `/settings` - Workspace & WhatsApp API settings
+### Multi-Channel Inbox
+- ✅ WhatsApp Business API (Meta Cloud API)
+- ✅ Instagram Messaging API (Graph API)
+- ✅ Unified shared inbox for both channels
+- ✅ Real-time WebSocket message sync
+- ✅ Media attachments (images, documents, audio)
+- ✅ Conversation tags with custom colors
+- ✅ Internal notes with @mentions & priority
+- ✅ Agent collision detection & conversation locking
+- ✅ Read receipts & typing indicators
+- ✅ Conversation search & filtering
 
-**Components:**
-- AppShell - Layout wrapper
-- Sidebar - Navigation
-- Topbar - Search & user info
-- StatCard - Dashboard stats
-- Badge - Status badges
-- Real-time updates via SSE
+### Sales Pipeline
+- ✅ Visual Kanban board with drag-and-drop
+- ✅ Custom stage mapping (New → Won/Lost)
+- ✅ Contact assignment to team members
+- ✅ Per-stage contact counts with glow effects
 
-## 📁 File Structure
+### AI & Automation
+- ✅ **BYOK (Bring Your Own Key):** 18+ LLM providers supported
+- ✅ Custom OpenAI-compatible endpoint support
+- ✅ Multi-provider fallback chain with circuit-breaker
+- ✅ AI auto-reply, lead scoring, conversation summaries
+- ✅ Language detection (25+ languages)
+- ✅ Visual chatbot flow builder (5 node types)
+- ✅ Template-based auto-responders with keyword triggers
+- ✅ Business hours & away messages
+- ✅ Email automation rules & campaigns
 
-```
-whatsapp-crm/
-├── README.md
-├── setup.ps1
-│
-├── backend/
-│   ├── src/
-│   │   ├── server.ts           # Main Express server
-│   │   ├── env.ts              # Environment config
-│   │   ├── prisma.ts           # Prisma client
-│   │   ├── middleware/
-│   │   │   └── auth.ts         # Auth middleware
-│   │   ├── routes/
-│   │   │   ├── webhooks.ts     # WhatsApp webhooks
-│   │   │   ├── realtime.ts     # SSE endpoint
-│   │   │   ├── inbox.ts        # Inbox APIs
-│   │   │   ├── messages.ts     # Message sending
-│   │   │   ├── contacts.ts     # Contact management
-│   │   │   ├── followups.ts    # Follow-up APIs
-│   │   │   ├── templates.ts    # Template APIs
-│   │   │   └── workspace.ts    # Workspace APIs
-│   │   ├── whatsapp/
-│   │   │   ├── meta.ts         # Meta API client
-│   │   │   └── webhook.ts      # Webhook handler
-│   │   └── realtime/
-│   │       └── events.ts       # Event bus
-│   ├── prisma/
-│   │   ├── schema.prisma       # Database schema
-│   │   └── seed.ts             # Sample data
-│   ├── package.json
-│   ├── tsconfig.json
-│   ├── .env                    # Environment variables
-│   └── .env.example            # Environment template
-│
-└── frontend/
-    ├── src/
-    │   ├── app/
-    │   │   ├── (app)/            # App routes with sidebar
-    │   │   │   ├── inbox/
-    │   │   │   ├── contacts/
-    │   │   │   ├── pipeline/
-    │   │   │   ├── followups/
-    │   │   │   ├── templates/
-    │   │   │   ├── team/
-    │   │   │   ├── settings/
-    │   │   │   └── layout.tsx
-    │   │   ├── layout.tsx
-    │   │   └── page.tsx          # Landing page
-    │   ├── components/
-    │   │   ├── AppShell.tsx
-    │   │   ├── Sidebar.tsx
-    │   │   ├── Topbar.tsx
-    │   │   ├── StatCard.tsx
-    │   │   └── Badge.tsx
-    │   ├── hooks/
-    │   │   └── useRealtime.ts    # SSE hook
-    │   └── lib/
-    │       └── api.ts            # API client
-    ├── package.json
-    ├── tsconfig.json
-    ├── .env.local                # Environment variables
-    └── .env.example              # Environment template
-```
+### Follow-ups & Tasks
+- ✅ Scheduled follow-ups with due dates
+- ✅ Overdue detection with priority flags
+- ✅ Assignment tracking & status management
+- ✅ Automatic notification creation
 
-## 🚀 How to Run
+### Analytics & Reporting
+- ✅ Real-time dashboard with KPI cards
+- ✅ Team performance leaderboard
+- ✅ Pipeline conversion funnel
+- ✅ Lead temperature breakdown
+- ✅ Channel comparison (WhatsApp vs Instagram)
+- ✅ Daily message trends with stacked charts
+- ✅ Chatbot completion & abandonment metrics
+- ✅ Deep-dive reports page with export
+- ✅ CSV export for contacts, conversations, messages
 
-### Quick Start (PowerShell)
-
-```powershell
-# Run the setup script
-.\setup.ps1
-```
-
-### Manual Setup
-
-**1. Backend:**
-```bash
-cd backend
-npm install
-
-# Setup database
-cp .env.example .env
-# Edit .env with your database URL
-
-npx prisma migrate dev
-npx prisma generate
-npx prisma db seed
-
-npm run dev
-```
-
-**2. Frontend:**
-```bash
-cd frontend
-npm install
-
-cp .env.example .env.local
-# Edit .env.local if needed
-
-npm run dev
-```
-
-## 📱 WhatsApp Cloud API Setup
-
-1. Go to https://developers.facebook.com/
-2. Create a new app → Select "Business" type
-3. Add "WhatsApp" product
-4. Get your credentials:
-   - Phone Number ID
-   - WhatsApp Business Account ID
-   - Access Token
-5. Set up webhook:
-   - Callback URL: `https://your-ngrok-url/webhook`
-   - Verify Token: (set in .env)
-   - Subscribe to: `messages`
-
-## 🔥 Key Features
-
-### Real-time Messaging
-- ✅ Instant message sync via SSE
-- ✅ No page refresh needed
-- ✅ Auto-reconnect on disconnect
+### Notifications
+- ✅ Real-time notification center
+- ✅ 7 notification types with color-coded icons
+- ✅ Filter by read/unread/type
+- ✅ Real-time push via WebSocket
+- ✅ Mark as read, mark all read, dismiss, clear all
+- ✅ Desktop browser notifications
+- ✅ Notification sounds
+- ✅ Badge counts on sidebar
 
 ### Team Collaboration
-- ✅ Shared inbox
-- ✅ Chat assignment
-- ✅ Pipeline stages
-- ✅ Follow-up reminders
-
-### Lead Management
-- ✅ Auto-create contacts from WhatsApp
-- ✅ Tagging system
-- ✅ Pipeline stages (New → Won/Lost)
-- ✅ Contact search & filter
-
-### Productivity
-- ✅ Quick reply templates
-- ✅ Follow-up scheduling
-- ✅ Activity timeline
 - ✅ Multi-user workspaces
+- ✅ Team member management with invite
+- ✅ Role-based permissions
+- ✅ Real-time agent activity tracking
+- ✅ Internal conversation notes
+- ✅ Screen-level activity logs
 
-## 💰 Pricing Structure (Built-in)
+### Email
+- ✅ SMTP configuration (Gmail, Outlook, custom)
+- ✅ HTML email campaign builder
+- ✅ Email automation rules with triggers
+- ✅ Campaign analytics (opens, clicks, delivery)
+- ✅ Sender identity management
 
-- **Starter**: ₹999/mo - 1 user, basic CRM
-- **Pro**: ₹2999/mo - 3 users, follow-ups, reports
-- **Business**: ₹6999/mo - 10 users, broadcasts, automation
+### Data Management
+- ✅ CSV import for contacts (with validation)
+- ✅ CSV export for analytics data
+- ✅ Duplicate detection on import
+- ✅ Batch upsert processing
+- ✅ Full-text search across contacts & conversations
 
-## 🔐 Security
+### Public Pages
+- ✅ Cinematic landing page with 3D hero scene
+- ✅ Login / Register with glass morphism UI
+- ✅ Public user guide (12-step non-technical walkthrough)
+- ✅ SEO sitemap.xml & robots.txt
+- ✅ Structured data (JSON-LD)
 
-- ✅ Workspace-scoped data
-- ✅ Header-based auth (upgrade to JWT for production)
-- ✅ Encrypted tokens
-- ✅ Webhook verification
+### UI/UX
+- ✅ Premium dark theme with cinematic gradients
+- ✅ Glass morphism panels with backdrop blur
+- ✅ Scroll-triggered reveal animations
+- ✅ Responsive design with mobile bottom nav
+- ✅ Keyboard shortcuts modal
+- ✅ Toast notification system
+- ✅ Loading spinners & skeleton states
 
-## 📊 Database Schema
+### Security
+- ✅ JWT authentication with auto-refresh
+- ✅ Workspace-scoped data isolation
+- ✅ Rate limiting & IP blocking
+- ✅ CORS, CSP, Helmet hardening
+- ✅ Webhook signature verification
+- ✅ Content Security Policy headers
 
-**Tables:**
-- `users` - System users
-- `workspaces` - Business accounts
-- `workspace_members` - User roles per workspace
-- `wa_accounts` - WhatsApp API connections
-- `contacts` - Leads/customers
-- `conversations` - Chat threads
-- `messages` - Individual messages
-- `followups` - Scheduled reminders
-- `templates` - Quick reply templates
+## 📦 Database Models (25+)
 
-## 🎯 Next Steps
+User, Workspace, WorkspaceMember, WaAccount, IgAccount, Contact, Conversation, Message, Followup, Template, Autoresponder, Broadcast, BroadcastMessage, ChatbotFlow, FlowNode, FlowEdge, FlowExecution, AiProvider, AiConversationSummary, AiAutoReplyLog, WebhookLog, VerificationToken, AwayMessage, ContactNote, ConversationNote, ConversationTag, ConversationTagAssignment, AgentActivity, TypingIndicator, ReadReceipt, LeadScoringRule, EmailCampaign, EmailLog, EmailAutomationRule, SmtpConfig, Notification
 
-1. **Connect WhatsApp API:**
-   - Get Meta credentials
-   - Configure webhook
-   - Test message flow
+## 🔌 API Routes (40+)
 
-2. **Authentication:**
-   - Implement JWT tokens
-   - Add login/signup pages
-   - Session management
+Health, Auth, OAuth, Inbox, Messages, Contacts, Notes, Followups, Templates, Broadcasts, Broadcast, Activity, Analytics, Export, Import, Search, Media, Invite, Typing, ReadReceipts, Webhooks, WebhooksLog, Autoresponders, ChatbotFlows, AI, Automation, EmailCampaigns, EmailAutomation, Workspace, Admin, Settings, Notifications, Realtime, Verify, ConversationLocks, ScheduledMessages
 
-3. **Enhancements:**
-   - Add image/document support
-   - Broadcast campaigns
-   - Analytics dashboard
-   - Mobile app
+## 🗺️ Roadmap
 
-4. **Deployment:**
-   - Backend: Render/Railway
-   - Frontend: Vercel
-   - Database: Supabase/Neon
-
-## 🎉 Success!
-
-Your WhatsApp CRM MVP is ready! You have:
-- ✅ Complete backend with WhatsApp integration
-- ✅ Modern React frontend with real-time updates
-- ✅ Production-ready database schema
-- ✅ All MVP features implemented
-
-**Time to market: 7 days → Done in 1 session! 🚀**
-
-Start selling to:
-- Coaching institutes
-- Real estate brokers
-- Clinics & hospitals
-- Insurance agents
-- Marketing agencies
-- Local service businesses
+- [ ] Mobile app (React Native)
+- [ ] In-app calling / video
+- [ ] Public API for third-party integrations
+- [ ] Multi-language UI (i18n)
+- [ ] Custom reporting builder
+- [ ] Zapier / n8n integration
+- [ ] Role-based dashboard widgets
+- [ ] AI training on historical conversations
+- [ ] WhatsApp template message approval flow
 
 ---
 
-**Built with ❤️ in India 🇮🇳**
+**Built with ❤️ by Piyush Raj Singh — Solo Creator of Signhify CRM**
