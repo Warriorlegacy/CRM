@@ -48,7 +48,8 @@ export async function establishOAuthContext(channel: 'whatsapp' | 'instagram'): 
 }
 
 export function buildOAuthUrl(channel: 'whatsapp' | 'instagram'): string {
-  return `${API_ORIGIN}/api/v1/oauth/${channel}`;
+  const token = getAuthToken();
+  return `${API_ORIGIN}/api/v1/oauth/${channel}?token=${encodeURIComponent(token || '')}`;
 }
 
 export interface ApiError extends Error {

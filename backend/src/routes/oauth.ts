@@ -18,8 +18,8 @@ oauthRouter.post('/establish', requireAuth, (req: Request, res: Response) => {
 
   res.cookie('oauth_context', token, {
     httpOnly: true,
-    secure: env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    secure: true,
+    sameSite: 'none',
     maxAge: 5 * 60 * 1000, // 5 minutes
     path: '/api/v1/oauth',
   });
