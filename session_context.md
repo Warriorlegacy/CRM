@@ -248,12 +248,32 @@
 
 ---
 
+## 📌 Phase 11: 1-Click Meta OAuth & Production Alignment
+
+### ✅ 1-Click Zero-Config Setup Restored
+- Restored simple, non-technical 1-click **Connect WhatsApp** / **Connect Instagram** setup flow in `frontend/src/app/(app)/setup/page.tsx` as documented in `guide/page.tsx`.
+- Removed complex manual credential input modals to keep product UX simple for end-users.
+
+### ✅ Meta App & Business Login Integration
+- Configured Meta App production environment variables in Vercel backend:
+  - `META_APP_ID`: `980883078083935`
+  - `META_APP_SECRET`: `798886936e5226d9ff26608f511270cc`
+  - `META_CONFIG_ID`: `1333150785194697` (Business Login Configuration ID for **`Signhify`**)
+- Updated `backend/src/routes/oauth.ts` and `backend/src/env.ts` to attach `&config_id=${env.META_CONFIG_ID}` to Facebook OAuth authorization URLs.
+
+### ✅ Fixed Cross-Domain OAuth Redirect Loop & URL Whitelist Mismatches
+- **Auth Token Pass**: Updated `buildOAuthUrl()` in `frontend/src/lib/api.ts` to attach `?token=${token}` in the redirect query string so full-page browser redirects to `/api/v1/oauth/whatsapp` carry the JWT token and avoid redirecting logged-in users back to `/login`.
+- **Canonical Redirect URI**: Configured `BACKEND_URL="https://whatsapp-crm-backend-one.vercel.app"` in Vercel backend environment variables to prevent dynamic Vercel preview hostnames from breaking Meta OAuth whitelist validation.
+- **Frontend API Base URL**: Configured `NEXT_PUBLIC_API_URL="https://whatsapp-crm-backend-one.vercel.app/api/v1"` on Vercel frontend and added production fallback URL in `normalizeApiBase()` (`frontend/src/lib/api.ts`).
+- **Cookie SameSite**: Configured `sameSite: 'none'` with `secure: true` on `oauth_context` cookie in `backend/src/routes/oauth.ts`.
+
+---
+
 ## 🛠️ Verification Status
-- Frontend: ✅ 0 TypeScript errors
-- Backend: ✅ **0 TypeScript errors** (all notes.ts errors resolved)
+- Frontend: ✅ **0 TypeScript errors** (`https://signhify-crm.vercel.app` live)
+- Backend: ✅ **0 TypeScript errors** (`https://whatsapp-crm-backend-one.vercel.app` live)
 - Tests: ✅ **24/24 passing** (Notes API)
-- Prisma client: ✅ Generated (SQLite local, PostgreSQL Supabase)
+- Meta OAuth: ✅ Configured with Meta App ID `980883078083935` & Config ID `1333150785194697`
 - Supabase: ✅ All tables synced (`prisma db push` success)
 - Vercel deployments: ✅ Frontend + Backend live & verified
-- GitHub: ✅ Pushed (c202c09..fe39965)
-- Live API: ✅ `/health` → 200, `/notifications` → 401 (auth enforced)
+- GitHub: ✅ All changes committed & pushed to `master`
