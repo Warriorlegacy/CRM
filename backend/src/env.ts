@@ -27,6 +27,7 @@ export const env = {
   // Meta OAuth (WhatsApp & Instagram)
   META_APP_ID: process.env.META_APP_ID || '',
   META_APP_SECRET: process.env.META_APP_SECRET || '',
+  META_CONFIG_ID: process.env.META_CONFIG_ID || '1333150785194697',
   FRONTEND_URL: process.env.FRONTEND_URL || (isProduction ? '' : 'http://localhost:3000'),
   
   // CORS

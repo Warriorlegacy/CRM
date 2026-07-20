@@ -226,12 +226,14 @@ oauthRouter.get('/whatsapp', async (req: Request, res: Response) => {
     'whatsapp_business_management',
   ].join(',');
 
+  const configParam = env.META_CONFIG_ID ? `&config_id=${env.META_CONFIG_ID}` : '';
   const authUrl = `https://www.facebook.com/${env.META_API_VERSION}/dialog/oauth?` +
     `client_id=${env.META_APP_ID}` +
     `&redirect_uri=${encodeURIComponent(redirectUri)}` +
     `&scope=${encodeURIComponent(scopes)}` +
     `&state=${state}` +
-    `&response_type=code`;
+    `&response_type=code` +
+    configParam;
 
   res.redirect(authUrl);
 });
@@ -356,12 +358,14 @@ oauthRouter.get('/instagram', async (req: Request, res: Response) => {
     'pages_show_list',
   ].join(',');
 
+  const configParam = env.META_CONFIG_ID ? `&config_id=${env.META_CONFIG_ID}` : '';
   const authUrl = `https://www.facebook.com/${env.META_API_VERSION}/dialog/oauth?` +
     `client_id=${env.META_APP_ID}` +
     `&redirect_uri=${encodeURIComponent(redirectUri)}` +
     `&scope=${encodeURIComponent(scopes)}` +
     `&state=${state}` +
-    `&response_type=code`;
+    `&response_type=code` +
+    configParam;
 
   res.redirect(authUrl);
 });
