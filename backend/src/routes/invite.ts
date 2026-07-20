@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../prisma';
 import bcrypt from 'bcryptjs';
 import { getWorkspaceLimits, checkLimit } from '../middleware/limits';
+import { createNotification } from './notifications';
 
 export const inviteRouter = Router();
 
@@ -66,6 +67,18 @@ inviteRouter.post('/', async (req, res) => {
       },
     });
 
+    // Create notification for team invite
+    try {
+      await createNotification(workspaceId, {
+        type: 'team_invite',
+        title: `${existingUser.name || existingUser.email} joined your workspace`,
+        message: `${existingUser.name || existingUser.email} accepted your invitation and joined as ${role}.`,
+        link: '/team',
+      });
+    } catch (e) {
+      console.error('Failed to create notification for team invite:', e);
+    }
+
     return res.json({ 
       ok: true, 
       message: 'User added to workspace',
@@ -91,6 +104,18 @@ inviteRouter.post('/', async (req, res) => {
       role,
     },
   });
+
+  // Create notification for new team member invite
+  try {
+    await createNotification(workspaceId, {
+      type: 'team_invite',
+      title: `${name} invited to workspace`,
+      message: `${name} (${email}) was invited as ${role}. They will receive login instructions via email.`,
+      link: '/team',
+    });
+  } catch (e) {
+    console.error('Failed to create notification for new team invite:', e);
+  }
 
   // NOTE: tempPassword should be sent via email, never exposed in the API response
   return res.json({ 

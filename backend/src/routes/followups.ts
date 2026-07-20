@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../prisma';
+import { createNotification } from './notifications';
 
 export const followupsRouter = Router();
 
@@ -115,6 +116,20 @@ followupsRouter.post('/', async (req, res) => {
       },
     },
   });
+
+  // Create notification for new follow-up
+  try {
+    const contactName = followup.contact?.name || followup.contact?.phone || 'Contact';
+    const isOverdue = new Date(dueAt) <= new Date();
+    await createNotification(workspaceId, {
+      type: 'followup_due',
+      title: isOverdue ? `⚠️ Overdue follow-up: ${contactName}` : `Follow-up scheduled: ${contactName}`,
+      message: (note || `Follow-up due ${isOverdue ? 'now' : dueAt.toLocaleDateString()}`).substring(0, 120),
+      link: '/followups',
+    });
+  } catch (e) {
+    console.error('Failed to create notification for follow-up:', e);
+  }
 
   return res.json({ ok: true, followup });
 });

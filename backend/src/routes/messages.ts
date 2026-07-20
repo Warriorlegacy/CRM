@@ -4,6 +4,7 @@ import { prisma } from '../prisma';
 import { sendWhatsAppText } from '../whatsapp/meta';
 import { sendInstagramMessage } from '../instagram/graph';
 import { publish } from '../realtime/events';
+import { createNotification } from './notifications';
 
 export const messagesRouter = Router();
 
@@ -115,6 +116,20 @@ messagesRouter.post('/send', async (req, res) => {
       } : {}),
     },
   });
+
+  // 4) Create notification for sent message
+  try {
+    const contactName = convo.contact.name || (channel === 'instagram' ? convo.contact.igUsername : convo.contact.phone) || 'Contact';
+    await createNotification(workspaceId, {
+      type: 'outbound_message',
+      title: `Message sent to ${contactName}`,
+      message: (text || '📎 Media').substring(0, 120),
+      channel,
+      link: '/inbox',
+    });
+  } catch (e) {
+    console.error('Failed to create notification for outbound message:', e);
+  }
 
   return res.json({ ok: true, sent });
 });

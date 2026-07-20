@@ -271,7 +271,7 @@ model ConversationNote {
   userId         String
   content        String
   priority       String   @default("normal")
-  mentions       String[] @default([])
+  mentions       String @default("[]")
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

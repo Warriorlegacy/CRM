@@ -4,6 +4,7 @@ import { sendWhatsAppText } from './meta';
 import { processChatbotMessage } from '../services/chatbotEngine';
 import { processLeadScore } from '../services/leadScoring';
 import { processAutomation } from '../services/aiAutomation';
+import { createNotification } from '../routes/notifications';
 
 function getInboundMessage(payload: any) {
   const entry = payload?.entry?.[0];
@@ -150,7 +151,20 @@ export async function handleWhatsAppWebhook(payload: any) {
     unreadCount: contact.unreadCount,
   });
 
-  // 5) Process autoresponders
+  // 5) Create notification for team about new inbound message
+  try {
+    await createNotification(workspace.id, {
+      type: 'inbound_message',
+      title: `New message from ${contact.name || inbound.from}`,
+      message: (inbound.bodyText || '📎 Media message').substring(0, 120),
+      channel: 'whatsapp',
+      link: '/inbox',
+    });
+  } catch (e) {
+    console.error('Failed to create notification for inbound WhatsApp message:', e);
+  }
+
+  // 6) Process autoresponders
   await processAutoresponders(
     workspace.id,
     contact.id,
@@ -160,7 +174,7 @@ export async function handleWhatsAppWebhook(payload: any) {
     workspace.businessHoursJson
   );
 
-  // 6) Process chatbot flows
+  // 7) Process chatbot flows
   await processChatbotMessage({
     workspaceId: workspace.id,
     contactId: contact.id,
@@ -170,14 +184,14 @@ export async function handleWhatsAppWebhook(payload: any) {
     senderId: inbound.from,
   });
 
-  // 7) Lead scoring for inbound message
+  // 8) Lead scoring for inbound message
   await processLeadScore({
     workspaceId: workspace.id,
     contactId: contact.id,
     event: 'inbound_message',
   });
 
-  // 8) AI Automation - analyze, categorize, auto-reply
+  // 9) AI Automation - analyze, categorize, auto-reply
   await processAutomation({
     workspaceId: workspace.id,
     contactId: contact.id,

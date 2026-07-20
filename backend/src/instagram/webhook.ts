@@ -5,6 +5,7 @@ import { InstagramWebhookBody, ParsedInboundInstagram } from './types';
 import { processChatbotMessage } from '../services/chatbotEngine';
 import { processLeadScore } from '../services/leadScoring';
 import { processAutomation } from '../services/aiAutomation';
+import { createNotification } from '../routes/notifications';
 
 function parseInboundMessage(payload: InstagramWebhookBody): ParsedInboundInstagram | null {
   const entry = payload?.entry?.[0];
@@ -127,6 +128,19 @@ export async function handleInstagramWebhook(payload: InstagramWebhookBody) {
     },
     unreadCount: contact.unreadCount,
   });
+
+  // 5) Create notification for team about new Instagram message
+  try {
+    await createNotification(workspace.id, {
+      type: 'inbound_message',
+      title: `New Instagram DM from ${contact.name || inbound.from}`,
+      message: (inbound.bodyText || '📸 Media message').substring(0, 120),
+      channel: 'instagram',
+      link: '/inbox',
+    });
+  } catch (e) {
+    console.error('Failed to create notification for inbound Instagram message:', e);
+  }
 
   await processAutoresponders(workspace.id, contact.id, conversation.id, inbound.bodyText, inbound.from);
 

@@ -4,6 +4,7 @@ import { sendWhatsAppText } from '../whatsapp/meta';
 import { sendInstagramMessage } from '../instagram/graph';
 import { processLeadScore } from './leadScoring';
 import { generateAutoReply } from '../ai/chain';
+import { createNotification } from '../routes/notifications';
 
 interface FlowContext {
   answers: Record<string, string>;
@@ -199,6 +200,21 @@ async function advanceFlow(
       contactId: execution.contactId,
       event: 'flow_completed',
     });
+
+    // Create notification for flow completion
+    try {
+      const contact = await prisma.contact.findUnique({ where: { id: execution.contactId } });
+      if (contact) {
+        await createNotification(flow.workspaceId, {
+          type: 'flow_execution',
+          title: `Chatbot flow completed: ${flow.name}`,
+          message: `${contact.name || contact.phone} completed the "${flow.name}" flow.`,
+          link: '/chatbot',
+        });
+      }
+    } catch (e) {
+      console.error('Failed to create notification for flow completion:', e);
+    }
 
     return { flowCompleted: true };
   }

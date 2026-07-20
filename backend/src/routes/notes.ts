@@ -42,7 +42,7 @@ notesRouter.get('/', async (req: Request, res: Response) => {
       userName: n.user?.name || null,
       content: n.content,
       priority: n.priority,
-      mentions: n.mentions,
+      mentions: JSON.parse(n.mentions || '[]'),
       createdAt: n.createdAt,
       updatedAt: n.updatedAt,
     }))});
@@ -78,13 +78,15 @@ notesRouter.post('/', async (req: Request, res: Response) => {
         userId,
         content,
         priority,
-        mentions,
+        mentions: JSON.stringify(mentions), // Serialize array to JSON string for SQLite compat
       },
       include: { user: { select: { id: true, name: true, email: true } } },
     });
 
+    // Parse mentions back from JSON string
+    const parsedMentions: string[] = JSON.parse(note.mentions || '[]');
+
     // Publish realtime event with mentions for in-app notifications
-    const safeMentions: string[] = Array.isArray(note.mentions) ? note.mentions : [];
     publish(workspaceId, {
       type: 'new_conversation_note',
       conversationId: note.conversationId,
@@ -94,10 +96,10 @@ notesRouter.post('/', async (req: Request, res: Response) => {
         userName: note.user?.name || null,
         content: note.content,
         priority: note.priority,
-        mentions: safeMentions,
+        mentions: parsedMentions,
         createdAt: note.createdAt,
       },
-      mentions: safeMentions,
+      mentions: parsedMentions,
     });
 
     return res.status(201).json({
@@ -107,7 +109,7 @@ notesRouter.post('/', async (req: Request, res: Response) => {
       userName: note.user?.name || null,
       content: note.content,
       priority: note.priority,
-      mentions: note.mentions,
+      mentions: parsedMentions,
       createdAt: note.createdAt,
       updatedAt: note.updatedAt,
     });
@@ -133,7 +135,7 @@ notesRouter.patch('/:id', async (req: Request, res: Response) => {
       data: {
         ...(content !== undefined && { content }),
         ...(priority !== undefined && { priority }),
-        ...(mentions !== undefined && { mentions }),
+        ...(mentions !== undefined && { mentions: JSON.stringify(mentions) }), // Serialize to JSON string
       },
     });
 
@@ -153,7 +155,7 @@ notesRouter.patch('/:id', async (req: Request, res: Response) => {
       userName: note!.user?.name || null,
       content: note!.content,
       priority: note!.priority,
-      mentions: note!.mentions,
+      mentions: JSON.parse(note!.mentions || '[]'),
       createdAt: note!.createdAt,
       updatedAt: note!.updatedAt,
     });
