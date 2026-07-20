@@ -228,13 +228,6 @@ export default function SetupPage() {
   const [testResults, setTestResults] = useState<Record<string, { ok: boolean; message: string }>>({});
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [connectingChannel, setConnectingChannel] = useState<string | null>(null);
-  const [showManualWaModal, setShowManualWaModal] = useState(false);
-  const [manualWa, setManualWa] = useState({
-    phoneNumberId: '',
-    businessAccountId: '',
-    accessToken: '',
-    webhookVerifyToken: 'wa-verify-token-123',
-  });
 
   useEffect(() => {
     const waStatus = searchParams.get('whatsapp');
@@ -288,21 +281,8 @@ export default function SetupPage() {
       setConnectingChannel(null);
       setMessage({
         type: 'error',
-        text: 'Meta 1-Click OAuth requires META_APP_ID in backend env. You can also connect directly below by entering your Meta API credentials.',
+        text: 'Unable to initialize Meta 1-Click authorization. Please ensure META_APP_ID is configured in backend environment variables.',
       });
-      setShowManualWaModal(true);
-    }
-  };
-
-  const handleSaveManualWa = async () => {
-    if (!manualWa.phoneNumberId || !manualWa.accessToken) return;
-    try {
-      await api.post('/workspaces/wa-account', manualWa);
-      setShowManualWaModal(false);
-      setMessage({ type: 'success', text: 'WhatsApp Business credentials connected successfully!' });
-      loadConnections();
-    } catch {
-      setMessage({ type: 'error', text: 'Failed to save WhatsApp credentials. Please verify your Phone Number ID and Access Token.' });
     }
   };
 
@@ -484,15 +464,8 @@ export default function SetupPage() {
                   )}
                   {connectingChannel === 'whatsapp' ? 'Connecting...' : 'Connect WhatsApp'}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setShowManualWaModal(true)}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-zinc-800/80 hover:bg-zinc-800 border border-zinc-700/50 text-zinc-300 text-xs rounded-xl font-medium transition-colors"
-                >
-                  <Key className="w-3.5 h-3.5 text-emerald-400" /> Enter Meta API Credentials Directly
-                </button>
                 <p className="text-xs text-zinc-600 text-center">
-                  1-Click OAuth redirect or direct Meta Cloud API setup
+                  You will be redirected to Meta to authorize
                 </p>
               </div>
             )}
@@ -849,76 +822,6 @@ export default function SetupPage() {
         </div>
       )}
 
-      {/* Manual WhatsApp Credentials Modal */}
-      {showManualWaModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-lg p-6 space-y-4">
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <Smartphone className="w-5 h-5 text-emerald-400" />
-              Meta Cloud API Credentials (WhatsApp)
-            </h2>
-            <p className="text-xs text-zinc-400">
-              Directly enter your Meta Developer Portal WhatsApp Business details to bypass 1-click OAuth.
-            </p>
-
-            <div>
-              <label className="block text-xs text-zinc-400 mb-1">Phone Number ID *</label>
-              <input
-                value={manualWa.phoneNumberId}
-                onChange={(e) => setManualWa({ ...manualWa, phoneNumberId: e.target.value })}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm font-mono"
-                placeholder="e.g. 100654321098765"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs text-zinc-400 mb-1">WhatsApp Business Account ID (WABA) *</label>
-              <input
-                value={manualWa.businessAccountId}
-                onChange={(e) => setManualWa({ ...manualWa, businessAccountId: e.target.value })}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm font-mono"
-                placeholder="e.g. 200987654321012"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs text-zinc-400 mb-1">Permanent System User Access Token *</label>
-              <input
-                type="password"
-                value={manualWa.accessToken}
-                onChange={(e) => setManualWa({ ...manualWa, accessToken: e.target.value })}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm font-mono"
-                placeholder="EAAG... (Meta Access Token)"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs text-zinc-400 mb-1">Webhook Verification Token (Auto-generated)</label>
-              <input
-                value={manualWa.webhookVerifyToken}
-                onChange={(e) => setManualWa({ ...manualWa, webhookVerifyToken: e.target.value })}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm font-mono"
-              />
-            </div>
-
-            <div className="flex justify-end gap-3 pt-2">
-              <button
-                onClick={() => setShowManualWaModal(false)}
-                className="px-4 py-2 text-sm text-zinc-400 hover:text-white transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveManualWa}
-                disabled={!manualWa.phoneNumberId || !manualWa.accessToken}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-sm font-medium transition-colors"
-              >
-                Connect WhatsApp
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
