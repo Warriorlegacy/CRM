@@ -641,7 +641,7 @@ model Notification {
   title       String
   message     String
   channel     String?  // whatsapp | instagram | null for system
-  link        String?  // link to relevant page
+  link        String?
   read        Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

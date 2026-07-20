@@ -29,6 +29,7 @@
   "description": "WhatsApp CRM Backend API",
   "dependencies": {
     "@prisma/client": "^5.22.0",
+    "@supabase/supabase-js": "^2.110.7",
     "@types/cookie-parser": "^1.4.10",
     "@types/jsonwebtoken": "^9.0.10",
     "axios": "^1.6.0",

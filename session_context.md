@@ -143,4 +143,117 @@
 - ✅ Real-time Notification API (Prisma model + backend CRUD + WebSocket + frontend rewrite)
 - ✅ Landing page JSX template fixes
 - ✅ Backend providers.ts geminiAdapter duplicate fix
+- ✅ Vercel deployment (frontend + backend)
+- ✅ GitHub documentation rewrite (README, PROJECT_SUMMARY, frontend/README)
 - ✅ Session context updated
+
+## 📌 Phase 9: Notification Triggers + Notes Fix + Tests
+
+### ✅ Real-Time Notification Triggers (6 trigger points)
+- **WhatsApp webhook** (`whatsapp/webhook.ts`): Auto-creates `inbound_message` notification when new WhatsApp message arrives — title: "New message from {name}", preview truncated to 120 chars, channel: 'whatsapp', link: '/inbox'
+- **Instagram webhook** (`instagram/webhook.ts`): Same pattern for Instagram DMs — title: "New Instagram DM from {name}"
+- **Messages route** (`routes/messages.ts`): Auto-creates `outbound_message` notification when a team member sends a message — title: "Message sent to {name}"
+- **Follow-ups route** (`routes/followups.ts`): Auto-creates `followup_due` notification on creation — with ⚠️ prefix for overdue follow-ups
+- **Chatbot engine** (`services/chatbotEngine.ts`): Auto-creates `flow_execution` notification when a chatbot flow completes — includes flow name and contact name
+- **Invite route** (`routes/invite.ts`): Auto-creates `team_invite` notification when a user is invited or joins — includes role info
+- All calls wrapped in silent `try/catch` — notification failure never crashes the main processing flow
+
+### ✅ Notes.ts Fix — Mentions Serialization
+- **Root cause**: `ConversationNote.mentions` is stored as `String @default("[]")` (JSON string) in Prisma schema, but the code was passing `string[]` arrays directly — causing 4 TS errors
+- **Fix**: 
+  - `POST /`: Changed `mentions` → `JSON.stringify(mentions)` in create data; added `parsedMentions` variable for response/publish; removed dead `safeMentions` logic
+  - `PATCH /:id`: Changed `{ mentions }` → `{ mentions: JSON.stringify(mentions) }` in update data
+  - `GET /`: Changed `n.mentions` → `JSON.parse(n.mentions || '[]')` in response mapping
+  - `PATCH response`: Also parse `note!.mentions` → `JSON.parse(note!.mentions || '[]')`
+- **Result**: Backend now compiles with **0 TypeScript errors** (was 4 in notes.ts only)
+
+### ✅ Railway Schema Alignment
+- Changed `schema.railway.prisma` `ConversationNote.mentions` from `String[] @default([])` to `String @default("[]")`
+- All 3 schemas (sqlite, postgres, railway) now consistently store `mentions` as JSON string
+
+### ✅ Test Infrastructure (`backend/`)
+- **`.env.test`**: SQLite database URL (`file:./test.db`) for isolated local testing
+- **`jest.setup.js`**: Plain JS file in `setupFiles` (runs before test framework) that loads `.env.test` via `dotenv.config({ override: true })`
+- **`jest.config.js`**: Added `setupFiles: ['<rootDir>/jest.setup.js']` before `setupFilesAfterEnv`
+- **`test.db`**: SQLite database created via `prisma generate` + `prisma db push`
+
+### ✅ Notes API Tests (24 tests, all passing)
+**GET /notes (6 tests):**
+- 400 when conversationId missing
+- Empty array when no notes exist
+- Returns notes ordered newest first
+- Returns parsed mentions array in response
+- Returns empty mentions array when none provided
+- Does not return notes from other conversations (separate contact for unique constraint)
+
+**POST /notes (8 tests):**
+- Creates note with basic data
+- Creates note with empty mentions array
+- Creates note with multiple mentions (returns as parsed array)
+- Defaults mentions to empty array when omitted
+- Defaults priority to 'normal' when omitted
+- 400 for missing content
+- 400 for invalid priority
+- 404 for non-existent conversation
+- Verifies raw DB value is JSON string (not array)
+
+**PATCH /notes/:id (5 tests):**
+- Updates content
+- Updates priority
+- Updates mentions (verifies both API response array + DB JSON string)
+- Clears mentions when updating to empty array
+- 404 for non-existent note
+- Workspace isolation (other user+workspace gets 404, not 403)
+
+**DELETE /notes/:id (3 tests):**
+- Deletes a note and verifies it's gone
+- 404 for non-existent note
+- Workspace isolation (other user can't delete)
+
+---
+
+## 📌 Phase 10: Supabase Production Sync & Migration
+
+### ✅ Supabase Connection Setup
+- **Project ref**: `iynilxlxxhbutyentjcj`
+- **Supabase URL**: `https://iynilxlxxhbutyentjcj.supabase.co`
+- **Supabase publishable key**: Configured in `.env`
+- **Supabase secret key**: Configured in `.env`
+- **JWKS URL**: Configured in `.env`
+- **`@supabase/supabase-js`**: Installed in backend
+- **`supabase/agent-skills`**: Installed (supabase + postgres-best-practices)
+
+### ✅ Database Connection Strings (Fixed)
+- **`DATABASE_URL`**: Transaction-mode pooler (port 6543) — for regular queries
+  `postgresql://postgres.iynilxlxxhbutyentjcj:Piyushrajput@aws-1-ap-south-1.pooler.supabase.com:6543/postgres?pgbouncer=true`
+- **`DIRECT_URL`**: Session-mode pooler (port 5432) — for migrations / DDL (was incorrectly pointing to `db.iynilxlxxhbutyentjcj.supabase.co:5432` before)
+  `postgresql://postgres.iynilxlxxhbutyentjcj:Piyushrajput@aws-1-ap-south-1.pooler.supabase.com:5432/postgres`
+
+### ✅ Database Sync — `prisma db push` SUCCESS
+- All Prisma models now exist in Supabase PostgreSQL, including:
+  - `Notification` (real-time notification center)
+  - `EmailCampaign`, `EmailLog`, `EmailAutomationRule`, `SmtpConfig` (email campaigns)
+  - All existing models (User, Workspace, Contact, Conversation, Message, etc.)
+  - All indexes created
+
+### ✅ Migration SQL File
+- `backend/supabase-migration.sql` — PostgreSQL-compatible SQL for all new tables
+- Uses `TEXT` for `id` and foreign key columns (matches Prisma's PostgreSQL conventions, not `UUID` type)
+- Uses `CREATE TABLE IF NOT EXISTS` for idempotency
+- Includes all indexes and foreign key constraints
+
+### ✅ Live API Verification
+- `GET https://whatsapp-crm-backend-one.vercel.app/health` → **200 OK** (server running)
+- `GET https://whatsapp-crm-backend-one.vercel.app/api/v1/notifications` → **401** (route exists, auth enforced)
+
+---
+
+## 🛠️ Verification Status
+- Frontend: ✅ 0 TypeScript errors
+- Backend: ✅ **0 TypeScript errors** (all notes.ts errors resolved)
+- Tests: ✅ **24/24 passing** (Notes API)
+- Prisma client: ✅ Generated (SQLite local, PostgreSQL Supabase)
+- Supabase: ✅ All tables synced (`prisma db push` success)
+- Vercel deployments: ✅ Frontend + Backend live & verified
+- GitHub: ✅ Pushed (c202c09..fe39965)
+- Live API: ✅ `/health` → 200, `/notifications` → 401 (auth enforced)
