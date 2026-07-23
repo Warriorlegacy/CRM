@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import axios from 'axios';
 import { prisma } from '../prisma';
+import { withAppSecretProof } from '../utils/meta';
 
 export const mediaRouter = Router();
 
@@ -52,10 +53,10 @@ mediaRouter.get('/:messageId', async (req, res) => {
     const metaApiUrl = `https://graph.facebook.com/v20.0/${message.waMessageId}`;
     
     const response = await axios.get(metaApiUrl, {
-      params: {
+      params: withAppSecretProof(waAccount.accessToken, {
         fields: 'mime_type,file',
         access_token: waAccount.accessToken,
-      },
+      }),
     });
 
     return res.json({

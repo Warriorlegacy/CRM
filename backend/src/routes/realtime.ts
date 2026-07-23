@@ -4,9 +4,9 @@ import { subscribe } from '../realtime/events';
 export const realtimeRouter = Router();
 
 realtimeRouter.get('/events', (req, res) => {
-  const workspaceId = req.query.workspaceId as string;
+  const workspaceId = (req as any).workspaceId || (req.query.workspaceId as string);
   if (!workspaceId) {
-    return res.status(400).end();
+    return res.status(400).json({ error: 'Workspace ID required' });
   }
 
   res.setHeader('Content-Type', 'text/event-stream');

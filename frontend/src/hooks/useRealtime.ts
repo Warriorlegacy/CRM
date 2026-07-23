@@ -54,14 +54,39 @@ export function useRealtime(workspaceId: string, onMessage: (data: RealtimeEvent
     function connect() {
       if (!isMounted) return;
 
+      const isServerless = wsHost.includes('vercel.app') || wsHost.includes('render.com');
+
+      // On serverless platforms where native WebSockets are unsupported, use EventSource (SSE) or polling
+      if (isServerless) {
+        try {
+          const sseUrl = `${API_ORIGIN}/realtime/events?token=${encodeURIComponent(token || '')}&workspaceId=${encodeURIComponent(workspaceId || '')}`;
+          const eventSource = new EventSource(sseUrl);
+          eventSource.onopen = () => {
+            if (isMounted) setConnected(true);
+          };
+          eventSource.onmessage = (e) => {
+            if (!isMounted) return;
+            try {
+              const data = JSON.parse(e.data);
+              onMessageRef.current(data);
+            } catch {}
+          };
+          eventSource.onerror = () => {
+            if (isMounted) setConnected(false);
+          };
+          return;
+        } catch {
+          // Fall back gracefully
+          return;
+        }
+      }
+
       const wsUrl = `${wsHost}/realtime/events`;
-      console.log('🔌 Connecting to WebSocket...', wsUrl);
       socket = new WebSocket(wsUrl);
 
       socket.onopen = () => {
         if (!isMounted) return;
         socket?.send(JSON.stringify({ type: 'auth', token }));
-        console.log('🔌 WebSocket Connected, authenticating...');
       };
 
       socket.onmessage = (event) => {
@@ -70,28 +95,20 @@ export function useRealtime(workspaceId: string, onMessage: (data: RealtimeEvent
           const data = JSON.parse(event.data);
           if (data.type === 'auth_ok') {
             setConnected(true);
-            console.log('🔌 WebSocket Authenticated');
             return;
           }
           onMessageRef.current(data);
-        } catch (err) {
-          console.error('Failed to parse WebSocket message data:', err);
-        }
+        } catch {}
       };
 
       socket.onclose = (event) => {
         if (!isMounted) return;
         setConnected(false);
-        if (event.code >= 4001 && event.code <= 4003) {
-          console.warn('⚠️ WebSocket auth failed, not reconnecting:', event.reason);
-          return;
-        }
-        console.warn('⚠️ WebSocket Disconnected, retrying in 3 seconds...');
-        reconnectTimeout = setTimeout(connect, 3000);
+        if (event.code >= 4001 && event.code <= 4003) return;
+        reconnectTimeout = setTimeout(connect, 10000);
       };
 
-      socket.onerror = (err) => {
-        console.error('WebSocket error:', err);
+      socket.onerror = () => {
         socket?.close();
       };
     }

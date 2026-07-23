@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../prisma';
-import { providers, FREE_MODELS, isBuiltinProvider } from '../ai/providers';
+import { providers, FREE_MODELS, isBuiltinProvider, getProviderAdapter } from '../ai/providers';
 import { chatWithFallback, generateAutoReply, generateSmartReplies, generateConversationSummary, analyzeLeadScore, detectLanguage, getLanguageName } from '../ai/chain';
 
 export const aiRouter = Router();
@@ -20,6 +20,52 @@ aiRouter.post('/detect-language', async (req, res) => {
     return res.json({ language: code, name: getLanguageName(code) });
   } catch (err: any) {
     return res.status(502).json({ error: err.message });
+  }
+});
+
+// ── AI Status & Metrics Endpoint ───────────────────────────────────────
+
+aiRouter.get('/status', async (req, res) => {
+  const workspaceId = (req as any).workspaceId;
+
+  try {
+    const [totalProviders, activeProviders, recentAutoReplies, logs] = await Promise.all([
+      prisma.aiProvider.count({ where: { workspaceId } }),
+      prisma.aiProvider.count({ where: { workspaceId, isActive: true } }),
+      prisma.aiAutoReplyLog.count({ where: { workspaceId } }),
+      prisma.aiAutoReplyLog.findMany({
+        where: { workspaceId },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        select: {
+          id: true,
+          provider: true,
+          model: true,
+          latencyMs: true,
+          wasSent: true,
+          createdAt: true,
+        },
+      }),
+    ]);
+
+    const totalLatency = logs.reduce((acc, l) => acc + (l.latencyMs || 0), 0);
+    const avgLatencyMs = logs.length > 0 ? Math.round(totalLatency / logs.length) : 0;
+
+    return res.json({
+      totalProviders,
+      activeProviders,
+      recentAutoReplies,
+      avgLatencyMs,
+      recentLogs: logs,
+    });
+  } catch (err: any) {
+    return res.json({
+      totalProviders: 0,
+      activeProviders: 0,
+      recentAutoReplies: 0,
+      avgLatencyMs: 0,
+      recentLogs: [],
+    });
   }
 });
 
@@ -135,19 +181,72 @@ aiRouter.delete('/providers/:id', async (req, res) => {
   return res.status(204).send();
 });
 
+const TestKeySchema = z.object({
+  provider: z.string().min(1),
+  apiKey: z.string().min(1),
+  model: z.string().min(1),
+  baseUrl: z.string().optional(),
+});
+
+aiRouter.post('/test-key', async (req, res) => {
+  const parsed = TestKeySchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Validation Error', details: parsed.error.flatten() });
+
+  const { provider, apiKey, model, baseUrl } = parsed.data;
+  const adapter = getProviderAdapter(provider, baseUrl);
+
+  if (!adapter) {
+    return res.json({ ok: false, error: 'Unknown or unsupported provider' });
+  }
+
+  try {
+    const start = Date.now();
+    const result = await adapter.chat(
+      [{ role: 'user', content: 'Say hello in 3 words' }],
+      {
+        id: 'test',
+        name: 'test',
+        provider,
+        apiKey,
+        baseUrl: baseUrl || '',
+        model,
+        maxTokens: 50,
+        temperature: 0.7,
+      }
+    );
+    return res.json({ ok: true, latencyMs: Date.now() - start, response: result.content });
+  } catch (err: any) {
+    return res.json({ ok: false, error: err?.response?.data?.error?.message || err?.message || 'Connection failed' });
+  }
+});
+
 aiRouter.post('/providers/:id/test', async (req, res) => {
   const workspaceId = (req as any).workspaceId;
   const { id } = req.params;
   const prov = await prisma.aiProvider.findFirst({ where: { id, workspaceId } });
   if (!prov) return res.status(404).json({ error: 'Provider not found' });
 
+  const adapter = getProviderAdapter(prov.provider, prov.baseUrl || undefined);
+  if (!adapter) return res.json({ ok: false, error: 'Unsupported provider' });
+
   try {
-    const result = await chatWithFallback(workspaceId, [
-      { role: 'user', content: 'Say "Hello from RideRight!" in exactly 5 words.' },
-    ], { preferredProvider: prov.provider, maxAttempts: 1 });
-    return res.json({ ok: true, response: result.content, latencyMs: result.latencyMs, provider: result.provider, model: result.model });
+    const start = Date.now();
+    const result = await adapter.chat(
+      [{ role: 'user', content: 'Say hello in 3 words' }],
+      {
+        id: prov.id,
+        name: prov.name,
+        provider: prov.provider,
+        apiKey: prov.apiKey,
+        baseUrl: prov.baseUrl || '',
+        model: prov.model,
+        maxTokens: prov.maxTokens || 100,
+        temperature: prov.temperature || 0.7,
+      }
+    );
+    return res.json({ ok: true, response: result.content, latencyMs: Date.now() - start, provider: prov.provider, model: prov.model });
   } catch (err: any) {
-    return res.json({ ok: false, error: err.message });
+    return res.json({ ok: false, error: err?.response?.data?.error?.message || err?.message || 'Connection failed' });
   }
 });
 

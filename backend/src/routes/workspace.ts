@@ -64,28 +64,48 @@ workspaceRouter.post('/', async (req, res) => {
 });
 
 workspaceRouter.get('/current', async (req, res) => {
-  const workspaceId = (req as any).workspaceId;
+  try {
+    const workspaceId = (req as any).workspaceId;
+    const userId = (req as any).userId;
 
-  const workspace = await prisma.workspace.findUnique({
-    where: { id: workspaceId },
-    include: {
-      members: {
-        include: {
-          user: {
-            select: { id: true, name: true, email: true },
+    let workspace = workspaceId
+      ? await prisma.workspace.findUnique({
+          where: { id: workspaceId },
+          include: {
+            members: {
+              include: {
+                user: { select: { id: true, name: true, email: true } },
+              },
+            },
+            wa: true,
+            ig: true,
           },
+        })
+      : null;
+
+    if (!workspace && userId) {
+      workspace = await prisma.workspace.findFirst({
+        where: { members: { some: { userId } } },
+        include: {
+          members: {
+            include: {
+              user: { select: { id: true, name: true, email: true } },
+            },
+          },
+          wa: true,
+          ig: true,
         },
-      },
-      wa: true,
-      ig: true,
-    },
-  });
+      });
+    }
 
-  if (!workspace) {
-    return res.status(404).json({ error: 'Workspace not found' });
+    if (!workspace) {
+      return res.status(404).json({ error: 'Workspace not found' });
+    }
+
+    return res.json({ ok: true, workspace });
+  } catch (err: any) {
+    return res.status(500).json({ error: 'Internal Server Error', message: err?.message });
   }
-
-  return res.json({ ok: true, workspace });
 });
 
 workspaceRouter.post('/wa-account', async (req, res) => {
@@ -97,15 +117,15 @@ workspaceRouter.post('/wa-account', async (req, res) => {
     update: {
       phoneNumberId,
       businessAccountId,
-      accessToken,
-      webhookVerifyToken,
+      ...(accessToken ? { accessToken } : {}),
+      ...(webhookVerifyToken ? { webhookVerifyToken } : {}),
     },
     create: {
       workspaceId,
       phoneNumberId,
       businessAccountId,
-      accessToken,
-      webhookVerifyToken,
+      accessToken: accessToken || 'wa-placeholder-token',
+      webhookVerifyToken: webhookVerifyToken || `wa-${Date.now()}`,
     },
   });
 
@@ -120,14 +140,14 @@ workspaceRouter.post('/ig-account', async (req, res) => {
     where: { workspaceId },
     update: {
       igUserId,
-      accessToken,
-      webhookVerifyToken,
+      ...(accessToken ? { accessToken } : {}),
+      ...(webhookVerifyToken ? { webhookVerifyToken } : {}),
     },
     create: {
       workspaceId,
       igUserId,
-      accessToken,
-      webhookVerifyToken,
+      accessToken: accessToken || 'ig-placeholder-token',
+      webhookVerifyToken: webhookVerifyToken || `ig-${Date.now()}`,
     },
   });
 

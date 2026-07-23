@@ -1,8 +1,16 @@
 function normalizeApiBase(rawUrl?: string): string {
+  const fallbackUrl = 'https://whatsapp-crm-backend-one.vercel.app/api/v1';
   const defaultUrl = process.env.NODE_ENV === 'production'
-    ? 'https://whatsapp-crm-backend-one.vercel.app/api/v1'
+    ? fallbackUrl
     : 'http://localhost:3001/api/v1';
-  const baseUrl = (rawUrl || defaultUrl).replace(/\/+$/, '');
+
+  let baseUrl = (rawUrl || defaultUrl).trim().replace(/\/+$/, '');
+
+  // Guard against malformed URLs with typos like double dots "backend..api"
+  if (baseUrl.includes('..') || !baseUrl.startsWith('http')) {
+    baseUrl = defaultUrl;
+  }
+
   return /\/api\/v1$/.test(baseUrl) ? baseUrl : `${baseUrl}/api/v1`;
 }
 

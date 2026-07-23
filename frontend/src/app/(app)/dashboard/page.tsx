@@ -136,18 +136,18 @@ export default function DashboardPage() {
         </div>
       )}
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-white">Dashboard</h1>
           <p className="text-zinc-500">Multi-channel CRM analytics</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 overflow-x-auto pb-1 max-w-full">
           {(['24h', '7d', '30d', '90d'] as const).map((p) => (
             <button
               key={p}
               onClick={() => setPeriod(p)}
-              className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${period === p
-                  ? 'bg-white text-black'
+              className={`px-3 py-1.5 text-sm rounded-lg transition-colors whitespace-nowrap ${period === p
+                  ? 'bg-white text-black font-medium'
                   : 'bg-zinc-800 text-zinc-400 hover:text-white'
                 }`}
             >

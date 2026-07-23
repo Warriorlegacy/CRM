@@ -242,4 +242,43 @@ inboxRouter.get('/unread-counts', async (req, res) => {
   });
 });
 
+// ── Agent Collision Lock Routes ─────────────────────────────────────────
+inboxRouter.post('/conversations/:id/lock', lockConversation, (req, res) => {
+  return res.json({ ok: true, locked: true });
+});
+
+inboxRouter.delete('/conversations/:id/lock', async (req, res) => {
+  await unlockConversation(req, res);
+  return res.json({ ok: true, locked: false });
+});
+
+inboxRouter.get('/conversations/:id/lock', async (req, res) => {
+  const { workspaceId } = req as unknown as AuthedRequest;
+  const conversationId = req.params.id;
+
+  const conversation = await (prisma as any).conversation.findFirst({
+    where: { id: conversationId, workspaceId },
+    select: { lockedByUserId: true, lockedAt: true },
+  });
+
+  if (!conversation) return res.status(404).json({ error: 'Not found' });
+
+  let lockedByName = null;
+  if (conversation.lockedByUserId) {
+    const locker = await prisma.user.findUnique({
+      where: { id: conversation.lockedByUserId },
+      select: { name: true },
+    });
+    lockedByName = locker?.name || null;
+  }
+
+  return res.json({
+    ok: true,
+    locked: !!conversation.lockedByUserId,
+    lockedByUserId: conversation.lockedByUserId,
+    lockedByName,
+    lockedAt: conversation.lockedAt,
+  });
+});
+
 export default inboxRouter;

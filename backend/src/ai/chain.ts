@@ -6,7 +6,7 @@ export interface FallbackResult extends AiResponse {
 }
 
 const PROVIDER_BASE_URLS: Record<string, string> = {
-  freellmapi: 'http://127.0.0.1:31415/v1',
+  freellmapi: 'https://openrouter.ai/api/v1',
   openrouter: 'https://openrouter.ai/api/v1',
   groq: 'https://api.groq.com/openai/v1',
   cerebras: 'https://api.cerebras.ai/v1',

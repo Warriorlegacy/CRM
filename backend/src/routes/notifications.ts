@@ -42,6 +42,9 @@ notificationsRouter.get('/', async (req: Request, res: Response) => {
   const { limit = '50', offset = '0', filter, type } = req.query;
 
   try {
+    if (!workspaceId) {
+      return res.json({ notifications: [], total: 0, unreadCount: 0, hasMore: false });
+    }
     const where: any = { workspaceId };
 
     if (filter === 'unread') where.read = false;

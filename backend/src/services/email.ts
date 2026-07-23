@@ -2,17 +2,18 @@ import nodemailer from 'nodemailer';
 import { env } from '../env';
 import { logger } from '../middleware/logger';
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.SMTP_PORT || '587', 10),
-  secure: process.env.SMTP_SECURE === 'true',
-  auth: {
-    user: process.env.SMTP_USER || '',
-    pass: process.env.SMTP_PASS || '',
-  },
-});
+function getTransporter() {
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.SMTP_PORT || '587', 10),
+    secure: process.env.SMTP_SECURE === 'true',
+    auth: {
+      user: process.env.SMTP_USER || '',
+      pass: process.env.SMTP_PASS || '',
+    },
+  });
+}
 
-const FROM_ADDRESS = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@whatsapp-crm.com';
 const FRONTEND_URL = env.FRONTEND_URL;
 
 interface EmailOptions {
@@ -24,13 +25,17 @@ interface EmailOptions {
 
 export async function sendEmail({ to, subject, html, text }: EmailOptions): Promise<boolean> {
   try {
-    if (!process.env.SMTP_USER) {
+    const smtpUser = process.env.SMTP_USER?.trim();
+    if (!smtpUser) {
       logger.warn('SMTP not configured, skipping email send', { to, subject });
       return false;
     }
 
+    const fromAddress = process.env.SMTP_FROM || smtpUser;
+    const transporter = getTransporter();
+
     await transporter.sendMail({
-      from: FROM_ADDRESS,
+      from: fromAddress,
       to,
       subject,
       html,
@@ -39,8 +44,8 @@ export async function sendEmail({ to, subject, html, text }: EmailOptions): Prom
 
     logger.info('Email sent successfully', { to, subject });
     return true;
-  } catch (error) {
-    logger.error('Failed to send email', { to, subject, error });
+  } catch (error: any) {
+    logger.error('Failed to send email', { to, subject, error: error?.message || String(error) });
     return false;
   }
 }

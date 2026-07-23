@@ -115,6 +115,7 @@ model Contact {
   followups      Followup[]
   flowExecutions FlowExecution[]
   broadcastMessages BroadcastMessage[]
+  deals          Deal[]
 
   @@unique([workspaceId, phone])
   @@index([workspaceId, stage])
@@ -665,4 +666,70 @@ model SmtpConfig {
   isVerified  Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model PipelineStage {
+  id          String   @id @default(uuid())
+  workspaceId String
+  name        String
+  order       Int      @default(0)
+  color       String   @default("#6366f1")
+  probability Int      @default(50)
+  deals       Deal[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([workspaceId, order])
+}
+
+model Deal {
+  id             String         @id @default(uuid())
+  workspaceId    String
+  contactId      String
+  title          String
+  value          Float          @default(0.0)
+  currency       String         @default("USD")
+  stageId        String
+  status         String         @default("open")
+  lostReason     String?
+  assignedToId   String?
+  expectedCloseAt DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  stage          PipelineStage  @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  contact        Contact        @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, stageId])
+  @@index([contactId])
+  @@index([status])
+}
+
+model WebhookEndpoint {
+  id          String   @id @default(uuid())
+  workspaceId String
+  url         String
+  secret      String
+  eventsJson  String   @default("[\"*\"]")
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([workspaceId])
+  @@index([isActive])
+}
+
+model AutomationRule {
+  id             String   @id @default(uuid())
+  workspaceId    String
+  name           String
+  triggerType    String
+  conditionsJson String   @default("[]")
+  actionsJson    String   @default("[]")
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([workspaceId])
+  @@index([triggerType])
+  @@index([isActive])
 }

@@ -183,7 +183,7 @@ export const providers: Record<string, AiProviderAdapter> = {
   xai: openAiCompatibleAdapter('xai', 'https://api.x.ai/v1'),
   cohere: cohereAdapter,
   ollama: openAiCompatibleAdapter('ollama', 'http://localhost:11434/v1'),
-  freellmapi: openAiCompatibleAdapter('freellmapi', 'http://127.0.0.1:31415/v1'),
+  freellmapi: openAiCompatibleAdapter('freellmapi', 'https://openrouter.ai/api/v1'),
   custom: openAiCompatibleAdapter('custom', ''),
 };
 

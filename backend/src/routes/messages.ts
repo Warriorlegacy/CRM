@@ -61,6 +61,11 @@ messagesRouter.post('/send', async (req, res) => {
       if (!wa) {
         return res.status(400).json({ error: 'WhatsApp not connected' });
       }
+      if (!wa.accessToken || wa.accessToken.includes('placeholder')) {
+        return res.status(400).json({
+          error: 'Meta Access Token missing. Please click Reconnect on Setup page or enter your Meta Access Token in Settings -> WhatsApp.',
+        });
+      }
       sent = await sendWhatsAppText({
         accessToken: wa.accessToken,
         phoneNumberId: wa.phoneNumberId,
@@ -71,8 +76,23 @@ messagesRouter.post('/send', async (req, res) => {
     }
   } catch (error: any) {
     console.error(`Failed to send ${channel} message:`, error.response?.data || error.message);
-    return res.status(500).json({
-      error: 'Failed to send message',
+    const metaErrObj = error.response?.data?.error;
+    const metaError = metaErrObj?.message || error.response?.data?.message || error.message;
+    const errorCode = metaErrObj?.code;
+
+    let errorMsg = `Meta API Error: ${metaError}`;
+    if (errorCode === 133010 || (typeof metaError === 'string' && metaError.includes('133010'))) {
+      errorMsg = 'WhatsApp Error (#133010): Account not registered. Your WhatsApp Phone Number ID is not fully registered/activated in Meta WhatsApp Manager, or two-step verification is blocking API registration.';
+    } else if (errorCode === 131030 || (typeof metaError === 'string' && metaError.includes('131030'))) {
+      errorMsg = 'WhatsApp Error (#131030): Recipient number is not added to your Meta Developer Portal test number list.';
+    } else if (errorCode === 131047 || (typeof metaError === 'string' && metaError.includes('131047'))) {
+      errorMsg = 'WhatsApp Error (#131047): 24-hour session window expired. Send a WhatsApp Template message to re-engage.';
+    } else if (typeof metaError === 'string' && metaError.includes('appsecret_proof')) {
+      errorMsg = 'Meta API Error: appsecret_proof is required by Meta. Please set META_APP_SECRET in your backend environment variables or disable "Require App Secret" in Meta App Dashboard (Settings -> Advanced).';
+    }
+
+    return res.status(400).json({
+      error: errorMsg,
       details: error.response?.data || error.message,
     });
   }

@@ -96,4 +96,50 @@ automationRouter.post('/analyze', async (req, res) => {
   return res.json({ analysis: result });
 });
 
+// ── Automation Rules CRUD ──────────────────────────────────────────────
+automationRouter.get('/rules', async (req, res) => {
+  const { workspaceId } = req as unknown as AuthedRequest;
+  const rules = await prisma.automationRule.findMany({
+    where: { workspaceId },
+    orderBy: { createdAt: 'desc' },
+  });
+  return res.json({ rules });
+});
+
+automationRouter.post('/rules', async (req, res) => {
+  const { workspaceId } = req as unknown as AuthedRequest;
+  const { name, triggerType, conditionsJson, actionsJson } = req.body;
+
+  if (!name || !triggerType) {
+    return res.status(400).json({ error: 'Name and triggerType are required' });
+  }
+
+  const rule = await prisma.automationRule.create({
+    data: {
+      workspaceId,
+      name,
+      triggerType,
+      conditionsJson: typeof conditionsJson === 'string' ? conditionsJson : JSON.stringify(conditionsJson || []),
+      actionsJson: typeof actionsJson === 'string' ? actionsJson : JSON.stringify(actionsJson || []),
+    },
+  });
+
+  return res.status(201).json({ rule });
+});
+
+automationRouter.delete('/rules/:id', async (req, res) => {
+  const { workspaceId } = req as unknown as AuthedRequest;
+  const { id } = req.params;
+
+  const deleted = await prisma.automationRule.deleteMany({
+    where: { id, workspaceId },
+  });
+
+  if (deleted.count === 0) {
+    return res.status(404).json({ error: 'Rule not found' });
+  }
+
+  return res.status(204).send();
+});
+
 export default automationRouter;

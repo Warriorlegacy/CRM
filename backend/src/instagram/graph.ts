@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { env } from '../env';
 import { InstagramSendMessageParams } from './types';
+import { withAppSecretProof } from '../utils/meta';
 
 export async function sendInstagramMessage(params: InstagramSendMessageParams) {
   const { accessToken, igUserId, recipientId, text } = params;
@@ -14,6 +15,7 @@ export async function sendInstagramMessage(params: InstagramSendMessageParams) {
       message: { text },
     },
     {
+      params: withAppSecretProof(accessToken),
       headers: {
         Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',

@@ -46,9 +46,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* Main content */}
-      <div className="flex min-h-screen flex-col bg-transparent pb-16 md:pb-0">
+      <div className="flex min-h-screen flex-col bg-transparent md:h-screen md:overflow-hidden">
         <Topbar />
-        <main className="flex-1 overflow-auto p-3 md:p-6">{children}</main>
+        <main className="flex-1 overflow-y-auto p-3.5 pb-24 md:p-6 md:pb-6 touch-pan-y">{children}</main>
       </div>
 
       {/* Mobile Bottom Navigation */}

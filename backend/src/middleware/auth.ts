@@ -133,25 +133,36 @@ export async function requireAuth(
       return;
     }
 
-    // Validate workspace membership
-    const workspaceMember = await prisma.workspaceMember.findFirst({
-      where: {
-        userId: payload.userId,
-        workspaceId: payload.workspaceId,
-      },
-    });
+    // Validate workspace membership with fallback
+    let activeWorkspaceId = payload.workspaceId;
+    let workspaceMember = activeWorkspaceId
+      ? await prisma.workspaceMember.findFirst({
+          where: {
+            userId: payload.userId,
+            workspaceId: activeWorkspaceId,
+          },
+        })
+      : null;
 
     if (!workspaceMember) {
-      res.status(403).json({
-        error: 'Forbidden',
-        message: 'You do not have access to this workspace.',
+      const fallbackMember = await prisma.workspaceMember.findFirst({
+        where: { userId: payload.userId },
       });
-      return;
+      if (fallbackMember) {
+        workspaceMember = fallbackMember;
+        activeWorkspaceId = fallbackMember.workspaceId;
+      } else {
+        res.status(403).json({
+          error: 'Forbidden',
+          message: 'You do not have access to this workspace.',
+        });
+        return;
+      }
     }
 
     // Attach user info to request
     (req as AuthedRequest).userId = payload.userId;
-    (req as AuthedRequest).workspaceId = payload.workspaceId;
+    (req as AuthedRequest).workspaceId = activeWorkspaceId;
     (req as AuthedRequest).token = token;
 
     next();

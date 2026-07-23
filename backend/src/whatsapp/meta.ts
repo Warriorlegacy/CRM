@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { env } from '../env';
+import { withAppSecretProof } from '../utils/meta';
 
 export async function sendWhatsAppText(params: {
   accessToken: string;
@@ -20,6 +21,7 @@ export async function sendWhatsAppText(params: {
       text: { body: text },
     },
     {
+      params: withAppSecretProof(accessToken),
       headers: {
         Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',

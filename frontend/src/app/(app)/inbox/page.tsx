@@ -554,9 +554,11 @@ export default function InboxPage() {
       setNewMessage('');
       clearMedia();
       await loadMessages(selectedConversation.id);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to send message:', error);
-      addNotification({ type: 'error', title: 'Failed to send message' });
+      const data = error.data || error;
+      const metaMsg = data?.details?.error?.message || data?.details?.message || data?.error || 'Failed to send message';
+      addNotification({ type: 'error', title: typeof metaMsg === 'string' ? metaMsg : 'Failed to send message' });
     } finally {
       setSending(false);
     }

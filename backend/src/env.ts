@@ -29,10 +29,13 @@ export const env = {
   META_APP_SECRET: process.env.META_APP_SECRET || '',
   META_CONFIG_ID: process.env.META_CONFIG_ID || '1333150785194697',
   BACKEND_URL: process.env.BACKEND_URL || 'https://whatsapp-crm-backend-one.vercel.app',
-  FRONTEND_URL: process.env.FRONTEND_URL || (isProduction ? '' : 'http://localhost:3000'),
+  FRONTEND_URL: process.env.FRONTEND_URL || 'https://signhify-crm.vercel.app',
   
+  // Google OAuth
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '',
+
   // CORS
-  CORS_ORIGIN: process.env.CORS_ORIGIN || (isProduction ? '' : 'http://localhost:3000'),
+  CORS_ORIGIN: process.env.CORS_ORIGIN || 'http://localhost:3000,https://signhify-crm.vercel.app',
   
   // Logging
   LOG_LEVEL: process.env.LOG_LEVEL || (isProduction ? 'warn' : 'debug'),

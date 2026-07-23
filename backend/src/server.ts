@@ -38,6 +38,7 @@ import webhooksLogRouter from './routes/webhooksLog';
 import chatbotFlowsRouter from './routes/chatbotFlows';
 import { aiRouter } from './routes/ai';
 import verifyRouter from './routes/verify';
+import { dealsRouter } from './routes/deals';
 import automationRouter from './routes/automation';
 import { oauthRouter } from './routes/oauth';
 import notesRouter from './routes/notes';
@@ -75,8 +76,10 @@ app.get('/', (_req: Request, res: Response) => {
 // Health checks (no auth required)
 app.use('/', healthRouter);
 
-// WhatsApp Webhook (no auth required for Meta callbacks)
+// WhatsApp & Instagram Webhooks (no auth required for Meta callbacks)
 app.use('/', webhooksRouter);
+app.use('/webhooks', webhooksRouter);
+app.use('/api/v1/webhooks', webhooksRouter);
 
 // Auth routes (no auth required for login/register)
 app.use('/api/v1/auth', authRouter);
@@ -108,6 +111,7 @@ app.use('/api/v1/media', requireAuth, mediaRouter);
 app.use('/api/v1/invite', requireAuth, inviteRouter);
 app.use('/api/v1/activity', requireAuth, activityRouter);
 app.use('/api/v1/search', requireAuth, searchRouter);
+app.use('/api/v1/deals', requireAuth, dealsRouter);
 app.use('/api/v1/autoresponders', requireAuth, autoresponderRouter);
 app.use('/api/v1/webhooks-log', requireAuth, webhooksLogRouter);
 app.use('/api/v1/chatbot-flows', requireAuth, chatbotFlowsRouter);

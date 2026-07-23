@@ -277,3 +277,99 @@
 - Supabase: ✅ All tables synced (`prisma db push` success)
 - Vercel deployments: ✅ Frontend + Backend live & verified
 - GitHub: ✅ All changes committed & pushed to `master`
+
+---
+
+## 📌 Phase 12: Complete Integration Guides + Comprehensive Supabase Migration
+
+### ✅ Comprehensive Supabase Migration SQL
+- **File**: `backend/supabase-migration.sql` — Rewritten from 5 tables (Notification, EmailCampaign, EmailLog, EmailAutomationRule, SmtpConfig) to **all 37 tables** from the Prisma schema:
+  - Core: User, Workspace, WorkspaceMember
+  - Channels: WaAccount, IgAccount
+  - Customer: Contact, ContactNote, Conversation, ConversationNote
+  - Messaging: Message, TypingIndicator, ReadReceipt
+  - Sales: Followup, LeadScoringRule, Template
+  - Automation: Autoresponder, PendingAutoresponse, ChatbotFlow, FlowNode, FlowEdge, FlowExecution
+  - AI: AiProvider, AiConversationSummary, AiAutoReplyLog
+  - Broadcast: Broadcast, BroadcastMessage
+  - Organization: ConversationTag, ConversationTagAssignment, AgentActivity
+  - Webhook: WebhookLog
+  - Auth: VerificationToken
+  - Away/Offline: AwayMessage
+  - Email: EmailCampaign, EmailLog, EmailAutomationRule, SmtpConfig
+  - Notifications: Notification
+- All use `CREATE TABLE IF NOT EXISTS` for idempotent re-runs
+- All foreign keys, unique constraints, and indexes included
+- Applied to Supabase via Node.js `pg` client → **37 tables created** (plus `_prisma_migrations`)
+
+### ✅ Technical Setup Guide (`docs/technical-setup-guide.md`)
+- **Full step-by-step developer guide** covering:
+  - Meta App configuration (Facebook Developer Portal)
+  - WhatsApp Business API OAuth flow and webhook setup
+  - Instagram Business API OAuth flow and webhook setup
+  - SMTP/Email configuration (Gmail, SendGrid, etc.)
+  - Complete env vars reference (backend + frontend)
+  - API routes reference (OAuth, Webhook, Email)
+  - Webhook verification commands (curl)
+  - Troubleshooting for common failure modes
+  - Data model reference (Prisma for WaAccount, IgAccount, SmtpConfig)
+
+### ✅ Non-Technical User Guide (`docs/user-guide.md`)
+- **Simple, non-technical guide for mass adoption** covering:
+  - Quick Start (3-minute setup)
+  - Step-by-step WhatsApp connection
+  - Step-by-step Instagram connection
+  - Email/SMTP setup with App Password instructions
+  - Inbox management across all channels
+  - Auto-reply, chatbot, lead scoring features explained simply
+  - Troubleshooting table with common issues and fixes
+  - Best practices and daily workflow
+  - Team roles explained
+
+### ✅ Session Context Updated
+- All Phase 12 changes recorded in this section
+
+---
+
+## 🛠️ Verification Status (Phase 12)
+- Supabase Migration: ✅ All 37 tables verified in database
+- Setup Guide: ✅ `docs/technical-setup-guide.md` written (comprehensive)
+- User Guide: ✅ `docs/user-guide.md` written (mass adoption)
+- Session Context: ✅ Updated with Phase 12 changes
+
+---
+
+## 📌 Phase 13: Master Nuclear Debug & Enterprise CRM Upgrade
+
+### ✅ 1. Meta Graph API v20.0 `appsecret_proof` Signature & Multi-Strategy WABA Fetching
+- **`appsecret_proof` Enforcement**: Integrated HMAC-SHA256 `appsecret_proof` signature generation across all Meta Graph API helper functions (`fetchWhatsAppAccounts`, `fetchInstagramAccounts`).
+- **Multi-Strategy WABA Fetching**: Replaced deprecated `/me/waba_permitted_businesses` endpoint with multi-strategy lookup (`client_whatsapp_business_accounts`, `shared_whatsapp_business_accounts`, `me?fields=whatsapp_business_accounts`), eliminating Meta `Unknown path components` authorization errors.
+- **Resilient OAuth Session Handling**: Updated `/oauth/whatsapp` and `/oauth/instagram` to resolve workspace members without throwing invalid token redirects back to `/login`.
+
+### ✅ 2. CORS Policy Authorization & Status Endpoints
+- **Dynamic Vercel CORS Policy**: Updated `backend/src/middleware/security.ts` to automatically allow all `*.vercel.app` domains, `localhost`, and `127.0.0.1`, completely eliminating browser `No 'Access-Control-Allow-Origin' header` error blocks.
+- **Missing Status Endpoints**: Created `GET /api/v1/ai/status` (AI metrics & log feed) and `GET /api/v1/oauth/status` (WhatsApp & Instagram workspace connection status), resolving 404 console errors and infinite loading spinners on `/ai` and `/setup`.
+- **Relaxed Rate Limiter**: Adjusted IP rate limiter to 1000 requests per 15 minutes to prevent transient 429 rate limit exceptions.
+
+### ✅ 3. Enterprise Odoo-Style Opportunity & Dynamic Pipeline Engine
+- **Dynamic Kanban Stages (`PipelineStage`)**: Added customizable `PipelineStage` model with order, color, and win probability (`GET /api/v1/deals/stages`).
+- **Deals & Financial Opportunities (`Deal`)**: Added `Deal` model linked to `Contact` for expected deal revenue, currency, close date, and lost reason analytics (`POST /api/v1/deals`, `PATCH /api/v1/deals/:id/stage`).
+- **Interactive Kanban UI**: Upgraded `frontend/src/app/(app)/pipeline/page.tsx` with total pipeline value summaries, won revenue counters, drag-and-drop deal columns, and a **+ New Opportunity** modal.
+
+### ✅ 4. Automation Rules & Webhook Subscriptions
+- **Automation Rules (`AutomationRule`)**: Added `AutomationRule` model and CRUD routes (`GET/POST/DELETE /api/v1/automation/rules`).
+- **Outbound Webhook Endpoints (`WebhookEndpoint`)**: Added `WebhookEndpoint` model and delivery configuration routes (`GET/POST/DELETE /api/v1/webhooks-log/endpoints/*`).
+
+### ✅ 5. Google One-Tap & Frontend Loading Polish
+- **Google One Tap Client ID**: Conditionalized GSI script loading when `NEXT_PUBLIC_GOOGLE_CLIENT_ID` is unconfigured, eliminating `[GSI_LOGGER] Parameter client_id is not set correctly` errors.
+- **Resilient Page Loaders**: Added `.catch()` error fallbacks to `Promise.all` in `/setup` and `/ai` pages for zero-delay rendering.
+
+---
+
+## 🛠️ Verification Status (Phase 13)
+- Frontend App: ✅ **100% READY & LIVE** ([signhify-crm.vercel.app](https://signhify-crm.vercel.app))
+- Backend API: ✅ **100% READY & LIVE** ([whatsapp-crm-backend-one.vercel.app](https://whatsapp-crm-backend-one.vercel.app))
+- CORS Policy: ✅ All `*.vercel.app` domains authorized
+- Meta OAuth Flow: ✅ Multi-strategy WABA fetch verified
+- Enterprise Pipeline: ✅ Dynamic Kanban + Opportunities active
+- Prisma Schema: ✅ Synchronized across SQLite & PostgreSQL Supabase

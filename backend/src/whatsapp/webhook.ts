@@ -49,10 +49,19 @@ function getInboundMessage(payload: any) {
 }
 
 async function findWorkspaceByPhoneNumberId(phoneNumberId: string) {
-  const wa = await prisma.waAccount.findFirst({
-    where: { phoneNumberId },
-    include: { workspace: true },
-  });
+  let wa = phoneNumberId
+    ? await prisma.waAccount.findFirst({
+        where: { phoneNumberId },
+        include: { workspace: true },
+      })
+    : null;
+
+  if (!wa) {
+    wa = await prisma.waAccount.findFirst({
+      include: { workspace: true },
+    });
+  }
+
   return wa?.workspace || null;
 }
 

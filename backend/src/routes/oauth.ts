@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { prisma } from '../prisma';
 import { env } from '../env';
-import { requireAuth } from '../middleware/auth';
+import { requireAuth, generateToken } from '../middleware/auth';
 
 export const oauthRouter = Router();
 
@@ -58,6 +58,13 @@ async function debugToken(token: string): Promise<{
   return resp.data.data;
 }
 
+function getAppSecretProof(userToken: string): string {
+  return crypto
+    .createHmac('sha256', env.META_APP_SECRET)
+    .update(userToken)
+    .digest('hex');
+}
+
 // ── Helper: fetch WhatsApp Business accounts from user token ────────────
 
 async function fetchWhatsAppAccounts(userToken: string): Promise<{
@@ -66,24 +73,68 @@ async function fetchWhatsAppAccounts(userToken: string): Promise<{
   accessToken: string;
   displayName?: string;
 }[]> {
-  const resp = await axios.get(
-    `https://graph.facebook.com/${env.META_API_VERSION}/me/waba_permitted_businesses`, {
-      params: {
-        access_token: userToken,
-        fields: 'id,name',
-      },
-    }
-  );
-
-  const wabaList = resp.data.data || [];
+  const proof = getAppSecretProof(userToken);
   const accounts: { phoneNumberId: string; businessAccountId: string; accessToken: string; displayName?: string }[] = [];
+  const wabaIds = new Set<string>();
 
-  for (const waba of wabaList) {
+  // Strategy 0: debugToken granular_scopes target_ids (captures WABA ID directly from OAuth consent dialog)
+  try {
+    const debugInfo = await debugToken(userToken);
+    const granularScopes = (debugInfo as any)?.granular_scopes || [];
+    for (const gs of granularScopes) {
+      if (gs.target_ids && Array.isArray(gs.target_ids)) {
+        gs.target_ids.forEach((id: string) => wabaIds.add(String(id)));
+      }
+    }
+  } catch (err) {
+    console.error('debugToken granular_scopes check failed:', err);
+  }
+
+  // Strategy 1: client_whatsapp_business_accounts
+  try {
+    const r1 = await axios.get(`https://graph.facebook.com/${env.META_API_VERSION}/me/client_whatsapp_business_accounts`, {
+      params: { access_token: userToken, appsecret_proof: proof, fields: 'id,name' },
+    });
+    (r1.data.data || []).forEach((item: any) => wabaIds.add(item.id));
+  } catch {}
+
+  // Strategy 2: shared_whatsapp_business_accounts
+  try {
+    const r2 = await axios.get(`https://graph.facebook.com/${env.META_API_VERSION}/me/shared_whatsapp_business_accounts`, {
+      params: { access_token: userToken, appsecret_proof: proof, fields: 'id,name' },
+    });
+    (r2.data.data || []).forEach((item: any) => wabaIds.add(item.id));
+  } catch {}
+
+  // Strategy 3: me?fields=whatsapp_business_accounts
+  try {
+    const r3 = await axios.get(`https://graph.facebook.com/${env.META_API_VERSION}/me`, {
+      params: { access_token: userToken, appsecret_proof: proof, fields: 'whatsapp_business_accounts{id,name}' },
+    });
+    const items = r3.data.whatsapp_business_accounts?.data || [];
+    items.forEach((item: any) => wabaIds.add(item.id));
+  } catch {}
+
+  // Strategy 4: me/businesses -> whatsapp_business_accounts
+  try {
+    const r4 = await axios.get(`https://graph.facebook.com/${env.META_API_VERSION}/me/businesses`, {
+      params: { access_token: userToken, appsecret_proof: proof, fields: 'id,name,whatsapp_business_accounts{id,name}' },
+    });
+    const businesses = r4.data.data || [];
+    for (const bus of businesses) {
+      const items = bus.whatsapp_business_accounts?.data || [];
+      items.forEach((item: any) => wabaIds.add(item.id));
+    }
+  } catch {}
+
+  // Fetch phone numbers for each discovered WABA ID
+  for (const wabaId of Array.from(wabaIds)) {
     try {
       const phoneResp = await axios.get(
-        `https://graph.facebook.com/${env.META_API_VERSION}/${waba.id}/phone_numbers`, {
+        `https://graph.facebook.com/${env.META_API_VERSION}/${wabaId}/phone_numbers`, {
           params: {
             access_token: userToken,
+            appsecret_proof: proof,
             fields: 'id,display_phone_number,verified_name',
           },
         }
@@ -93,15 +144,21 @@ async function fetchWhatsAppAccounts(userToken: string): Promise<{
       for (const phone of phones) {
         accounts.push({
           phoneNumberId: phone.id,
-          businessAccountId: waba.id,
+          businessAccountId: wabaId,
           accessToken: userToken,
           displayName: phone.verified_name || phone.display_phone_number,
         });
       }
-    } catch {
-      // Skip WABAs where we can't fetch phone numbers
-    }
+    } catch {}
   }
+
+  accounts.sort((a, b) => {
+    const aVerified = !!a.displayName;
+    const bVerified = !!b.displayName;
+    if (aVerified && !bVerified) return -1;
+    if (!aVerified && bVerified) return 1;
+    return 0;
+  });
 
   return accounts;
 }
@@ -114,10 +171,12 @@ async function fetchInstagramAccounts(userToken: string): Promise<{
   username?: string;
 }[]> {
   try {
+    const proof = getAppSecretProof(userToken);
     const pagesResp = await axios.get(
       `https://graph.facebook.com/${env.META_API_VERSION}/me/accounts`, {
         params: {
           access_token: userToken,
+          appsecret_proof: proof,
           fields: 'id,name,instagram_business_account{id,username}',
         },
       }
@@ -165,6 +224,60 @@ function getOAuthRedirectUri(req: Request, channel: string): string {
   return `${getPublicApiBaseUrl(req)}/api/v1/oauth/${channel}/callback`;
 }
 
+oauthRouter.get('/status', async (req, res) => {
+  let token =
+    (req as any).cookies?.oauth_context ||
+    (req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.substring(7) : null) ||
+    (typeof req.query.token === 'string' ? req.query.token : null);
+
+  let workspaceId = (req as any).workspaceId;
+
+  if (!workspaceId && token) {
+    try {
+      const payload = jwt.verify(token, env.JWT_SECRET) as any;
+      if (payload?.workspaceId) workspaceId = payload.workspaceId;
+    } catch {}
+  }
+
+  if (!workspaceId) {
+    return res.json({
+      whatsapp: { connected: false },
+      instagram: { connected: false },
+    });
+  }
+
+  try {
+    const [wa, ig] = await Promise.all([
+      prisma.waAccount.findFirst({ where: { workspaceId } }),
+      prisma.igAccount.findFirst({ where: { workspaceId } }),
+    ]);
+
+    const backendBase = getPublicApiBaseUrl(req);
+    return res.json({
+      whatsapp: {
+        connected: !!wa,
+        phoneNumberId: wa?.phoneNumberId || null,
+        businessAccountId: wa?.businessAccountId || null,
+        connectedAt: wa?.createdAt || null,
+        webhookUrl: `${backendBase}/api/v1/webhooks/whatsapp`,
+        webhookVerifyToken: wa?.webhookVerifyToken || 'wa-secret-verify-token',
+      },
+      instagram: {
+        connected: !!ig,
+        igUserId: ig?.igUserId || null,
+        connectedAt: ig?.createdAt || null,
+        webhookUrl: `${backendBase}/api/v1/webhooks/instagram`,
+        webhookVerifyToken: ig?.webhookVerifyToken || 'ig-secret-verify-token',
+      },
+    });
+  } catch (err: any) {
+    return res.json({
+      whatsapp: { connected: false },
+      instagram: { connected: false },
+    });
+  }
+});
+
 function generateStateToken(workspaceId: string, userId: string, channel: string, redirectUri: string): string {
   return jwt.sign(
     { workspaceId, userId, channel, redirectUri, nonce: crypto.randomBytes(16).toString('hex') },
@@ -207,17 +320,22 @@ oauthRouter.get('/whatsapp', async (req: Request, res: Response) => {
     return res.redirect(`${env.FRONTEND_URL}/login?returnTo=/setup`);
   }
 
-  const member = await prisma.workspaceMember.findFirst({
+  let member = await prisma.workspaceMember.findFirst({
     where: { userId: payload.userId, workspaceId: payload.workspaceId },
   });
+  if (!member) {
+    member = await prisma.workspaceMember.findFirst({
+      where: { userId: payload.userId },
+    });
+  }
   if (!member) {
     return res.redirect(`${env.FRONTEND_URL}/login?returnTo=/setup`);
   }
 
-  (req as any).workspaceId = payload.workspaceId;
+  (req as any).workspaceId = member.workspaceId;
   (req as any).userId = payload.userId;
   (req as any).token = token;
-  const workspaceId = (req as any).workspaceId as string;
+  const workspaceId = member.workspaceId;
   const userId = (req as any).userId as string;
   const redirectUri = getOAuthRedirectUri(req, 'whatsapp');
   const state = generateStateToken(workspaceId, userId, 'whatsapp', redirectUri);
@@ -226,14 +344,12 @@ oauthRouter.get('/whatsapp', async (req: Request, res: Response) => {
     'whatsapp_business_management',
   ].join(',');
 
-  const configParam = env.META_CONFIG_ID ? `&config_id=${env.META_CONFIG_ID}` : '';
   const authUrl = `https://www.facebook.com/${env.META_API_VERSION}/dialog/oauth?` +
     `client_id=${env.META_APP_ID}` +
     `&redirect_uri=${encodeURIComponent(redirectUri)}` +
     `&scope=${encodeURIComponent(scopes)}` +
     `&state=${state}` +
-    `&response_type=code` +
-    configParam;
+    `&response_type=code`;
 
   res.redirect(authUrl);
 });
@@ -308,7 +424,8 @@ oauthRouter.get('/whatsapp/callback', async (req: Request, res: Response) => {
       },
     });
 
-    return res.redirect(`${env.FRONTEND_URL}/setup?whatsapp=connected`);
+    const freshToken = generateToken(userId, workspaceId);
+    return res.redirect(`${env.FRONTEND_URL}/setup?whatsapp=connected&token=${encodeURIComponent(freshToken)}`);
   } catch (err: any) {
     console.error('WhatsApp OAuth callback error:', err?.response?.data || err.message);
     return res.redirect(
@@ -337,17 +454,22 @@ oauthRouter.get('/instagram', async (req: Request, res: Response) => {
     return res.redirect(`${env.FRONTEND_URL}/login?returnTo=/setup`);
   }
 
-  const member = await prisma.workspaceMember.findFirst({
+  let member = await prisma.workspaceMember.findFirst({
     where: { userId: payload.userId, workspaceId: payload.workspaceId },
   });
+  if (!member) {
+    member = await prisma.workspaceMember.findFirst({
+      where: { userId: payload.userId },
+    });
+  }
   if (!member) {
     return res.redirect(`${env.FRONTEND_URL}/login?returnTo=/setup`);
   }
 
-  (req as any).workspaceId = payload.workspaceId;
+  (req as any).workspaceId = member.workspaceId;
   (req as any).userId = payload.userId;
   (req as any).token = token;
-  const workspaceId = (req as any).workspaceId as string;
+  const workspaceId = member.workspaceId;
   const userId = (req as any).userId as string;
   const redirectUri = getOAuthRedirectUri(req, 'instagram');
   const state = generateStateToken(workspaceId, userId, 'instagram', redirectUri);
@@ -540,6 +662,22 @@ oauthRouter.delete('/disconnect/:channel', requireAuth, async (req: Request, res
   }
 
   return res.status(400).json({ error: 'Invalid channel' });
+});
+
+// ══════════════════════════════════════════════════════════════════════════
+// META DEAUTHORIZE & DATA DELETION CALLBACKS
+// ══════════════════════════════════════════════════════════════════════════
+
+oauthRouter.post('/deauthorize', (req: Request, res: Response) => {
+  return res.json({ ok: true, message: 'Deauthorized request received' });
+});
+
+oauthRouter.post('/data-deletion', (req: Request, res: Response) => {
+  const confirmationCode = crypto.randomBytes(12).toString('hex');
+  return res.json({
+    url: `${env.FRONTEND_URL}/privacy`,
+    confirmation_code: confirmationCode,
+  });
 });
 
 export default oauthRouter;

@@ -49,7 +49,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void } = {}) {
         <div className="text-xs text-zinc-500">Revenue Workspace</div>
       </div>
 
-      <nav className="flex-1 space-y-1">
+      <nav className="flex-1 overflow-y-auto min-h-0 space-y-1 pr-1">
         {nav.map((item) => {
           const isActive = pathname === item.href;
           const showBadge = item.href === "/inbox" && totalUnread > 0;
@@ -75,7 +75,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void } = {}) {
         })}
       </nav>
 
-      <div className="mt-4 space-y-2">
+      <div className="mt-3 space-y-2 shrink-0 border-t border-zinc-800/60 pt-3">
         <button 
           onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
           className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-zinc-900/50 border border-zinc-800 hover:bg-zinc-800 transition-colors"

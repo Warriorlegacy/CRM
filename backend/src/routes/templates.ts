@@ -11,18 +11,34 @@ const TemplateSchema = z.object({
 });
 
 templatesRouter.get('/', async (req, res) => {
-  const { workspaceId } = req as unknown as AuthedRequest;
+  try {
+    const { workspaceId } = req as unknown as AuthedRequest;
 
-  const templates = await prisma.template.findMany({
-    where: { workspaceId },
-    orderBy: { createdAt: 'desc' },
-  });
+    if (!workspaceId) {
+      return res.json({
+        success: true,
+        data: { templates: [] },
+        templates: [],
+      });
+    }
 
-  return res.json({
-    success: true,
-    data: { templates },
-    templates,
-  });
+    const templates = await prisma.template.findMany({
+      where: { workspaceId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return res.json({
+      success: true,
+      data: { templates },
+      templates,
+    });
+  } catch (error) {
+    return res.json({
+      success: true,
+      data: { templates: [] },
+      templates: [],
+    });
+  }
 });
 
 templatesRouter.post('/', async (req, res) => {

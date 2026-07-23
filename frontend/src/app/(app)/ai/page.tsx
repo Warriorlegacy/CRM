@@ -94,15 +94,15 @@ export default function AiSettingsPage() {
   async function loadData() {
     try {
       const [provs, avail, st, modelsData] = await Promise.all([
-        api.get<{ providers: AiProvider[] }>('/ai/providers'),
-        api.get<{ providers: ProviderOption[] }>('/ai/providers/available'),
-        api.get<AiStatus>('/ai/status'),
-        api.get<{ models: Record<string, { model: string; name: string }[]> }>('/ai/providers/models'),
+        api.get<{ providers: AiProvider[] }>('/ai/providers').catch(() => ({ providers: [] })),
+        api.get<{ providers: ProviderOption[] }>('/ai/providers/available').catch(() => ({ providers: [] })),
+        api.get<AiStatus>('/ai/status').catch(() => null),
+        api.get<{ models: Record<string, { model: string; name: string }[]> }>('/ai/providers/models').catch(() => ({ models: {} })),
       ]);
-      setProviders(provs.providers);
-      setAvailable(avail.providers);
-      setStatus(st);
-      setModels(modelsData.models);
+      setProviders(provs.providers || []);
+      setAvailable(avail.providers || []);
+      if (st) setStatus(st);
+      setModels(modelsData.models || {});
     } catch (err) {
       console.error('Failed to load AI settings:', err);
     } finally {

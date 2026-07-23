@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { api, buildOAuthUrl, establishOAuthContext } from '@/lib/api';
+import { api, API_ORIGIN, buildOAuthUrl, establishOAuthContext } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { 
@@ -235,6 +235,8 @@ export default function SettingsPage() {
           webhookVerifyToken: settings.webhookVerifyToken,
         });
         showSuccess('WhatsApp settings saved');
+        loadOauthStatus();
+        loadWorkspace();
       } else if (activeTab === 'instagram') {
         await api.post('/workspaces/ig-account', {
           igUserId: settings.igUserId,
@@ -242,6 +244,8 @@ export default function SettingsPage() {
           webhookVerifyToken: settings.igWebhookVerifyToken,
         });
         showSuccess('Instagram settings saved');
+        loadOauthStatus();
+        loadWorkspace();
       } else if (activeTab === 'businessHours') {
         await handleSaveBusinessHours();
       } else if (activeTab === 'languages') {
@@ -496,7 +500,7 @@ export default function SettingsPage() {
                     <div>
                       <label className="block text-xs text-zinc-500 mb-1">Callback URL</label>
                       <code className="block w-full truncate rounded-lg bg-zinc-950 px-3 py-2 text-xs text-emerald-300 select-all">
-                        {oauthStatus?.whatsapp.webhookUrl || `${window.location.origin}/webhook`}
+                        {oauthStatus?.whatsapp.webhookUrl || `${API_ORIGIN}/api/v1/webhooks/whatsapp`}
                       </code>
                     </div>
                     <div>

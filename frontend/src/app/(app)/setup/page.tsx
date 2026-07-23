@@ -230,6 +230,11 @@ export default function SetupPage() {
   const [connectingChannel, setConnectingChannel] = useState<string | null>(null);
 
   useEffect(() => {
+    const returnedToken = searchParams.get('token');
+    if (returnedToken) {
+      localStorage.setItem('auth_token', returnedToken);
+    }
+
     const waStatus = searchParams.get('whatsapp');
     const igStatus = searchParams.get('instagram');
     const reason = searchParams.get('reason');
@@ -238,7 +243,10 @@ export default function SetupPage() {
       setMessage({ type: 'success', text: 'WhatsApp connected successfully!' });
       loadConnections();
     } else if (waStatus === 'error') {
-      setMessage({ type: 'error', text: 'WhatsApp connection failed: ' + (reason || 'unknown error') });
+      const errorMsg = reason === 'no_accounts'
+        ? 'No WhatsApp Business Account found. Please ensure your Meta account has a WhatsApp Business Account set up in Meta Business Suite.'
+        : 'WhatsApp connection failed: ' + (reason || 'unknown error');
+      setMessage({ type: 'error', text: errorMsg });
     }
 
     if (igStatus === 'connected') {
@@ -256,11 +264,14 @@ export default function SetupPage() {
   const loadConnections = useCallback(async () => {
     try {
       const [connStatus, provs] = await Promise.all([
-        api.get<ConnectionStatus>('/oauth/status'),
-        api.get<{ providers: AiProvider[] }>('/ai/providers'),
+        api.get<ConnectionStatus>('/oauth/status').catch(() => ({
+          whatsapp: { connected: false, phoneNumberId: null, businessAccountId: null, connectedAt: null },
+          instagram: { connected: false, igUserId: null, connectedAt: null },
+        })),
+        api.get<{ providers: AiProvider[] }>('/ai/providers').catch(() => ({ providers: [] })),
       ]);
       setConnections(connStatus);
-      setProviders(provs.providers);
+      setProviders(provs.providers || []);
     } catch (err) {
       console.error('Failed to load setup data:', err);
     } finally {

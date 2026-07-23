@@ -1,0 +1,9 @@
+{
+  "projectId": "proj_QlBnFLuP5XVYUseL",
+  "name": "Signhify CRM",
+  "slug": "signhify-crm",
+  "context": "default",
+  "defaults": {
+    "environment": "production"
+  }
+}

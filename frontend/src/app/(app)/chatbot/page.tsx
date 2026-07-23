@@ -76,9 +76,10 @@ export default function ChatbotPage() {
   const loadFlows = async () => {
     try {
       const data = await api.get<{ flows: ChatbotFlow[] }>('/chatbot-flows', { headers });
-      setFlows(data.flows);
+      setFlows(Array.isArray(data?.flows) ? data.flows : []);
     } catch (error) {
       console.error('Failed to load flows:', error);
+      setFlows([]);
     } finally {
       setLoading(false);
     }
@@ -308,7 +309,7 @@ export default function ChatbotPage() {
         )}
 
         <div className="flex-1 overflow-y-auto">
-          {flows.length === 0 ? (
+          {(!flows || flows.length === 0) ? (
             <div className="p-8 text-center">
               <Bot className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
               <p className="text-zinc-500 text-sm">No flows yet</p>

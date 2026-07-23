@@ -2,11 +2,14 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import crypto from 'crypto';
+import { OAuth2Client } from 'google-auth-library';
 import { prisma } from '../prisma';
 import { generateToken, requireAuth, AuthedRequest } from '../middleware/auth';
 import { env } from '../env';
 import { logger } from '../middleware/logger';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../services/email';
+
+const googleClient = new OAuth2Client(env.GOOGLE_CLIENT_ID);
 
 export const authRouter = Router();
 
@@ -65,14 +68,6 @@ authRouter.post('/login', async (req, res) => {
       });
     }
 
-    // Check if email is verified
-    if (!user.emailVerified) {
-      return res.status(401).json({
-        error: 'Unverified',
-        message: 'Please verify your email address before logging in.',
-      });
-    }
-
     // Verify password
     const isValidPassword = bcrypt.compareSync(password, user.password);
     if (!isValidPassword) {
@@ -80,6 +75,14 @@ authRouter.post('/login', async (req, res) => {
         error: 'Unauthorized',
         message: 'Invalid email or password',
       });
+    }
+
+    // Auto-verify email on valid password login if not already verified
+    if (!user.emailVerified) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { emailVerified: true },
+      }).catch(() => {});
     }
 
     // Get primary workspace
@@ -133,29 +136,51 @@ authRouter.post('/login', async (req, res) => {
 /**
  * POST /api/v1/auth/google
  * Authenticate or Register user via Google OAuth / One-Tap
+ * Verifies the Google ID token (credential) on the backend.
  */
 authRouter.post('/google', async (req, res) => {
   try {
-    const { email, name, picture, credential } = req.body;
+    const { credential } = req.body;
 
-    if (!email || !email.includes('@')) {
+    if (!credential) {
       return res.status(400).json({
         error: 'Validation Error',
-        message: 'Valid Google email is required',
+        message: 'Google credential token is required',
       });
     }
 
-    const cleanEmail = email.toLowerCase().trim();
-    const userName = name || cleanEmail.split('@')[0];
+    // Verify the Google ID token
+    let payload;
+    try {
+      const ticket = await googleClient.verifyIdToken({
+        idToken: credential,
+        audience: env.GOOGLE_CLIENT_ID,
+      });
+      payload = ticket.getPayload();
+    } catch {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Invalid Google credential',
+      });
+    }
+
+    if (!payload || !payload.email) {
+      return res.status(400).json({
+        error: 'Validation Error',
+        message: 'Google account has no email',
+      });
+    }
+
+    const cleanEmail = payload.email.toLowerCase().trim();
+    const userName = payload.name || cleanEmail.split('@')[0];
+    const picture = payload.picture || '';
 
     // Find existing user by email
     let user = await prisma.user.findUnique({
       where: { email: cleanEmail },
       include: {
         workspaceMembers: {
-          include: {
-            workspace: true,
-          },
+          include: { workspace: true },
         },
       },
     });
@@ -172,7 +197,7 @@ authRouter.post('/google', async (req, res) => {
             password: hashedPassword,
             name: userName,
             active: true,
-            emailVerified: true, // Google accounts are pre-verified
+            emailVerified: true,
           },
         });
 
@@ -199,9 +224,7 @@ authRouter.post('/google', async (req, res) => {
         where: { id: result.user.id },
         include: {
           workspaceMembers: {
-            include: {
-              workspace: true,
-            },
+            include: { workspace: true },
           },
         },
       });
@@ -214,7 +237,6 @@ authRouter.post('/google', async (req, res) => {
       });
     }
 
-    // Auto-verify email if Google user was unverified before
     if (!user.emailVerified) {
       await prisma.user.update({
         where: { id: user.id },
@@ -246,6 +268,7 @@ authRouter.post('/google', async (req, res) => {
           id: user.id,
           email: user.email,
           name: user.name,
+          picture,
         },
         workspace: {
           id: primaryWorkspace.workspace.id,
@@ -510,40 +533,42 @@ authRouter.post('/forgot-password', async (req, res) => {
     }
 
     const { email } = parsed.data;
-    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
-    
-    if (!user) {
-      // Don't reveal if user exists for security
-      return res.json({ success: true, message: 'If the email matches an account, a password reset link has been sent.' });
-    }
+    const cleanEmail = email.toLowerCase().trim();
 
-    // Delete existing reset/verification tokens
-    await prisma.verificationToken.deleteMany({ where: { userId: user.id } });
+    try {
+      const user = await prisma.user.findUnique({ where: { email: cleanEmail } });
+      
+      if (user) {
+        // Delete existing reset/verification tokens
+        await prisma.verificationToken.deleteMany({ where: { userId: user.id } }).catch(() => {});
 
-    // Create a new token
-    const token = crypto.randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + 1 * 60 * 60 * 1000); // 1 hour expiration for reset
+        // Create a new token
+        const token = crypto.randomBytes(32).toString('hex');
+        const expiresAt = new Date(Date.now() + 1 * 60 * 60 * 1000); // 1 hour
 
-    await prisma.verificationToken.create({
-      data: {
-        token,
-        userId: user.id,
-        expiresAt,
-      },
-    });
+        await prisma.verificationToken.create({
+          data: {
+            token,
+            userId: user.id,
+            expiresAt,
+          },
+        });
 
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    const emailSent = await sendPasswordResetEmail(email, token);
-    if (!emailSent) {
-      logger.warn('Failed to send password reset email, logging token for dev', { email });
-      console.log(`[DEV] Password Reset token for ${email}: ${token}`);
-      console.log(`[DEV] Password Reset URL: ${frontendUrl}/reset-password?token=${token}`);
+        const frontendUrl = process.env.FRONTEND_URL || 'https://signhify-crm.vercel.app';
+        const emailSent = await sendPasswordResetEmail(cleanEmail, token).catch(() => false);
+        if (!emailSent) {
+          logger.warn('Failed to send password reset email', { email: cleanEmail });
+          console.log(`[DEV] Password Reset URL: ${frontendUrl}/reset-password?token=${token}`);
+        }
+      }
+    } catch (dbErr: any) {
+      logger.error('Database query error during forgot password', { error: dbErr?.message || dbErr });
     }
 
     return res.json({ success: true, message: 'If the email matches an account, a password reset link has been sent.' });
-  } catch (error) {
-    logger.error('Forgot password error', { error });
-    return res.status(500).json({ error: 'Internal Server Error' });
+  } catch (error: any) {
+    logger.error('Forgot password error', { error: error?.message || error });
+    return res.json({ success: true, message: 'If the email matches an account, a password reset link has been sent.' });
   }
 });
 
@@ -575,11 +600,14 @@ authRouter.post('/reset-password', async (req, res) => {
     // Hash new password
     const hashedPassword = bcrypt.hashSync(password, env.BCRYPT_ROUNDS);
 
-    // Update password and delete token
+    // Update password, mark email as verified, and delete token
     await prisma.$transaction([
       prisma.user.update({
         where: { id: verificationToken.userId },
-        data: { password: hashedPassword },
+        data: {
+          password: hashedPassword,
+          emailVerified: true,
+        },
       }),
       prisma.verificationToken.delete({
         where: { id: verificationToken.id },

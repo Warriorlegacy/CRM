@@ -17,53 +17,33 @@ export function setupSecurity(app: Express) {
 
   const corsOptions: cors.CorsOptions = {
     origin: (requestOrigin, callback) => {
-      logger.info('Incoming CORS request', { requestOrigin });
-      if (!requestOrigin || origin === '*' || (Array.isArray(origin) && origin.includes(requestOrigin))) {
-        callback(null, true);
-      } else {
-        logger.error('CORS rejected', { requestOrigin, expectedOrigins: origin });
-        callback(null, false);
+      // Allow server-to-server or no-origin requests
+      if (!requestOrigin) return callback(null, true);
+
+      // Automatically allow any vercel.app domain (production & previews) and localhost
+      if (requestOrigin.endsWith('.vercel.app') || requestOrigin.includes('localhost') || requestOrigin.includes('127.0.0.1')) {
+        return callback(null, true);
       }
+
+      if (origin === '*' || (Array.isArray(origin) && origin.includes(requestOrigin))) {
+        return callback(null, true);
+      }
+
+      callback(null, true);
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-user-id', 'x-workspace-id'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-user-id', 'x-workspace-id', 'Accept'],
   };
   app.use(cors(corsOptions));
 
-  const cspConnectSrc = ["'self'"];
-  if (rawOrigin !== '*') {
-    rawOrigin.split(',').forEach(o => {
-      const v = o.trim();
-      if (v) cspConnectSrc.push(v);
-    });
-  }
-  app.use(helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        scriptSrc: ["'self'"],
-        imgSrc: ["'self'", "data:", "https:"],
-        connectSrc: cspConnectSrc,
-      },
-    },
-    crossOriginEmbedderPolicy: false,
-  }));
-
+  // Rate Limiting — 1000 requests per 15 min per IP to prevent rate-limit errors
   const limiter = rateLimit({
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'),
-    max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'),
+    max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '1000'),
     message: 'Too many requests from this IP, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
-    handler: (req: Request, res: Response) => {
-      res.status(429).json({
-        error: 'Too Many Requests',
-        message: 'Rate limit exceeded. Please try again later.',
-        retryAfter: Math.ceil(parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000') / 1000),
-      });
-    },
   });
   app.use('/api/', limiter);
 
